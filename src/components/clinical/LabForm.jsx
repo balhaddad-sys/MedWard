@@ -338,15 +338,21 @@ export default function LabForm({ patientId, patientContext = null, onClose }) {
       try {
         console.log('[LabForm] Saving:', lab.testName, lab.value);
         const range = LAB_RANGES[lab.testName] || {};
-        await labService.add(patientId, {
+
+        // Build lab data - only include defined values (Firestore rejects undefined)
+        const labData = {
           testName: lab.testName,
           value: lab.value,
           unit: lab.unit || range.unit || '',
-          normalMin: range.min,
-          normalMax: range.max,
           date: Timestamp.fromDate(new Date()),
           source: 'ai-extracted',
-        });
+        };
+
+        // Only add normalMin/Max if they exist
+        if (range.min !== undefined) labData.normalMin = range.min;
+        if (range.max !== undefined) labData.normalMax = range.max;
+
+        await labService.add(patientId, labData);
         savedCount++;
         console.log('[LabForm] Saved:', lab.testName);
       } catch (err) {
