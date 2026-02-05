@@ -14,6 +14,21 @@ function getClient(apiKey) {
   return new Anthropic({ apiKey });
 }
 
+// Shared: Detect image media type from base64 data via magic bytes
+function detectMediaType(base64Data) {
+  // First few bytes of base64 encode the file signature (magic bytes)
+  // JPEG: FF D8 FF → base64 "/9j/"
+  // PNG:  89 50 4E 47 → base64 "iVBORw0KGgo"
+  // GIF:  47 49 46 38 → base64 "R0lGOD"
+  // WebP: 52 49 46 46 → base64 "UklGR"
+  if (base64Data.startsWith('/9j/')) return 'image/jpeg';
+  if (base64Data.startsWith('iVBORw0KGgo')) return 'image/png';
+  if (base64Data.startsWith('R0lGOD')) return 'image/gif';
+  if (base64Data.startsWith('UklGR')) return 'image/webp';
+  // Default to jpeg for backwards compatibility
+  return 'image/jpeg';
+}
+
 // Shared: Auth check
 function requireAuth(context) {
   if (!context.auth) {
@@ -210,6 +225,7 @@ OUTPUT:
 3. Recommended actions
 4. ${DISCLAIMER}`;
 
+    const mediaType = detectMediaType(imageBase64);
     const msg = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 3000,
@@ -220,7 +236,7 @@ OUTPUT:
           content: [
             {
               type: 'image',
-              source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 },
+              source: { type: 'base64', media_type: mediaType, data: imageBase64 },
             },
             { type: 'text', text: 'Analyze this lab report.' },
           ],
