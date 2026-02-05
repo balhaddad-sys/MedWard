@@ -1,4 +1,5 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -92,7 +93,7 @@ ${OUTPUT_FORMAT_INSTRUCTIONS}`;
     });
 
     const response = msg.content[0].text;
-    await logAI(auth.uid, patientContext?.id || null, 'clinical-query', question, response, msg.model);
+    logAI(auth.uid, patientContext?.id || null, 'clinical-query', question, response, msg.model).catch(console.error);
     return { response, model: msg.model };
   }
 );
@@ -120,7 +121,7 @@ ${OUTPUT_FORMAT_INSTRUCTIONS}`;
     });
 
     const response = msg.content[0].text;
-    await logAI(auth.uid, null, 'oncall', scenario, response, msg.model);
+    logAI(auth.uid, null, 'oncall', scenario, response, msg.model).catch(console.error);
     return { response, model: msg.model };
   }
 );
@@ -157,7 +158,7 @@ ${OUTPUT_FORMAT_INSTRUCTIONS}`;
     });
 
     const response = msg.content[0].text;
-    await logAI(auth.uid, patientContext?.id || null, 'antibiotics', infection, response, msg.model);
+    logAI(auth.uid, patientContext?.id || null, 'antibiotics', infection, response, msg.model).catch(console.error);
     return { response, model: msg.model };
   }
 );
@@ -186,7 +187,7 @@ ${OUTPUT_FORMAT_INSTRUCTIONS}`;
     });
 
     const response = msg.content[0].text;
-    await logAI(auth.uid, null, 'drug-info', drugName, response, msg.model);
+    logAI(auth.uid, null, 'drug-info', drugName, response, msg.model).catch(console.error);
     return { response, model: msg.model };
   }
 );
@@ -228,7 +229,7 @@ OUTPUT:
     });
 
     const response = msg.content[0].text;
-    await logAI(auth.uid, patientContext?.id || null, 'lab-analysis', '[image]', response, msg.model);
+    logAI(auth.uid, patientContext?.id || null, 'lab-analysis', '[image]', response, msg.model).catch(console.error);
     return { response, model: msg.model };
   }
 );
@@ -290,7 +291,50 @@ TONE: Clinical. Urgent where needed. Zero fluff. Every word must earn its place.
     });
 
     const response = msg.content[0].text;
-    await logAI(auth.uid, patientData.id || null, 'sbar', 'SBAR generation', response, msg.model);
+    logAI(auth.uid, patientData.id || null, 'sbar', 'SBAR generation', response, msg.model).catch(console.error);
     return { response, model: msg.model };
+  }
+);
+
+// ─── 7. Subcollection Cleanup on Patient Delete ────────────────────────────
+// Firestore does not cascade-delete subcollections. This trigger cleans them up.
+exports.onPatientDeleted = onDocumentDeleted(
+  'patients/{patientId}',
+  async (event) => {
+    const patientId = event.params.patientId;
+    const subcollections = ['labs', 'notes', 'meds', 'aiLogs', 'events'];
+
+    const deletePromises = subcollections.map(async (sub) => {
+      const snapshot = await db
+        .collection('patients')
+        .doc(patientId)
+        .collection(sub)
+        .limit(500)
+        .get();
+
+      if (snapshot.empty) return;
+
+      const batch = db.batch();
+      snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+
+      // If there were 500 docs, there may be more — recurse
+      if (snapshot.size === 500) {
+        const remaining = await db
+          .collection('patients')
+          .doc(patientId)
+          .collection(sub)
+          .limit(500)
+          .get();
+        if (!remaining.empty) {
+          const batch2 = db.batch();
+          remaining.docs.forEach((doc) => batch2.delete(doc.ref));
+          await batch2.commit();
+        }
+      }
+    });
+
+    await Promise.all(deletePromises);
+    console.log(`Cleaned up subcollections for patient ${patientId}`);
   }
 );
