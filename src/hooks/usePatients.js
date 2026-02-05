@@ -37,7 +37,10 @@ export function usePatients(wardId = null, realtime = true) {
     if (realtime) {
       setLoading(true);
       unsubscribe = patientService.subscribeToWard(wardId, (data) => {
-        setPatients(data);
+        setPatients(data?.patients || []);
+        if (data?.error) {
+          setError(data.error);
+        }
         setLoading(false);
       });
     } else {
@@ -269,7 +272,10 @@ export function usePatient(patientId) {
     setLoading(true);
     
     const unsubscribe = patientService.subscribeToPatient(patientId, (data) => {
-      setPatient(data);
+      setPatient(data?.patient || null);
+      if (data?.error) {
+        setError(data.error);
+      }
       setLoading(false);
     });
 
