@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+/* MedWard Pro Design Tokens */
+@theme {
+  --color-clinical-white: #FAFBFC;
+  --color-trust-blue: #1E3A5F;
+  --color-trust-blue-light: #2D5F8A;
+  --color-trust-blue-50: #EBF2FA;
+  --color-critical-red: #DC2626;
+  --color-critical-red-bg: #FEF2F2;
+  --color-critical-red-border: #FECACA;
+  --color-guarded-amber: #D97706;
+  --color-guarded-amber-bg: #FFFBEB;
+  --color-guarded-amber-border: #FDE68A;
+  --color-stable-green: #059669;
+  --color-stable-green-bg: #ECFDF5;
+  --color-stable-green-border: #A7F3D0;
+  --color-info-blue: #2563EB;
+  --color-info-blue-bg: #EFF6FF;
+  --color-neutral-50: #F8FAFC;
+  --color-neutral-100: #F1F5F9;
+  --color-neutral-200: #E2E8F0;
+  --color-neutral-300: #CBD5E1;
+  --color-neutral-400: #94A3B8;
+  --color-neutral-500: #64748B;
+  --color-neutral-600: #475569;
+  --color-neutral-700: #334155;
+  --color-neutral-800: #1E293B;
+  --color-neutral-900: #0F172A;
+}
+
+/* Base resets */
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: var(--color-clinical-white);
+  color: var(--color-neutral-800);
+  -webkit-font-smoothing: antialiased;
+}
