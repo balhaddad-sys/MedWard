@@ -12,8 +12,8 @@ dist
 dist-ssr
 *.local
 
-# Environment
-.env
+# Environment (keep .env.local for truly secret vars)
+# .env is committed — Firebase client config is public by design
 
 # Editor directories and files
 .vscode/*
