@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, AlertTriangle } from 'lucide-react';
 import usePatients from '../hooks/usePatients';
 import Spinner from '../components/ui/Spinner';
 import PatientCard from '../components/patients/PatientCard';
@@ -10,7 +10,7 @@ import { useState } from 'react';
 export default function WardPage() {
   const { wardId } = useParams();
   const navigate = useNavigate();
-  const { patients, loading } = usePatients(decodeURIComponent(wardId));
+  const { patients, loading, error } = usePatients(decodeURIComponent(wardId));
   const [showAddPatient, setShowAddPatient] = useState(false);
 
   if (loading) return <Spinner size="lg" />;
@@ -36,6 +36,18 @@ export default function WardPage() {
         </button>
       </div>
 
+      {error && (
+        <Card className="bg-red-50 border-red-200 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-800">Failed to load patients</p>
+              <p className="text-xs text-red-600 mt-1">{error}</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="space-y-2">
         {patients.map((p) => (
           <PatientCard
@@ -44,7 +56,7 @@ export default function WardPage() {
             onClick={() => navigate(`/patient/${p.id}`)}
           />
         ))}
-        {patients.length === 0 && (
+        {!error && patients.length === 0 && (
           <Card className="text-center py-8 text-neutral-400">
             No patients in this ward.
           </Card>
