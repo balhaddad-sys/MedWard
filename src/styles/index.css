@@ -92,6 +92,29 @@
   --z-modal: 1000;
   --z-toast: 2000;
   --z-tooltip: 3000;
+
+  /* Aliases used by components */
+  --nhs-blue: var(--primary);
+  --nhs-dark-blue: var(--primary-dark);
+  --nhs-blue-light: var(--primary-light);
+  --bg-primary: var(--bg-app);
+  --bg-secondary: var(--bg-surface);
+  --bg-tertiary: var(--bg-elevated);
+  --text-primary: var(--text-main);
+  --text-tertiary: var(--text-muted);
+  --border-primary: var(--border);
+  --border-secondary: var(--border-light);
+  --status-danger: var(--danger);
+  --status-danger-light: var(--danger-bg);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-text-primary: var(--text-main);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-muted);
+  --color-bg-primary: var(--bg-app);
+  --color-bg-secondary: var(--bg-surface);
+  --color-bg-tertiary: var(--bg-elevated);
+  --color-border: var(--border);
 }
 
 /* Dark Mode Overrides */
