@@ -20,8 +20,12 @@ export function usePatients(wardId = null, realtime = true) {
     setError(null);
     
     try {
-      const data = await patientService.getAll(wardId);
-      setPatients(data);
+      const { patients: list, error: fetchError } = await patientService.getAll(wardId);
+      if (fetchError) {
+        setError(fetchError);
+      } else {
+        setPatients(list);
+      }
     } catch (err) {
       setError(err.message || 'Failed to fetch patients');
       console.error('Fetch patients error:', err);
@@ -36,8 +40,12 @@ export function usePatients(wardId = null, realtime = true) {
 
     if (realtime) {
       setLoading(true);
-      unsubscribe = patientService.subscribeToWard(wardId, (data) => {
-        setPatients(data);
+      unsubscribe = patientService.subscribeToWard(wardId, ({ patients: list, error: subError }) => {
+        if (subError) {
+          setError(subError);
+        } else {
+          setPatients(list);
+        }
         setLoading(false);
       });
     } else {
@@ -54,8 +62,10 @@ export function usePatients(wardId = null, realtime = true) {
   // Fetch stats
   const fetchStats = useCallback(async () => {
     try {
-      const data = await patientService.getStats();
-      setStats(data);
+      const { stats: data, error: statsError } = await patientService.getStats();
+      if (!statsError) {
+        setStats(data);
+      }
     } catch (err) {
       console.error('Fetch stats error:', err);
     }
@@ -69,19 +79,24 @@ export function usePatients(wardId = null, realtime = true) {
   // Add patient
   const addPatient = useCallback(async (patientData) => {
     setError(null);
-    
+
     try {
-      const result = await patientService.create(patientData);
-      
-      // Optimistic update if not realtime
-      if (!realtime) {
-        setPatients(prev => [result, ...prev]);
+      const { patient, error: createError } = await patientService.create(patientData);
+
+      if (createError) {
+        setError(createError);
+        return { success: false, error: createError };
       }
-      
+
+      // Optimistic update if not realtime
+      if (!realtime && patient) {
+        setPatients(prev => [patient, ...prev]);
+      }
+
       // Refresh stats
       fetchStats();
-      
-      return { success: true, patient: result };
+
+      return { success: true, patient };
     } catch (err) {
       setError(err.message || 'Failed to add patient');
       return { success: false, error: err.message };
@@ -139,10 +154,11 @@ export function usePatients(wardId = null, realtime = true) {
     // First check local cache
     const cached = patients.find(p => p.id === id);
     if (cached) return cached;
-    
+
     // Otherwise fetch from server
     try {
-      return await patientService.getById(id);
+      const { patient } = await patientService.getById(id);
+      return patient;
     } catch (err) {
       console.error('Get patient error:', err);
       return null;
@@ -152,9 +168,10 @@ export function usePatients(wardId = null, realtime = true) {
   // Search patients
   const searchPatients = useCallback(async (searchTerm) => {
     if (!searchTerm) return patients;
-    
+
     try {
-      return await patientService.search(searchTerm);
+      const { patients: results } = await patientService.search(searchTerm);
+      return results;
     } catch (err) {
       console.error('Search error:', err);
       return [];
@@ -268,8 +285,12 @@ export function usePatient(patientId) {
 
     setLoading(true);
     
-    const unsubscribe = patientService.subscribeToPatient(patientId, (data) => {
-      setPatient(data);
+    const unsubscribe = patientService.subscribeToPatient(patientId, ({ patient: p, error: subError }) => {
+      if (subError) {
+        setError(subError);
+      } else {
+        setPatient(p);
+      }
       setLoading(false);
     });
 
