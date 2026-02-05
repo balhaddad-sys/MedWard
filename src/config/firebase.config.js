@@ -19,19 +19,34 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Check if Firebase config is present
+export const configMissing = !firebaseConfig.apiKey || !firebaseConfig.projectId;
 
-// Initialize services
-const auth = getAuth(app);
-const db = getFirestore(app);
-const functions = getFunctions(app);
-const storage = getStorage(app);
+let app = null;
+let auth = null;
+let db = null;
+let functions = null;
+let storage = null;
+
+if (!configMissing) {
+  // Initialize Firebase
+  app = initializeApp(firebaseConfig);
+
+  // Initialize services
+  auth = getAuth(app);
+  db = getFirestore(app);
+  functions = getFunctions(app);
+  storage = getStorage(app);
+} else {
+  console.error(
+    'Firebase config missing. Create a .env file with VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, etc.'
+  );
+}
 
 // Connect to emulators in development
 const useEmulators = import.meta.env.VITE_USE_EMULATORS === 'true';
 
-if (useEmulators) {
+if (useEmulators && !configMissing) {
   const host = import.meta.env.VITE_EMULATOR_HOST || 'localhost';
   
   try {
