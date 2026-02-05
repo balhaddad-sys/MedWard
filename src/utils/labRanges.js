@@ -1,0 +1,17 @@
+export const LAB_RANGES = {
+  Hemoglobin:   { min: 12, max: 17, criticalMin: 7, criticalMax: 20, unit: 'g/dL' },
+  WBC:          { min: 4, max: 11, criticalMin: 1, criticalMax: 30, unit: '×10⁹/L' },
+  Platelets:    { min: 150, max: 400, criticalMin: 50, criticalMax: 1000, unit: '×10⁹/L' },
+  Sodium:       { min: 135, max: 145, criticalMin: 120, criticalMax: 160, unit: 'mmol/L' },
+  Potassium:    { min: 3.5, max: 5.0, criticalMin: 2.5, criticalMax: 6.5, unit: 'mmol/L' },
+  Creatinine:   { min: 60, max: 110, criticalMin: 30, criticalMax: 800, unit: 'µmol/L' },
+  Urea:         { min: 2.5, max: 7.8, criticalMin: 1, criticalMax: 50, unit: 'mmol/L' },
+  ALT:          { min: 0, max: 40, criticalMin: 0, criticalMax: 1000, unit: 'U/L' },
+  AST:          { min: 0, max: 40, criticalMin: 0, criticalMax: 1000, unit: 'U/L' },
+  Bilirubin:    { min: 0, max: 21, criticalMin: 0, criticalMax: 300, unit: 'µmol/L' },
+  CRP:          { min: 0, max: 5, criticalMin: 0, criticalMax: 500, unit: 'mg/L' },
+  Glucose:      { min: 4.0, max: 7.8, criticalMin: 2.2, criticalMax: 30, unit: 'mmol/L' },
+  Troponin:     { min: 0, max: 0.04, criticalMin: 0, criticalMax: 100, unit: 'ng/mL' },
+  Lactate:      { min: 0.5, max: 2.0, criticalMin: 0, criticalMax: 10, unit: 'mmol/L' },
+  INR:          { min: 0.8, max: 1.2, criticalMin: 0, criticalMax: 10, unit: '' },
+};

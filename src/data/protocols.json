@@ -1,0 +1,131 @@
+[
+  {
+    "id": "sepsis",
+    "title": "Sepsis Protocol",
+    "overview": "Early recognition and treatment of sepsis is critical. Apply the Sepsis-3 criteria and initiate the Hour-1 bundle.",
+    "steps": [
+      "Recognize: qSOFA >= 2 (RR >= 22, altered mentation, SBP <= 100)",
+      "Blood cultures x2 BEFORE antibiotics",
+      "Broad-spectrum antibiotics within 1 hour",
+      "Fluid resuscitation: 30 mL/kg crystalloid for hypotension or lactate >= 4",
+      "Measure lactate — repeat within 2-4 hours if > 2 mmol/L",
+      "Vasopressors (noradrenaline) if MAP < 65 despite fluids"
+    ],
+    "doses": [
+      "Piperacillin-Tazobactam 4.5g IV Q8H",
+      "OR Meropenem 1g IV Q8H (if high risk)",
+      "Add Vancomycin 25-30 mg/kg IV if MRSA risk",
+      "Noradrenaline 0.1-0.5 mcg/kg/min via central line"
+    ],
+    "redFlags": [
+      "Lactate > 4 mmol/L",
+      "SBP < 90 despite 30 mL/kg fluids",
+      "New organ dysfunction (AKI, coagulopathy, liver failure)",
+      "Altered consciousness"
+    ],
+    "references": ["Surviving Sepsis Campaign 2021", "NICE Sepsis Guidelines 2024"]
+  },
+  {
+    "id": "acs",
+    "title": "Acute Coronary Syndrome",
+    "overview": "Rapid assessment and treatment of suspected ACS. STEMI requires emergent reperfusion.",
+    "steps": [
+      "12-lead ECG within 10 minutes of arrival",
+      "High-sensitivity troponin at 0 and 3 hours",
+      "Aspirin 300mg STAT (chewed)",
+      "Morphine 2-5mg IV for pain if needed",
+      "GTN sublingual if SBP > 90",
+      "If STEMI: activate cath lab (door-to-balloon < 90 min)"
+    ],
+    "doses": [
+      "Aspirin 300mg PO STAT, then 75mg OD",
+      "Ticagrelor 180mg STAT, then 90mg BD",
+      "Fondaparinux 2.5mg SC OD (NSTEMI)",
+      "Enoxaparin 1mg/kg SC BD (if PCI planned)"
+    ],
+    "redFlags": [
+      "ST elevation in 2+ contiguous leads",
+      "New LBBB",
+      "Cardiogenic shock (SBP < 90 + cool peripheries)",
+      "Ventricular arrhythmias"
+    ],
+    "references": ["ESC ACS Guidelines 2023", "NICE ACS Guidelines 2024"]
+  },
+  {
+    "id": "hyperkalemia",
+    "title": "Hyperkalemia Protocol",
+    "overview": "K+ > 6.0 mmol/L or any level with ECG changes requires urgent treatment.",
+    "steps": [
+      "12-lead ECG — look for peaked T waves, wide QRS, sine wave",
+      "If ECG changes: Calcium gluconate 10% 10mL IV over 2 min",
+      "Insulin-dextrose: 10 units Actrapid in 50mL 50% dextrose over 15-30 min",
+      "Salbutamol 10-20mg nebulised",
+      "Calcium resonium 15g PO or 30g PR",
+      "Consider sodium bicarbonate if acidotic (pH < 7.2)",
+      "Recheck K+ at 1, 2, and 4 hours"
+    ],
+    "doses": [
+      "Calcium gluconate 10% 10mL (= 2.2 mmol Ca) IV over 2 min",
+      "Actrapid insulin 10 units + 50mL 50% glucose IV over 15-30 min",
+      "Salbutamol 10-20mg NEB",
+      "Calcium resonium 15g PO QDS or 30g PR"
+    ],
+    "redFlags": [
+      "K+ > 7.0 mmol/L",
+      "ECG changes (any)",
+      "Cardiac arrest / peri-arrest",
+      "Acute kidney injury with oliguria"
+    ],
+    "references": ["UK Renal Association 2024", "Resuscitation Council UK 2024"]
+  },
+  {
+    "id": "dka",
+    "title": "Diabetic Ketoacidosis (DKA)",
+    "overview": "DKA: glucose > 11 mmol/L + pH < 7.3 or bicarb < 15 + ketonemia > 3 mmol/L.",
+    "steps": [
+      "IV access x2, bloods (VBG, FBC, U&E, glucose, ketones)",
+      "Fluid resuscitation: 0.9% NaCl 1L over 1hr, then reassess",
+      "Fixed-rate insulin infusion: 0.1 units/kg/hr",
+      "Potassium replacement as per protocol",
+      "Monitor glucose and ketones hourly",
+      "Continue long-acting insulin if already on it"
+    ],
+    "doses": [
+      "0.9% NaCl: 1L/hr x 1hr, then 500mL/hr x 4hr, then 250mL/hr",
+      "Actrapid 50 units in 50mL 0.9% NaCl at 0.1 units/kg/hr",
+      "KCl: if K+ < 3.5 give 40 mmol/L, if 3.5-5.5 give 20 mmol/L, if > 5.5 hold"
+    ],
+    "redFlags": [
+      "pH < 7.0",
+      "K+ < 3.0 or > 6.0 mmol/L",
+      "GCS < 12",
+      "Cerebral edema (especially in young patients)"
+    ],
+    "references": ["JBDS DKA Guidelines 2023", "ADA Standards of Care 2024"]
+  },
+  {
+    "id": "status-epilepticus",
+    "title": "Status Epilepticus",
+    "overview": "Continuous seizure > 5 min or >= 2 seizures without recovery. Time-critical emergency.",
+    "steps": [
+      "0-5 min: ABC, high-flow O2, check glucose, IV access",
+      "5-10 min: Lorazepam 4mg IV (or diazepam 10mg PR)",
+      "10-20 min: Repeat lorazepam 4mg IV if seizure continues",
+      "20-40 min: Phenytoin 20mg/kg IV at max 50mg/min OR levetiracetam 60mg/kg IV",
+      "> 40 min: RSI and thiopentone/propofol — call ICU"
+    ],
+    "doses": [
+      "Lorazepam 0.1 mg/kg IV (max 4mg), repeat once at 10 min",
+      "Phenytoin 20 mg/kg IV at max 50 mg/min (with cardiac monitoring)",
+      "Levetiracetam 60 mg/kg IV (max 4500mg) over 10 min",
+      "Midazolam 10mg buccal if no IV access"
+    ],
+    "redFlags": [
+      "Seizure > 30 min (refractory status)",
+      "Hyperthermia > 40°C",
+      "Rhabdomyolysis (CK > 10,000)",
+      "Hemodynamic instability"
+    ],
+    "references": ["NICE Status Epilepticus 2024", "AAN Guidelines 2024"]
+  }
+]
