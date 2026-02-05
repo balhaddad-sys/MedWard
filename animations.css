@@ -1,0 +1,583 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MEDWARD PRO - ANIMATIONS & TRANSITIONS
+   Keyframes, Loading States, Motion
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   01. KEYFRAME ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.1); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.1); }
+  70% { transform: scale(1); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   02. LOADING STATES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Spinner */
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.spinner.sm {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+}
+
+.spinner.lg {
+  width: 64px;
+  height: 64px;
+  border-width: 4px;
+}
+
+.spinner.white {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  z-index: var(--z-modal);
+}
+
+.loading-text {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-hover) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-xs);
+}
+
+.skeleton-text {
+  height: 1em;
+  margin-bottom: 0.5em;
+  border-radius: 4px;
+}
+
+.skeleton-text:last-child {
+  width: 60%;
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.skeleton-card {
+  height: 100px;
+  border-radius: var(--radius);
+}
+
+.skeleton-button {
+  height: 44px;
+  border-radius: var(--radius-sm);
+}
+
+/* Dots Loading */
+.loading-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  animation: bounce 1.4s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(1) { animation-delay: 0s; }
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.progress-bar.indeterminate .progress-bar-fill {
+  width: 30%;
+  animation: indeterminate 1.5s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   03. PAGE TRANSITIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.page-enter {
+  animation: slideInRight 0.3s ease forwards;
+}
+
+.page-exit {
+  animation: fadeOut 0.2s ease forwards;
+}
+
+.page-enter-back {
+  animation: slideInLeft 0.3s ease forwards;
+}
+
+/* Fade transitions */
+.fade-enter {
+  opacity: 0;
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.fade-exit {
+  opacity: 1;
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Scale transitions */
+.scale-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.scale-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: all 0.3s ease;
+}
+
+.scale-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.scale-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.3s ease;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   04. INTERACTIVE ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Button Press Effect */
+.btn-press {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-press::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  opacity: 0;
+  border-radius: inherit;
+  transition: all 0.3s ease;
+}
+
+.btn-press:active::after {
+  transform: scale(1);
+  opacity: 1;
+  transition: 0s;
+}
+
+/* Ripple Effect */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ripple:active::before {
+  animation: ripple 0.6s ease-out;
+}
+
+/* Hover Lift */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Hover Scale */
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Hover Glow */
+.hover-glow {
+  transition: box-shadow 0.2s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(0, 94, 184, 0.3);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   05. STATUS ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Critical Pulse */
+.critical-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Success Check Animation */
+.success-check {
+  animation: scaleIn 0.3s ease forwards;
+}
+
+/* Error Shake */
+.error-shake {
+  animation: shake 0.3s ease;
+}
+
+/* Warning Blink */
+.warning-blink {
+  animation: blink 1s ease-in-out infinite;
+}
+
+/* Heartbeat for vitals */
+.heartbeat {
+  animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+/* Alert badge pulse */
+.alert-pulse {
+  position: relative;
+}
+
+.alert-pulse::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  animation: alertPulse 2s ease-in-out infinite;
+}
+
+@keyframes alertPulse {
+  0%, 100% { transform: scale(1); opacity: 0; }
+  50% { transform: scale(1.1); opacity: 0.3; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   06. MICRO-INTERACTIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Checkbox tick animation */
+.checkbox-animate {
+  transition: all 0.2s ease;
+}
+
+.checkbox-animate:checked {
+  animation: scaleIn 0.2s ease;
+}
+
+/* Toggle switch */
+.toggle-switch {
+  width: 48px;
+  height: 26px;
+  background: var(--border);
+  border-radius: 13px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.toggle-switch.active {
+  background: var(--primary);
+}
+
+.toggle-switch.active::after {
+  transform: translateX(22px);
+}
+
+/* Expand/Collapse */
+.expandable {
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.expandable.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+.expandable.expanded {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+/* Chevron rotation */
+.chevron-rotate {
+  transition: transform 0.3s ease;
+}
+
+.chevron-rotate.open {
+  transform: rotate(180deg);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   07. ENTRANCE ANIMATIONS (Staggered)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.stagger-enter > * {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: slideInUp 0.3s ease forwards;
+}
+
+.stagger-enter > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-enter > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-enter > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-enter > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-enter > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-enter > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-enter > *:nth-child(7) { animation-delay: 0.35s; }
+.stagger-enter > *:nth-child(8) { animation-delay: 0.4s; }
+.stagger-enter > *:nth-child(9) { animation-delay: 0.45s; }
+.stagger-enter > *:nth-child(10) { animation-delay: 0.5s; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   08. REDUCED MOTION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .spinner {
+    animation: none;
+    border-color: var(--primary);
+  }
+  
+  .loading-dots span {
+    animation: none;
+  }
+  
+  .skeleton {
+    animation: none;
+    background: var(--bg-elevated);
+  }
+}
