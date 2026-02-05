@@ -9,11 +9,17 @@ export default function LoginPage() {
   const signingIn = useAuthStore((s) => s.signingIn);
   const clearError = useAuthStore((s) => s.clearError);
 
+  // Debug: Show current auth state on page
+  const debugInfo = `loading: ${loading}, user: ${user?.email || 'null'}, signingIn: ${signingIn}`;
+
   // If already logged in, redirect to dashboard
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-clinical-white">
-        <div className="animate-spin w-8 h-8 border-2 border-trust-blue border-t-transparent rounded-full" />
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-trust-blue border-t-transparent rounded-full mx-auto" />
+          <p className="text-xs text-neutral-400 mt-4">{debugInfo}</p>
+        </div>
       </div>
     );
   }
@@ -34,7 +40,7 @@ export default function LoginPage() {
         </div>
 
         {error && (
-          <div className="bg-critical-red-bg border border-critical-red-border text-critical-red text-sm p-3 rounded-lg mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg mb-4">
             <p>{error}</p>
             <button
               onClick={clearError}
@@ -70,7 +76,12 @@ export default function LoginPage() {
           )}
         </button>
 
-        <p className="text-center text-xs text-neutral-400 mt-8">
+        {/* Debug info */}
+        <p className="text-center text-xs text-neutral-400 mt-4 font-mono">
+          {debugInfo}
+        </p>
+
+        <p className="text-center text-xs text-neutral-400 mt-4">
           For educational purposes only. Not a certified medical device.
         </p>
       </div>
