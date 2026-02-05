@@ -12,7 +12,7 @@ import { useState } from 'react';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { patients, criticalPatients, watchPatients, stablePatients, loading } = usePatients();
+  const { patients, criticalPatients, watchPatients, stablePatients, loading, error } = usePatients();
   const wards = useWardStore((s) => s.wards);
   const currentMode = useUIStore((s) => s.currentMode);
   const [showAddPatient, setShowAddPatient] = useState(false);
@@ -44,6 +44,19 @@ export default function DashboardPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Firestore query error */}
+      {error && (
+        <Card className="bg-red-50 border-red-200 p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-800">Failed to load patients</p>
+              <p className="text-xs text-red-600 mt-1">{error}</p>
+            </div>
+          </div>
+        </Card>
       )}
 
       {/* Ward Tiles */}
