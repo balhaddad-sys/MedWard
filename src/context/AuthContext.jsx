@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { Navigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 
 /**
@@ -256,7 +257,7 @@ export function RequireAuth({ children, fallback = null }) {
   }
 
   if (!isAuthenticated) {
-    return fallback;
+    return fallback || <Navigate to="/login" replace />;
   }
 
   return children;
