@@ -1,10 +1,26 @@
+import { Navigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 
 export default function LoginPage() {
+  const user = useAuthStore((s) => s.user);
+  const loading = useAuthStore((s) => s.loading);
   const login = useAuthStore((s) => s.login);
   const error = useAuthStore((s) => s.error);
   const signingIn = useAuthStore((s) => s.signingIn);
   const clearError = useAuthStore((s) => s.clearError);
+
+  // If already logged in, redirect to dashboard
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-clinical-white">
+        <div className="animate-spin w-8 h-8 border-2 border-trust-blue border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-clinical-white">
