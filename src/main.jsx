@@ -31,12 +31,3 @@ window.addEventListener('load', () => {
     }, 300);
   }
 });
-
-// Register service worker for PWA (production only)
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Service worker registration failed
-    });
-  });
-}
