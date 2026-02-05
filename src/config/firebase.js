@@ -8,9 +8,10 @@ import {
   onAuthStateChanged,
 } from 'firebase/auth';
 import {
-  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   connectFirestoreEmulator,
-  enableIndexedDbPersistence,
 } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
@@ -26,19 +27,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+});
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
 export const googleProvider = new GoogleAuthProvider();
-
-// Offline persistence — call once at app init
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Persistence failed: multiple tabs open');
-  } else if (err.code === 'unimplemented') {
-    console.warn('Persistence not available in this browser');
-  }
-});
 
 // Emulator connections (dev only)
 if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true') {

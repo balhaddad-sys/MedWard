@@ -12,12 +12,25 @@ import { useState } from 'react';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { patients, criticalPatients, watchPatients, stablePatients, loading } = usePatients();
+  const { patients, criticalPatients, watchPatients, stablePatients, loading, error } = usePatients();
   const wards = useWardStore((s) => s.wards);
   const currentMode = useUIStore((s) => s.currentMode);
   const [showAddPatient, setShowAddPatient] = useState(false);
 
   if (loading) return <Spinner size="lg" />;
+
+  if (error) {
+    return (
+      <Card className="m-4 p-6 border-critical-red/30 bg-critical-red/5">
+        <h3 className="font-bold text-critical-red mb-2">Firestore Error</h3>
+        <p className="text-sm text-neutral-700 mb-3">{error}</p>
+        <p className="text-xs text-neutral-500">
+          If this mentions an index, the Firestore composite indexes may still be building.
+          Wait a few minutes and refresh.
+        </p>
+      </Card>
+    );
+  }
 
   // In on-call mode, only show unstable patients
   const displayPatients =
