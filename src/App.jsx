@@ -12,7 +12,6 @@ import { ToastProvider } from './hooks/useToast';
 import { ThemeProvider } from './hooks/useTheme';
 import { AppHeader, BottomNav, PageContainer } from './components/layout';
 import Spinner, { LoadingOverlay } from './components/ui/Spinner';
-import { configMissing } from './config/firebase.config';
 
 // Lazy-loaded pages for code splitting
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -104,61 +103,9 @@ function AuthRouter() {
 }
 
 // =============================================================================
-// Config Error - Shown when Firebase env vars are missing
-// =============================================================================
-function ConfigError() {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      minHeight: '100vh', padding: '24px', background: '#f3f4f6',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    }}>
-      <div style={{
-        maxWidth: '480px', background: 'white', borderRadius: '16px',
-        padding: '32px', boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
-        textAlign: 'center',
-      }}>
-        <div style={{
-          width: '64px', height: '64px', borderRadius: '50%',
-          background: '#fef2f2', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', margin: '0 auto 16px',
-          fontSize: '28px',
-        }}>!</div>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-          Firebase Not Configured
-        </h1>
-        <p style={{ fontSize: '14px', color: '#6b7280', lineHeight: 1.6 }}>
-          Create a <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>.env</code> file
-          in the project root with your Firebase config:
-        </p>
-        <pre style={{
-          textAlign: 'left', background: '#1f2937', color: '#e5e7eb',
-          padding: '16px', borderRadius: '8px', fontSize: '12px',
-          marginTop: '16px', overflow: 'auto', lineHeight: 1.6,
-        }}>
-{`VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_STORAGE_BUCKET=...
-VITE_FIREBASE_MESSAGING_SENDER_ID=...
-VITE_FIREBASE_APP_ID=...`}
-        </pre>
-        <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '12px' }}>
-          Then rebuild: <code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>npm run build</code>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// =============================================================================
 // App - Root component with all providers
 // =============================================================================
 export default function App() {
-  if (configMissing) {
-    return <ConfigError />;
-  }
-
   return (
     <ThemeProvider>
       <ToastProvider>
