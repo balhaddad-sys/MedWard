@@ -9,12 +9,18 @@ initializeApp();
 const db = getFirestore();
 const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 
-// Shared: Create Anthropic client
+// ─── Constants ──────────────────────────────────────────────────────────────
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB Anthropic limit
+const SUPPORTED_MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+// ─── Shared Utilities ───────────────────────────────────────────────────────
+
+// Create Anthropic client
 function getClient(apiKey) {
   return new Anthropic({ apiKey });
 }
 
-// Shared: Detect image media type from base64 data via magic bytes
+// Detect image media type from base64 data via magic bytes
 function detectMediaType(base64Data) {
   // First few bytes of base64 encode the file signature (magic bytes)
   // JPEG: FF D8 FF → base64 "/9j/"
@@ -29,7 +35,35 @@ function detectMediaType(base64Data) {
   return 'image/jpeg';
 }
 
-// Shared: Auth check
+// Validate base64 image data
+function validateImage(base64Data) {
+  if (!base64Data || typeof base64Data !== 'string') {
+    throw new HttpsError('invalid-argument', 'Image data is required and must be a string');
+  }
+
+  // Check size (base64 is ~33% larger than binary)
+  const estimatedBytes = (base64Data.length * 3) / 4;
+  if (estimatedBytes > MAX_IMAGE_SIZE_BYTES) {
+    const sizeMB = (estimatedBytes / (1024 * 1024)).toFixed(1);
+    throw new HttpsError(
+      'invalid-argument',
+      `Image too large: ${sizeMB}MB. Maximum: 5MB. Please compress the image.`
+    );
+  }
+
+  // Validate media type
+  const mediaType = detectMediaType(base64Data);
+  if (!SUPPORTED_MEDIA_TYPES.includes(mediaType)) {
+    throw new HttpsError(
+      'invalid-argument',
+      `Unsupported image format. Please use JPEG, PNG, GIF, or WebP.`
+    );
+  }
+
+  return { mediaType, sizeBytes: estimatedBytes };
+}
+
+// Auth check
 function requireAuth(context) {
   if (!context.auth) {
     throw new HttpsError('unauthenticated', 'Must be signed in.');
@@ -37,26 +71,35 @@ function requireAuth(context) {
   return context.auth;
 }
 
-// Shared: Log AI interaction to Firestore
-async function logAI(userId, patientId, tool, prompt, response, model) {
-  if (!patientId) return;
+// Log AI interaction to Firestore (audit trail)
+async function logAI(userId, patientId, tool, prompt, response, model, metadata = {}) {
   try {
-    await db
-      .collection('patients')
-      .doc(patientId)
-      .collection('aiLogs')
-      .add({
-        tool,
-        prompt,
-        response,
-        model,
-        version: '10.0.0',
-        userId,
-        patientId,
-        timestamp: FieldValue.serverTimestamp(),
-      });
+    const logEntry = {
+      tool,
+      prompt: typeof prompt === 'string' && prompt.length > 500 ? prompt.substring(0, 500) + '...' : prompt,
+      response: response.substring(0, 2000), // Truncate for storage
+      model,
+      version: '10.1.0',
+      userId,
+      patientId: patientId || null,
+      timestamp: FieldValue.serverTimestamp(),
+      ...metadata,
+    };
+
+    // Log to patient's aiLogs subcollection if patientId provided
+    if (patientId) {
+      await db
+        .collection('patients')
+        .doc(patientId)
+        .collection('aiLogs')
+        .add(logEntry);
+    }
+
+    // Also log to global audit collection for compliance
+    await db.collection('auditLogs').add(logEntry);
   } catch (e) {
-    console.error('AI log failed:', e);
+    // Never let logging failure crash the main flow
+    console.error('AI audit log failed:', e);
   }
 }
 
@@ -211,42 +254,95 @@ ${OUTPUT_FORMAT_INSTRUCTIONS}`;
 exports.analyzeLabImage = onCall(
   { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '1GiB' },
   async (request) => {
+    const startTime = Date.now();
     const auth = requireAuth(request);
     const { imageBase64, patientContext } = request.data;
-    if (!imageBase64) throw new HttpsError('invalid-argument', 'Image required');
+
+    // Validate image with detailed error messages
+    const { mediaType, sizeBytes } = validateImage(imageBase64);
+    console.log(`[analyzeLabImage] Processing ${(sizeBytes / 1024).toFixed(0)}KB ${mediaType} image`);
 
     const client = getClient(ANTHROPIC_API_KEY.value());
+
+    // Enhanced prompt for better extraction accuracy
     const systemPrompt = `You are a senior pathologist and lab medicine specialist.
-Analyze the lab report image. Extract ALL values, flag abnormals, and provide clinical interpretation.
+Analyze the lab report image with PRECISION. Extract ALL values visible, flag abnormals, and provide clinical interpretation.
 ${patientContext ? `Patient: ${patientContext.name}, ${patientContext.ageSex}, Dx: ${patientContext.diagnosis}` : ''}
-OUTPUT:
-1. Extracted values as a structured list (Test: Value [Unit] — Normal/Abnormal/CRITICAL)
-2. Clinical interpretation (what pattern do these results suggest?)
-3. Recommended actions
-4. ${DISCLAIMER}`;
 
-    const mediaType = detectMediaType(imageBase64);
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 3000,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mediaType, data: imageBase64 },
-            },
-            { type: 'text', text: 'Analyze this lab report.' },
-          ],
-        },
-      ],
-    });
+CRITICAL RULES:
+1. Extract ONLY values that appear in the report - do NOT invent values
+2. Preserve units exactly as written (e.g., "mg/dL", not "milligrams per deciliter")
+3. Flag anomalies with precision:
+   - 🚨 CRITICAL = Outside safe physiologic range (immediate action needed)
+   - ⚠️ Abnormal = Outside reference range but not immediately dangerous
+   - ✅ Normal = Within reference range
+4. If a value is unclear or partially cut off, note it with [?]
 
-    const response = msg.content[0].text;
-    logAI(auth.uid, patientContext?.id || null, 'lab-analysis', '[image]', response, msg.model).catch(console.error);
-    return { response, model: msg.model };
+OUTPUT FORMAT:
+## Extracted Lab Values
+| Test | Value | Units | Reference Range | Flag |
+|------|-------|-------|-----------------|------|
+| [Test Name] | [Exact Value] | [Units] | [Range] | [Flag] |
+
+## Clinical Interpretation
+What pattern do these results suggest? Key findings?
+
+## Recommended Actions
+Numbered list of prioritized actions if abnormals present.
+
+## ${DISCLAIMER}`;
+
+    try {
+      const msg = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 3000,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: mediaType, data: imageBase64 },
+              },
+              { type: 'text', text: 'Analyze this lab report. Extract all values precisely.' },
+            ],
+          },
+        ],
+      });
+
+      const response = msg.content[0].text;
+      const elapsedMs = Date.now() - startTime;
+
+      // Audit log with metadata
+      logAI(
+        auth.uid,
+        patientContext?.id || null,
+        'lab-analysis',
+        '[image]',
+        response,
+        msg.model,
+        { imageSizeBytes: sizeBytes, mediaType, responseTimeMs: elapsedMs }
+      );
+
+      console.log(`[analyzeLabImage] Complete in ${elapsedMs}ms`);
+      return { response, model: msg.model };
+    } catch (error) {
+      console.error('[analyzeLabImage] API error:', error.message);
+
+      // Map Anthropic errors to user-friendly messages
+      if (error.message?.includes('image exceeds')) {
+        throw new HttpsError('invalid-argument', 'Image is too large. Please use a smaller image.');
+      }
+      if (error.message?.includes('rate limit')) {
+        throw new HttpsError('resource-exhausted', 'Too many requests. Please wait a moment.');
+      }
+      if (error.message?.includes('Invalid API Key')) {
+        throw new HttpsError('internal', 'Service configuration error. Please contact support.');
+      }
+
+      throw new HttpsError('internal', 'Analysis failed. Please try again.');
+    }
   }
 );
 
