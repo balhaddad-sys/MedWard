@@ -2,8 +2,6 @@ import { initializeApp } from 'firebase/app';
 import {
   getAuth,
   connectAuthEmulator,
-  GoogleAuthProvider,
-  signInWithPopup,
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
@@ -15,6 +13,12 @@ import {
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
+// authDomain must match a domain listed in Firebase Console → Authentication →
+// Settings → Authorized domains. The default is <project-id>.firebaseapp.com.
+// If a custom domain is used (e.g. medwardpro.com), update VITE_FIREBASE_AUTH_DOMAIN
+// in .env and ensure the custom domain is also authorized in Firebase Console.
+// Current authorized domains should include: localhost, medward-pro.web.app,
+// medward-pro.firebaseapp.com, and any custom domains.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -29,7 +33,6 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app);
-export const googleProvider = new GoogleAuthProvider();
 
 // Offline persistence — call once at app init
 enableIndexedDbPersistence(db).catch((err) => {
@@ -48,5 +51,5 @@ if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true') {
   connectFunctionsEmulator(functions, 'localhost', 5001);
 }
 
-export { signInWithPopup, signOut, onAuthStateChanged };
+export { signOut, onAuthStateChanged };
 export default app;
