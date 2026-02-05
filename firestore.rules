@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Patients - users can only access their own
+    match /patients/{patientId} {
+      allow read, update, delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Rate limits - used by Cloud Functions for per-user rate limiting
+    match /rateLimits/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Cache - used by Cloud Functions for response caching
+    match /cache/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only Cloud Functions write cache
+    }
+  }
+}
