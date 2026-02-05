@@ -20,8 +20,9 @@ export function usePatients(wardId = null, realtime = true) {
     setError(null);
     
     try {
-      const data = await patientService.getAll(wardId);
-      setPatients(data);
+      const result = await patientService.getAll(wardId);
+      setPatients(result.patients || []);
+      if (result.error) setError(result.error);
     } catch (err) {
       setError(err.message || 'Failed to fetch patients');
       console.error('Fetch patients error:', err);
@@ -36,8 +37,9 @@ export function usePatients(wardId = null, realtime = true) {
 
     if (realtime) {
       setLoading(true);
-      unsubscribe = patientService.subscribeToWard(wardId, (data) => {
-        setPatients(data);
+      unsubscribe = patientService.subscribeToWard(wardId, (result) => {
+        setPatients(result.patients || []);
+        if (result.error) setError(result.error);
         setLoading(false);
       });
     } else {
@@ -268,8 +270,9 @@ export function usePatient(patientId) {
 
     setLoading(true);
     
-    const unsubscribe = patientService.subscribeToPatient(patientId, (data) => {
-      setPatient(data);
+    const unsubscribe = patientService.subscribeToPatient(patientId, (result) => {
+      setPatient(result.patient || null);
+      if (result.error) setError(result.error);
       setLoading(false);
     });
 
