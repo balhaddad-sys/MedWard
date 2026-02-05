@@ -69,22 +69,40 @@ async function compressImage(dataUrl, maxSizeKB = 4000, maxDimension = 2048) {
  */
 function parseLabValuesFromResponse(responseText) {
   const extractedLabs = [];
+  console.log('[LabForm] Parsing response:', responseText?.substring(0, 500));
 
-  // Look for table rows in format: | Test | Value | Units | Range | Flag |
-  const tableRowRegex = /\|\s*([^|]+)\s*\|\s*([0-9.,]+)\s*\|\s*([^|]*)\s*\|\s*([^|]*)\s*\|\s*([^|]*)\s*\|/g;
-  let match;
+  // Split by lines and look for table rows
+  const lines = responseText.split('\n');
 
-  while ((match = tableRowRegex.exec(responseText)) !== null) {
-    const testName = match[1].trim();
-    const value = parseFloat(match[2].replace(',', '.'));
-    const unit = match[3].trim();
-    const flag = match[5].trim();
+  for (const line of lines) {
+    // Skip non-table lines
+    if (!line.includes('|')) continue;
 
-    // Skip header row
-    if (testName.toLowerCase() === 'test' || isNaN(value)) continue;
+    // Split by pipe and clean up
+    const cells = line.split('|').map(c => c.trim()).filter(c => c.length > 0);
+
+    // Need at least 2 cells (test name and value)
+    if (cells.length < 2) continue;
+
+    // Skip header and separator rows
+    const firstCell = cells[0].toLowerCase();
+    if (firstCell === 'test' || firstCell.includes('---') || firstCell === 'test name') continue;
+
+    // Try to extract value from second cell - handle <, >, and numeric values
+    const valueStr = cells[1].replace(/[<>]/g, '').replace(',', '.').trim();
+    const value = parseFloat(valueStr);
+
+    // Skip if not a valid number
+    if (isNaN(value)) continue;
+
+    const testName = cells[0];
+    const unit = cells[2] || '';
+    const flag = cells[4] || cells[3] || '';
 
     // Check if this matches a known test
     const normalizedName = normalizeTestName(testName);
+
+    console.log('[LabForm] Extracted:', { testName, normalizedName, value, unit, flag });
 
     extractedLabs.push({
       testName: normalizedName || testName,
@@ -95,6 +113,7 @@ function parseLabValuesFromResponse(responseText) {
     });
   }
 
+  console.log('[LabForm] Total extracted:', extractedLabs.length);
   return extractedLabs;
 }
 
@@ -304,6 +323,8 @@ export default function LabForm({ patientId, patientContext = null, onClose }) {
 
   // Save selected labs
   const saveSelectedLabs = async () => {
+    console.log('[LabForm] Saving labs:', selectedLabs);
+
     if (selectedLabs.length === 0) {
       addToast({ type: 'error', message: 'No labs selected' });
       return;
@@ -311,9 +332,11 @@ export default function LabForm({ patientId, patientContext = null, onClose }) {
 
     setLoading(true);
     let savedCount = 0;
+    const errors = [];
 
     for (const lab of selectedLabs) {
       try {
+        console.log('[LabForm] Saving:', lab.testName, lab.value);
         const range = LAB_RANGES[lab.testName] || {};
         await labService.add(patientId, {
           testName: lab.testName,
@@ -325,14 +348,24 @@ export default function LabForm({ patientId, patientContext = null, onClose }) {
           source: 'ai-extracted',
         });
         savedCount++;
+        console.log('[LabForm] Saved:', lab.testName);
       } catch (err) {
-        console.error(`Failed to save ${lab.testName}:`, err);
+        console.error(`[LabForm] Failed to save ${lab.testName}:`, err);
+        errors.push(`${lab.testName}: ${err.message}`);
       }
     }
 
     if (savedCount > 0) {
-      await eventService.log(patientId, 'LABS_IMPORTED', `${savedCount} labs imported from image`);
+      try {
+        await eventService.log(patientId, 'LABS_IMPORTED', `${savedCount} labs imported from image`);
+      } catch (err) {
+        console.error('[LabForm] Failed to log event:', err);
+      }
       addToast({ type: 'success', message: `${savedCount} lab(s) saved successfully` });
+    }
+
+    if (errors.length > 0) {
+      addToast({ type: 'error', message: `Failed: ${errors.join(', ')}` });
     }
 
     if (savedCount === selectedLabs.length) {
