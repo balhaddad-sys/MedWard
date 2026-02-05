@@ -15,9 +15,14 @@
   --primary-light: #e6f0f9;
   --primary-dim: #e0f2fe;
   --accent: #009688;
+  --nhs-blue: #005eb8;
+  --nhs-dark-blue: #003087;
+  --nhs-blue-light: #e6f0f9;
 
   /* Background Colors */
   --bg-app: #f3f4f6;
+  --bg-primary: #f3f4f6;
+  --bg-secondary: #f9fafb;
   --bg-surface: #ffffff;
   --bg-input: #f9fafb;
   --bg-card: #ffffff;
@@ -26,22 +31,27 @@
 
   /* Text Colors */
   --text-main: #111827;
+  --text-primary: #111827;
   --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
   --text-muted: #9ca3af;
   --text: #111827;
 
   /* Border */
   --border: #e5e7eb;
+  --border-primary: #e5e7eb;
   --border-light: #d1d5db;
 
   /* Semantic Colors */
   --success: #059669;
   --success-bg: #d1fae5;
   --success-text: #065f46;
-  
+
   --danger: #dc2626;
   --danger-bg: #fee2e2;
   --danger-text: #991b1b;
+  --status-danger: #dc2626;
+  --status-danger-light: #fee2e2;
   
   --warning: #d97706;
   --warning-bg: #fef3c7;
