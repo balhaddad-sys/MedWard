@@ -1,4 +1,5 @@
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const logger = require('firebase-functions/logger');
 const { onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
@@ -192,45 +193,213 @@ ${OUTPUT_FORMAT_INSTRUCTIONS}`;
   }
 );
 
-// 5. Lab Image Analysis
-exports.analyzeLabImage = onCall(
-  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '1GiB' },
-  async (request) => {
-    const auth = requireAuth(request);
-    const { imageBase64, patientContext } = request.data;
-    if (!imageBase64) throw new HttpsError('invalid-argument', 'Image required');
+// ─── 5. Lab Image Analysis (onRequest — multi-image, structured JSON) ────────
+const MAX_IMAGES = 8;
+const MAX_SINGLE_IMAGE_BYTES = 2 * 1024 * 1024;  // 2 MB per image (base64 decoded)
+const MAX_TOTAL_PAYLOAD_BYTES = 12 * 1024 * 1024; // 12 MB total
 
-    const client = getClient(ANTHROPIC_API_KEY.value());
-    const systemPrompt = `You are a senior pathologist and lab medicine specialist.
-Analyze the lab report image. Extract ALL values, flag abnormals, and provide clinical interpretation.
-${patientContext ? `Patient: ${patientContext.name}, ${patientContext.ageSex}, Dx: ${patientContext.diagnosis}` : ''}
-OUTPUT:
-1. Extracted values as a structured list (Test: Value [Unit] — Normal/Abnormal/CRITICAL)
-2. Clinical interpretation (what pattern do these results suggest?)
-3. Recommended actions
-4. ${DISCLAIMER}`;
+exports.analyzeLabImage = onRequest(
+  {
+    cors: true,
+    memory: '1GiB',
+    timeoutSeconds: 300,
+    secrets: [ANTHROPIC_API_KEY],
+  },
+  async (req, res) => {
+    const requestId =
+      req.body?.requestId ||
+      req.headers['x-request-id'] ||
+      Date.now().toString(36);
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 3000,
-      system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 },
-            },
-            { type: 'text', text: 'Analyze this lab report.' },
-          ],
+    const startTime = Date.now();
+
+    try {
+      // ── Method check ─────────────────────────────────────────
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed', requestId });
+      }
+
+      // ── API key check ────────────────────────────────────────
+      const CLAUDE_KEY = ANTHROPIC_API_KEY.value();
+      if (!CLAUDE_KEY) {
+        throw new Error('Server Misconfiguration: ANTHROPIC_API_KEY is not set.');
+      }
+
+      // ── Parse & validate payload ─────────────────────────────
+      const { images, patientContext } = req.body;
+
+      if (!images || !Array.isArray(images) || images.length === 0) {
+        return res.status(400).json({ error: 'No images provided.', requestId });
+      }
+
+      if (images.length > MAX_IMAGES) {
+        return res.status(413).json({
+          error: `Too many images. Maximum is ${MAX_IMAGES} pages per scan.`,
+          requestId,
+        });
+      }
+
+      // ── Validate individual image sizes ──────────────────────
+      let totalBytes = 0;
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        if (!img.base64 || typeof img.base64 !== 'string') {
+          return res.status(400).json({
+            error: `Image ${i + 1} is missing base64 data.`,
+            requestId,
+          });
+        }
+        const estimatedBytes = Math.ceil(img.base64.length * 0.75);
+        if (estimatedBytes > MAX_SINGLE_IMAGE_BYTES) {
+          return res.status(413).json({
+            error: `Image ${i + 1} exceeds the 2 MB limit. Please compress further.`,
+            requestId,
+          });
+        }
+        totalBytes += estimatedBytes;
+      }
+
+      if (totalBytes > MAX_TOTAL_PAYLOAD_BYTES) {
+        return res.status(413).json({
+          error: `Total payload exceeds ${MAX_TOTAL_PAYLOAD_BYTES / (1024 * 1024)} MB. Reduce image count or quality.`,
+          requestId,
+        });
+      }
+
+      // ── Log request metadata (NOT the data itself) ──────────
+      logger.info('analyzeLabImage:start', {
+        requestId,
+        imageCount: images.length,
+        mediaTypes: images.map((img) => img.mediaType),
+        estimatedPayloadMB: (totalBytes / (1024 * 1024)).toFixed(2),
+      });
+
+      // ── Build Claude content payload ─────────────────────────
+      const contentPayload = [];
+
+      images.forEach((img) => {
+        contentPayload.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: img.mediaType || 'image/jpeg',
+            data: img.base64,
+          },
+        });
+      });
+
+      contentPayload.push({
+        type: 'text',
+        text: `Analyze these ${images.length} lab report page(s).
+
+ROLE: Expert Medical Lab Technologist & OCR specialist.
+PATIENT CONTEXT: ${patientContext || 'Not provided'}
+
+TASK: Extract every lab value. Return ONLY valid JSON (no markdown, no backticks, no preamble).
+
+SCHEMA:
+{
+  "labs": [
+    {
+      "test": "string — full test name",
+      "value": "string — numeric or text value as printed",
+      "unit": "string — unit of measurement",
+      "refRange": "string — reference range as printed",
+      "flag": "high" | "low" | "critical" | "normal" | "unknown"
+    }
+  ],
+  "summary": "string — 1-2 sentence clinical summary focusing on abnormal values",
+  "pagesProcessed": number,
+  "unreadableFields": number
+}
+
+RULES:
+- If a value is unreadable, set value to "[unreadable]" and increment unreadableFields.
+- "flag" must be one of the exact strings above.
+- Return ONLY the JSON object. No markdown fences, no explanation.`,
+      });
+
+      // ── Call Anthropic API ───────────────────────────────────
+      const claudeStart = Date.now();
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': CLAUDE_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
         },
-      ],
-    });
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4096,
+          messages: [{ role: 'user', content: contentPayload }],
+        }),
+      });
 
-    const response = msg.content[0].text;
-    logAI(auth.uid, patientContext?.id || null, 'lab-analysis', '[image]', response, msg.model).catch(console.error);
-    return { response, model: msg.model };
+      const data = await response.json();
+      const claudeElapsed = Date.now() - claudeStart;
+
+      // ── Handle upstream errors ───────────────────────────────
+      if (data.error) {
+        logger.error('analyzeLabImage:claude_error', {
+          requestId,
+          status: response.status,
+          errorType: data.error.type,
+          errorMessage: data.error.message,
+          claudeElapsedMs: claudeElapsed,
+        });
+        return res.status(502).json({
+          error: `AI service error: ${data.error.message}`,
+          requestId,
+        });
+      }
+
+      // ── Parse structured JSON (with fallback) ────────────────
+      let parsedResult;
+      try {
+        const cleaned = data.content[0].text
+          .replace(/```json\s*/gi, '')
+          .replace(/```\s*/gi, '')
+          .trim();
+        parsedResult = JSON.parse(cleaned);
+      } catch (parseError) {
+        logger.warn('analyzeLabImage:json_parse_failed', {
+          requestId,
+          rawLength: data.content[0].text.length,
+        });
+        parsedResult = { raw: data.content[0].text };
+      }
+
+      // ── Return result ────────────────────────────────────────
+      const totalElapsed = Date.now() - startTime;
+      logger.info('analyzeLabImage:success', {
+        requestId,
+        claudeElapsedMs: claudeElapsed,
+        totalElapsedMs: totalElapsed,
+        outputTokens: data.usage?.output_tokens,
+      });
+
+      return res.json({
+        result: parsedResult,
+        requestId,
+        meta: {
+          pagesProcessed: images.length,
+          processingMs: totalElapsed,
+        },
+      });
+    } catch (error) {
+      // ── Catch-all ────────────────────────────────────────────
+      logger.error('analyzeLabImage:crash', {
+        requestId,
+        errorMessage: error.message,
+        stack: error.stack,
+        elapsedMs: Date.now() - startTime,
+      });
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        details: error.message,
+        requestId,
+      });
+    }
   }
 );
 
