@@ -1,4 +1,4 @@
-import { 
+import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -7,6 +7,8 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
+  GoogleAuthProvider,
+  signInWithPopup,
   onAuthStateChanged,
   deleteUser
 } from 'firebase/auth';
@@ -49,6 +51,22 @@ export const authService = {
       return { 
         user: null, 
         error: formatAuthError(error) 
+      };
+    }
+  },
+
+  /**
+   * Sign in with Google
+   */
+  async signInWithGoogle() {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      return { user: result.user, error: null };
+    } catch (error) {
+      return {
+        user: null,
+        error: formatAuthError(error)
       };
     }
   },

@@ -58,6 +58,21 @@ export function AuthProvider({ children }) {
     return result;
   }, []);
 
+  // Sign in with Google
+  const signInWithGoogle = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    const result = await authService.signInWithGoogle();
+
+    if (!result.user) {
+      setError(result.error);
+    }
+
+    setLoading(false);
+    return result;
+  }, []);
+
   // Sign up
   const signUp = useCallback(async (email, password, displayName = '') => {
     setLoading(true);
@@ -182,6 +197,7 @@ export function AuthProvider({ children }) {
     
     // Methods
     signIn,
+    signInWithGoogle,
     signUp,
     signOut,
     resetPassword,
