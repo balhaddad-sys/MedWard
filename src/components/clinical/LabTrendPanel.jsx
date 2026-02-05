@@ -1,41 +1,47 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, AlertTriangle, LayoutGrid, List } from 'lucide-react';
+import { Activity, AlertTriangle, TrendingUp, TrendingDown, Minus, RefreshCw } from 'lucide-react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Spinner from '../ui/Spinner';
 import aiService from '../../services/aiService';
 
 /**
- * Panel order for consistent display
+ * Clinical panel configuration - order and display names
  */
-const PANEL_ORDER = [
-  'HEMATOLOGY', 'RENAL', 'ELECTROLYTES', 'METABOLIC',
-  'LIVER', 'CARDIAC', 'COAGULATION', 'LIPID',
-  'INFLAMMATORY', 'THYROID', 'MISCELLANEOUS'
-];
+const PANEL_CONFIG = {
+  HEMATOLOGY: { name: 'Hematology', color: '#dc2626', bgColor: '#fef2f2' },
+  RENAL: { name: 'Renal Function', color: '#ea580c', bgColor: '#fff7ed' },
+  ELECTROLYTES: { name: 'Electrolytes', color: '#ca8a04', bgColor: '#fefce8' },
+  METABOLIC: { name: 'Metabolic', color: '#16a34a', bgColor: '#f0fdf4' },
+  LIVER: { name: 'Liver Function', color: '#0891b2', bgColor: '#ecfeff' },
+  CARDIAC: { name: 'Cardiac Markers', color: '#7c3aed', bgColor: '#f5f3ff' },
+  COAGULATION: { name: 'Coagulation', color: '#be185d', bgColor: '#fdf2f8' },
+  LIPID: { name: 'Lipid Panel', color: '#0d9488', bgColor: '#f0fdfa' },
+  INFLAMMATORY: { name: 'Inflammatory', color: '#b91c1c', bgColor: '#fef2f2' },
+  THYROID: { name: 'Thyroid', color: '#4f46e5', bgColor: '#eef2ff' },
+  MISCELLANEOUS: { name: 'Other Tests', color: '#6b7280', bgColor: '#f9fafb' }
+};
+
+const PANEL_ORDER = Object.keys(PANEL_CONFIG);
 
 /**
- * Parse markdown table from AI response into structured data
+ * Parse markdown table from AI response
  */
 function parseMarkdownTable(markdown) {
   if (!markdown) return [];
 
-  const rows = markdown.split('\n').filter(line => line.includes('|'));
   const items = [];
+  const lines = markdown.split('\n');
 
-  // Skip header rows (first 2 lines with |)
-  const dataRows = rows.slice(2);
+  for (const line of lines) {
+    if (!line.includes('|')) continue;
 
-  for (const row of dataRows) {
-    const cells = row.split('|').map(c => c.trim()).filter(c => c.length > 0);
+    const cells = line.split('|').map(c => c.trim()).filter(c => c.length > 0);
     if (cells.length < 5) continue;
-
-    // Skip separator rows
-    if (cells[0].includes('---')) continue;
+    if (cells[0].includes('---') || cells[0].toLowerCase() === 'panel') continue;
 
     const [panel, test, current, previous, range, icon = ''] = cells;
 
-    // Determine status from icon
     let status = 'stable';
     if (icon.includes('🔴')) status = 'critical';
     else if (icon.includes('🟢')) status = 'improving';
@@ -46,7 +52,6 @@ function parseMarkdownTable(markdown) {
       current: current.trim(),
       previous: previous.trim(),
       range: range.trim(),
-      icon: icon.trim(),
       status
     });
   }
@@ -59,155 +64,182 @@ function parseMarkdownTable(markdown) {
  */
 function groupByPanel(items) {
   const panels = {};
-
   for (const item of items) {
-    if (!panels[item.panel]) {
-      panels[item.panel] = [];
-    }
+    if (!panels[item.panel]) panels[item.panel] = [];
     panels[item.panel].push(item);
   }
-
   return panels;
 }
 
 /**
- * Group items by status (triage view)
+ * Status indicator component
  */
-function groupByStatus(items) {
-  return {
-    critical: items.filter(i => i.status === 'critical'),
-    improving: items.filter(i => i.status === 'improving'),
-    stable: items.filter(i => i.status === 'stable')
-  };
-}
-
-/**
- * Get trend icon component
- */
-function TrendIcon({ status }) {
+function StatusIndicator({ status }) {
   if (status === 'critical') {
-    return <TrendingUp className="w-4 h-4 text-critical-red" />;
+    return (
+      <div className="flex items-center gap-1 text-red-600">
+        <TrendingUp className="w-3.5 h-3.5" />
+        <span className="text-xs font-semibold">CRITICAL</span>
+      </div>
+    );
   }
   if (status === 'improving') {
-    return <TrendingDown className="w-4 h-4 text-stable-green" />;
+    return (
+      <div className="flex items-center gap-1 text-green-600">
+        <TrendingDown className="w-3.5 h-3.5" />
+        <span className="text-xs font-semibold">IMPROVING</span>
+      </div>
+    );
   }
-  return <Minus className="w-4 h-4 text-neutral-400" />;
+  return (
+    <div className="flex items-center gap-1 text-neutral-400">
+      <Minus className="w-3.5 h-3.5" />
+      <span className="text-xs">Stable</span>
+    </div>
+  );
 }
 
 /**
- * Single lab row component
+ * Single lab result row
  */
-function LabRow({ item }) {
-  const statusClasses = {
-    critical: 'bg-critical-red-bg border-l-4 border-l-critical-red',
-    improving: 'bg-stable-green-bg border-l-4 border-l-stable-green',
-    stable: 'border-l-4 border-l-neutral-200'
-  };
+function LabResultRow({ item, isLast }) {
+  const rowBg = item.status === 'critical'
+    ? 'bg-red-50'
+    : item.status === 'improving'
+      ? 'bg-green-50'
+      : 'bg-white';
+
+  const valueBorder = item.status === 'critical'
+    ? 'border-l-2 border-l-red-500'
+    : item.status === 'improving'
+      ? 'border-l-2 border-l-green-500'
+      : '';
 
   return (
-    <div className={`flex items-center justify-between px-3 py-2.5 ${statusClasses[item.status]} hover:bg-neutral-50 transition-colors`}>
-      <div className="flex-1 min-w-0">
-        <span className={`text-sm font-medium ${item.status === 'critical' ? 'text-critical-red' : 'text-neutral-900'}`}>
-          {item.test}
-        </span>
-      </div>
+    <div className={`${rowBg} ${valueBorder} ${!isLast ? 'border-b border-neutral-100' : ''}`}>
+      <div className="flex items-center px-4 py-3">
+        {/* Test Name */}
+        <div className="flex-1 min-w-0">
+          <span className={`text-sm ${item.status === 'critical' ? 'font-semibold text-red-900' : 'text-neutral-800'}`}>
+            {item.test}
+          </span>
+        </div>
 
-      <div className="flex items-center gap-3 font-mono text-sm">
-        {item.previous && item.previous !== '—' && (
-          <>
-            <span className="text-neutral-400 line-through text-xs">{item.previous}</span>
-            <span className="text-neutral-300">→</span>
-          </>
-        )}
-        <span className={`font-semibold min-w-[50px] text-right ${item.status === 'critical' ? 'text-critical-red' : 'text-neutral-900'}`}>
-          {item.current}
-        </span>
-      </div>
+        {/* Values */}
+        <div className="flex items-center gap-4 text-sm font-mono">
+          {item.previous && item.previous !== '—' && (
+            <span className="text-neutral-400 text-xs w-16 text-right">{item.previous}</span>
+          )}
+          <span className="text-neutral-300">→</span>
+          <span className={`font-bold w-16 text-right ${item.status === 'critical' ? 'text-red-600' : 'text-neutral-900'}`}>
+            {item.current}
+          </span>
+        </div>
 
-      <div className="hidden sm:block text-xs text-neutral-500 w-24 text-right ml-3">
-        {item.range}
-      </div>
+        {/* Reference Range */}
+        <div className="w-24 text-right hidden sm:block">
+          <span className="text-xs text-neutral-400">{item.range}</span>
+        </div>
 
-      <div className="ml-3 w-6 flex justify-center">
-        <TrendIcon status={item.status} />
+        {/* Status */}
+        <div className="w-24 flex justify-end">
+          <StatusIndicator status={item.status} />
+        </div>
       </div>
     </div>
   );
 }
 
 /**
- * Panel card component
+ * Clinical panel card
  */
-function PanelCard({ name, items }) {
+function ClinicalPanel({ panelKey, items }) {
+  const config = PANEL_CONFIG[panelKey] || PANEL_CONFIG.MISCELLANEOUS;
   const criticalCount = items.filter(i => i.status === 'critical').length;
+  const improvingCount = items.filter(i => i.status === 'improving').length;
 
   return (
-    <Card className="overflow-hidden p-0">
-      <div className="bg-neutral-100 px-4 py-2.5 border-b border-neutral-200 flex justify-between items-center">
-        <h3 className="text-xs font-bold text-neutral-600 uppercase tracking-wider">
-          {name}
-        </h3>
+    <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden shadow-sm">
+      {/* Panel Header */}
+      <div
+        className="px-4 py-3 border-b border-neutral-200 flex items-center justify-between"
+        style={{ backgroundColor: config.bgColor }}
+      >
+        <div className="flex items-center gap-2">
+          <div
+            className="w-1 h-6 rounded-full"
+            style={{ backgroundColor: config.color }}
+          />
+          <h4 className="text-sm font-bold text-neutral-800 uppercase tracking-wide">
+            {config.name}
+          </h4>
+        </div>
         <div className="flex items-center gap-2">
           {criticalCount > 0 && (
-            <span className="text-xs bg-critical-red text-white px-2 py-0.5 rounded-full font-semibold">
-              {criticalCount} critical
+            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded">
+              {criticalCount} Critical
+            </span>
+          )}
+          {improvingCount > 0 && (
+            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded">
+              {improvingCount} Improving
             </span>
           )}
           <span className="text-xs text-neutral-500">{items.length} tests</span>
         </div>
       </div>
-      <div className="divide-y divide-neutral-100">
+
+      {/* Panel Rows */}
+      <div>
         {items.map((item, idx) => (
-          <LabRow key={idx} item={item} />
+          <LabResultRow
+            key={idx}
+            item={item}
+            isLast={idx === items.length - 1}
+          />
         ))}
       </div>
-    </Card>
+    </div>
   );
 }
 
 /**
- * Triage section component
+ * Summary stats bar
  */
-function TriageSection({ title, items, variant }) {
-  if (items.length === 0) return null;
-
-  const variants = {
-    critical: {
-      headerBg: 'bg-critical-red-bg',
-      headerText: 'text-critical-red',
-      headerBorder: 'border-critical-red',
-      icon: <AlertTriangle className="w-4 h-4" />
-    },
-    improving: {
-      headerBg: 'bg-stable-green-bg',
-      headerText: 'text-stable-green',
-      headerBorder: 'border-stable-green',
-      icon: <TrendingDown className="w-4 h-4" />
-    },
-    stable: {
-      headerBg: 'bg-neutral-100',
-      headerText: 'text-neutral-600',
-      headerBorder: 'border-neutral-300',
-      icon: <Minus className="w-4 h-4" />
-    }
-  };
-
-  const v = variants[variant];
+function SummaryBar({ items }) {
+  const critical = items.filter(i => i.status === 'critical').length;
+  const improving = items.filter(i => i.status === 'improving').length;
+  const stable = items.filter(i => i.status === 'stable').length;
 
   return (
-    <div className="mb-4">
-      <div className={`${v.headerBg} ${v.headerText} px-4 py-2 border-b-2 ${v.headerBorder} flex items-center gap-2`}>
-        {v.icon}
-        <span className="text-xs font-bold uppercase tracking-wider">{title}</span>
-        <span className="text-xs opacity-75">({items.length})</span>
-      </div>
-      <Card className="rounded-t-none p-0">
-        <div className="divide-y divide-neutral-100">
-          {items.map((item, idx) => (
-            <LabRow key={idx} item={item} />
-          ))}
+    <div className="bg-white rounded-lg border border-neutral-200 p-4">
+      <div className="grid grid-cols-3 gap-4 text-center">
+        <div className={`p-3 rounded-lg ${critical > 0 ? 'bg-red-50' : 'bg-neutral-50'}`}>
+          <div className={`text-2xl font-bold ${critical > 0 ? 'text-red-600' : 'text-neutral-400'}`}>
+            {critical}
+          </div>
+          <div className="text-xs text-neutral-600 font-medium mt-1 flex items-center justify-center gap-1">
+            <AlertTriangle className="w-3 h-3" />
+            Attention Required
+          </div>
         </div>
-      </Card>
+        <div className={`p-3 rounded-lg ${improving > 0 ? 'bg-green-50' : 'bg-neutral-50'}`}>
+          <div className={`text-2xl font-bold ${improving > 0 ? 'text-green-600' : 'text-neutral-400'}`}>
+            {improving}
+          </div>
+          <div className="text-xs text-neutral-600 font-medium mt-1 flex items-center justify-center gap-1">
+            <TrendingDown className="w-3 h-3" />
+            Improving
+          </div>
+        </div>
+        <div className="p-3 rounded-lg bg-neutral-50">
+          <div className="text-2xl font-bold text-neutral-600">{stable}</div>
+          <div className="text-xs text-neutral-600 font-medium mt-1 flex items-center justify-center gap-1">
+            <Minus className="w-3 h-3" />
+            Stable
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -216,26 +248,18 @@ function TriageSection({ title, items, variant }) {
  * Main LabTrendPanel component
  */
 export default function LabTrendPanel({ labs, patientContext }) {
-  const [viewMode, setViewMode] = useState('panel'); // 'panel' or 'triage'
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Parse AI response into items
+  // Parse AI response
   const items = useMemo(() => {
-    if (aiAnalysis) {
-      return parseMarkdownTable(aiAnalysis);
-    }
+    if (aiAnalysis) return parseMarkdownTable(aiAnalysis);
     return [];
   }, [aiAnalysis]);
 
-  // Group items based on view mode
-  const groupedData = useMemo(() => {
-    if (viewMode === 'panel') {
-      return groupByPanel(items);
-    }
-    return groupByStatus(items);
-  }, [items, viewMode]);
+  // Group by panel
+  const groupedData = useMemo(() => groupByPanel(items), [items]);
 
   // Run AI analysis
   const runAnalysis = async () => {
@@ -258,7 +282,7 @@ export default function LabTrendPanel({ labs, patientContext }) {
     }
   };
 
-  // No labs case
+  // No labs
   if (!labs || labs.length === 0) {
     return (
       <Card className="text-center py-8 text-neutral-500">
@@ -269,126 +293,103 @@ export default function LabTrendPanel({ labs, patientContext }) {
 
   return (
     <div className="space-y-4">
-      {/* Controls */}
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-bold text-neutral-900">Lab Trend Analysis</h3>
-        <div className="flex items-center gap-2">
-          {aiAnalysis && (
-            <div className="flex bg-neutral-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('panel')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${
-                  viewMode === 'panel'
-                    ? 'bg-white text-trust-blue shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                By System
-              </button>
-              <button
-                onClick={() => setViewMode('triage')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${
-                  viewMode === 'triage'
-                    ? 'bg-white text-trust-blue shadow-sm'
-                    : 'text-neutral-600 hover:text-neutral-900'
-                }`}
-              >
-                <List className="w-3.5 h-3.5" />
-                By Urgency
-              </button>
+      {/* Header */}
+      <div className="bg-gradient-to-r from-trust-blue to-blue-600 rounded-lg p-4 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/20 rounded-lg">
+              <Activity className="w-5 h-5" />
             </div>
-          )}
+            <div>
+              <h3 className="font-bold">Lab Trend Analysis</h3>
+              <p className="text-sm text-white/80">{labs.length} results available</p>
+            </div>
+          </div>
           <Button
             onClick={runAnalysis}
             loading={loading}
-            size="sm"
-            disabled={loading}
+            className="bg-white text-trust-blue hover:bg-white/90"
           >
-            {aiAnalysis ? 'Refresh' : 'Analyze Trends'}
+            {loading ? (
+              'Analyzing...'
+            ) : aiAnalysis ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </>
+            ) : (
+              'Analyze Trends'
+            )}
           </Button>
         </div>
       </div>
 
-      {/* Error display */}
+      {/* Error */}
       {error && (
-        <Card className="bg-critical-red-bg border-critical-red text-critical-red text-sm py-3">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
           {error}
-        </Card>
+        </div>
       )}
 
-      {/* Loading state */}
+      {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center py-12">
+        <div className="bg-white rounded-lg border border-neutral-200 p-8 flex flex-col items-center justify-center">
           <Spinner size="lg" />
-          <span className="ml-3 text-neutral-500">Analyzing lab trends...</span>
+          <p className="mt-4 text-neutral-600">Analyzing lab trends with AI...</p>
+          <p className="text-xs text-neutral-400 mt-1">Organizing by clinical panels</p>
         </div>
       )}
 
       {/* Results */}
       {!loading && aiAnalysis && items.length > 0 && (
         <>
-          {viewMode === 'panel' ? (
-            // Panel view - grouped by physiological system
-            <div className="space-y-4">
-              {PANEL_ORDER.filter(p => groupedData[p]).map(panelName => (
-                <PanelCard
-                  key={panelName}
-                  name={panelName}
-                  items={groupedData[panelName]}
+          {/* Summary Stats */}
+          <SummaryBar items={items} />
+
+          {/* Clinical Panels */}
+          <div className="space-y-4">
+            {PANEL_ORDER.filter(p => groupedData[p]).map(panelKey => (
+              <ClinicalPanel
+                key={panelKey}
+                panelKey={panelKey}
+                items={groupedData[panelKey]}
+              />
+            ))}
+            {/* Panels not in order */}
+            {Object.keys(groupedData)
+              .filter(p => !PANEL_ORDER.includes(p))
+              .map(panelKey => (
+                <ClinicalPanel
+                  key={panelKey}
+                  panelKey={panelKey}
+                  items={groupedData[panelKey]}
                 />
               ))}
-              {/* Any panels not in PANEL_ORDER */}
-              {Object.keys(groupedData)
-                .filter(p => !PANEL_ORDER.includes(p))
-                .map(panelName => (
-                  <PanelCard
-                    key={panelName}
-                    name={panelName}
-                    items={groupedData[panelName]}
-                  />
-                ))}
-            </div>
-          ) : (
-            // Triage view - grouped by urgency
-            <div>
-              <TriageSection
-                title="Attention Required"
-                items={groupedData.critical}
-                variant="critical"
-              />
-              <TriageSection
-                title="Improving"
-                items={groupedData.improving}
-                variant="improving"
-              />
-              <TriageSection
-                title="Stable / Unchanged"
-                items={groupedData.stable}
-                variant="stable"
-              />
-            </div>
-          )}
+          </div>
+
+          {/* Footer */}
+          <p className="text-center text-xs text-neutral-400 pt-2">
+            AI-assisted analysis for educational purposes only
+          </p>
         </>
       )}
 
-      {/* Empty result */}
+      {/* Empty parse result */}
       {!loading && aiAnalysis && items.length === 0 && (
         <Card className="text-center py-8 text-neutral-500">
-          Could not parse lab trends. Try again.
+          Could not parse lab trends. Please try again.
         </Card>
       )}
 
-      {/* Initial state - show summary */}
+      {/* Initial state */}
       {!loading && !aiAnalysis && (
-        <Card className="text-center py-6">
-          <p className="text-neutral-600 text-sm mb-3">
-            {labs.length} lab result{labs.length !== 1 ? 's' : ''} available
+        <div className="bg-neutral-50 rounded-lg border border-dashed border-neutral-300 p-8 text-center">
+          <Activity className="w-10 h-10 text-neutral-400 mx-auto mb-3" />
+          <p className="text-neutral-600 font-medium">Ready to Analyze</p>
+          <p className="text-sm text-neutral-400 mt-1">
+            Click "Analyze Trends" to organize {labs.length} lab results by clinical panels
           </p>
-          <p className="text-xs text-neutral-400">
-            Click "Analyze Trends" to see organized results with clinical context
-          </p>
-        </Card>
+        </div>
       )}
     </div>
   );
