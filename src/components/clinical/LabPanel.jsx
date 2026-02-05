@@ -8,7 +8,7 @@ import Sparkline from '../ui/Sparkline';
 import { getDeltaSeverity, getTrendColor } from '../../utils/deltaEngine';
 import { formatDateTime } from '../../utils/formatters';
 
-export default function LabPanel({ patientId }) {
+export default function LabPanel({ patientId, patientContext = null }) {
   const [labs, setLabs] = useState([]);
   const [showForm, setShowForm] = useState(false);
 
@@ -87,7 +87,11 @@ export default function LabPanel({ patientId }) {
       )}
 
       {showForm && (
-        <LabForm patientId={patientId} onClose={() => setShowForm(false)} />
+        <LabForm
+          patientId={patientId}
+          patientContext={patientContext}
+          onClose={() => setShowForm(false)}
+        />
       )}
     </div>
   );
