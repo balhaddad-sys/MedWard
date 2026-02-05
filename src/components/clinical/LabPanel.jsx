@@ -4,13 +4,16 @@ import Badge from '../ui/Badge';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import LabForm from './LabForm';
+import LabTrendPanel from './LabTrendPanel';
 import Sparkline from '../ui/Sparkline';
 import { getDeltaSeverity, getTrendColor } from '../../utils/deltaEngine';
 import { formatDateTime } from '../../utils/formatters';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function LabPanel({ patientId, patientContext = null }) {
   const [labs, setLabs] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [showAllLabs, setShowAllLabs] = useState(false);
 
   useEffect(() => {
     const unsub = labService.subscribe(patientId, setLabs);
@@ -35,8 +38,33 @@ export default function LabPanel({ patientId, patientContext = null }) {
         </Button>
       </div>
 
-      {/* Grouped by test name */}
-      {Object.entries(grouped).map(([testName, testLabs]) => {
+      {/* AI-Powered Trend Analysis Panel */}
+      {labs.length > 0 && (
+        <LabTrendPanel labs={labs} patientContext={patientContext} />
+      )}
+
+      {/* Toggle for individual lab list */}
+      {labs.length > 0 && (
+        <button
+          onClick={() => setShowAllLabs(!showAllLabs)}
+          className="w-full flex items-center justify-center gap-2 py-2 text-sm text-neutral-500 hover:text-neutral-700 transition-colors"
+        >
+          {showAllLabs ? (
+            <>
+              <ChevronUp className="w-4 h-4" />
+              Hide Individual Labs
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-4 h-4" />
+              Show Individual Labs ({Object.keys(grouped).length} tests)
+            </>
+          )}
+        </button>
+      )}
+
+      {/* Grouped by test name - collapsible */}
+      {showAllLabs && Object.entries(grouped).map(([testName, testLabs]) => {
         const latest = testLabs[0];
         const values = [...testLabs].reverse().map((l) => l.value);
         const severity = getDeltaSeverity(testName, latest.value, latest.previousValue);
