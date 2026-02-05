@@ -4,15 +4,17 @@ import Button from '../ui/Button';
 import patientService from '../../services/patientService';
 import eventService from '../../services/eventService';
 import useUIStore from '../../stores/uiStore';
+import useWardStore from '../../stores/wardStore';
 
-export default function PatientForm({ onClose, editPatient = null }) {
+export default function PatientForm({ onClose, editPatient = null, defaultWard = '' }) {
   const addToast = useUIStore((s) => s.addToast);
+  const wards = useWardStore((s) => s.wards);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     name: editPatient?.name || '',
     fileNumber: editPatient?.fileNumber || '',
     ageSex: editPatient?.ageSex || '',
-    ward: editPatient?.ward || '',
+    ward: editPatient?.ward || defaultWard,
     diagnosis: editPatient?.diagnosis || '',
     currentStatus: editPatient?.currentStatus || 'Stable',
   });
@@ -76,11 +78,16 @@ export default function PatientForm({ onClose, editPatient = null }) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">Ward *</label>
-            <input
+            <select
               value={form.ward}
               onChange={(e) => update('ward', e.target.value)}
               className="w-full border border-neutral-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-trust-blue/20 focus:border-trust-blue outline-none"
-            />
+            >
+              <option value="">Select ward...</option>
+              {wards.map((w) => (
+                <option key={w} value={w}>{w}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1">Status</label>

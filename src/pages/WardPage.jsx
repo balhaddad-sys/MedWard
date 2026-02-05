@@ -52,7 +52,7 @@ export default function WardPage() {
       </div>
 
       {showAddPatient && (
-        <PatientForm onClose={() => setShowAddPatient(false)} />
+        <PatientForm onClose={() => setShowAddPatient(false)} defaultWard={decodeURIComponent(wardId)} />
       )}
 
       <p className="text-center text-xs text-neutral-400 pt-4">
