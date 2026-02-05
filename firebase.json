@@ -9,26 +9,8 @@
     "rewrites": [
       { "source": "**", "destination": "/index.html" }
     ],
-    "_headers_note": "WARNING: Do NOT add Cross-Origin-Embedder-Policy (COEP) unless this app requires cross-origin isolation (SharedArrayBuffer, etc.). COEP breaks CDN resources, iframes, images, and Firebase Auth if misconfigured.",
+    "_headers_note": "WARNING: Do NOT add Cross-Origin-Opener-Policy (COOP) or Cross-Origin-Embedder-Policy (COEP) headers. COOP breaks Firebase Auth signInWithPopup because Google's auth page sets its own strict COOP, severing the popup-to-opener connection. COEP breaks CDN resources, iframes, and images. The browser default (unsafe-none) is correct for this app.",
     "headers": [
-      {
-        "source": "/{index.html,__/auth/**}",
-        "headers": [
-          {
-            "key": "Cross-Origin-Opener-Policy",
-            "value": "same-origin-allow-popups"
-          }
-        ]
-      },
-      {
-        "source": "/assets/**",
-        "headers": [
-          {
-            "key": "Cross-Origin-Opener-Policy",
-            "value": "same-origin"
-          }
-        ]
-      },
       {
         "source": "**/*.@(js|css|svg|png|jpg|webp|woff2)",
         "headers": [
