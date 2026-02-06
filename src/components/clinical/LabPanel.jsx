@@ -6,14 +6,19 @@ import Button from '../ui/Button';
 import LabForm from './LabForm';
 import LabTrendPanel from './LabTrendPanel';
 import Sparkline from '../ui/Sparkline';
+import Modal from '../ui/Modal';
+import useUIStore from '../../stores/uiStore';
 import { getDeltaSeverity, getTrendColor } from '../../utils/deltaEngine';
 import { formatDateTime } from '../../utils/formatters';
-import { Plus, List, BarChart3 } from 'lucide-react';
+import { Plus, List, BarChart3, Trash2, X } from 'lucide-react';
 
 export default function LabPanel({ patientId, patientContext = null }) {
   const [labs, setLabs] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState('trends'); // 'trends' or 'list'
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { labId, testName } or null
+  const [deleting, setDeleting] = useState(false);
+  const addToast = useUIStore((s) => s.addToast);
 
   useEffect(() => {
     const unsub = labService.subscribe(patientId, setLabs);
@@ -26,6 +31,41 @@ export default function LabPanel({ patientId, patientContext = null }) {
     if (!grouped[lab.testName]) grouped[lab.testName] = [];
     grouped[lab.testName].push(lab);
   });
+
+  // Delete a single lab
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+
+    setDeleting(true);
+    try {
+      await labService.delete(patientId, deleteConfirm.labId);
+      addToast({ type: 'success', message: `${deleteConfirm.testName} deleted` });
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error('[LabPanel] Delete error:', err);
+      addToast({ type: 'error', message: err.message });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Delete all labs for a test name
+  const handleDeleteAll = async (testName) => {
+    const labsToDelete = grouped[testName];
+    if (!labsToDelete || labsToDelete.length === 0) return;
+
+    setDeleting(true);
+    try {
+      const labIds = labsToDelete.map((l) => l.id);
+      await labService.deleteMany(patientId, labIds);
+      addToast({ type: 'success', message: `All ${testName} results deleted (${labIds.length})` });
+    } catch (err) {
+      console.error('[LabPanel] Delete all error:', err);
+      addToast({ type: 'error', message: err.message });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -88,8 +128,9 @@ export default function LabPanel({ patientId, patientContext = null }) {
             const severity = getDeltaSeverity(testName, latest.value, latest.previousValue);
 
             return (
-              <Card key={testName} className="p-4">
-                <div className="flex items-center justify-between">
+              <Card key={testName} className="p-0 overflow-hidden">
+                {/* Test Header */}
+                <div className="flex items-center justify-between p-4 border-b border-neutral-100">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-neutral-900">{testName}</span>
@@ -119,13 +160,42 @@ export default function LabPanel({ patientId, patientContext = null }) {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-neutral-400 mt-1">
-                      {formatDateTime(latest.date)}
-                    </p>
                   </div>
-                  <div className="ml-4 flex-shrink-0">
+                  <div className="ml-4 flex items-center gap-3">
                     <Sparkline values={values} color={getTrendColor(severity)} />
+                    {testLabs.length > 1 && (
+                      <button
+                        onClick={() => handleDeleteAll(testName)}
+                        disabled={deleting}
+                        className="p-2 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title={`Delete all ${testName} (${testLabs.length})`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
+                </div>
+
+                {/* Individual Results */}
+                <div className="bg-neutral-50 divide-y divide-neutral-100">
+                  {testLabs.map((lab) => (
+                    <div key={lab.id} className="flex items-center justify-between px-4 py-2 hover:bg-neutral-100 transition-colors group">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-mono text-neutral-700">{lab.value}</span>
+                        <span className="text-xs text-neutral-400">{formatDateTime(lab.date)}</span>
+                        {lab.source === 'ai-extracted' && (
+                          <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded">AI</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setDeleteConfirm({ labId: lab.id, testName: lab.testName, value: lab.value })}
+                        className="p-1.5 text-neutral-300 hover:text-red-500 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                        title="Delete this result"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </Card>
             );
@@ -148,6 +218,38 @@ export default function LabPanel({ patientId, patientContext = null }) {
             Add Lab Result
           </Button>
         </Card>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <Modal open onClose={() => setDeleteConfirm(null)} title="Delete Lab Result">
+          <div className="space-y-4">
+            <p className="text-neutral-600">
+              Are you sure you want to delete this lab result?
+            </p>
+            <div className="bg-neutral-50 rounded-lg p-3">
+              <p className="font-medium text-neutral-900">{deleteConfirm.testName}</p>
+              <p className="text-sm text-neutral-500">Value: {deleteConfirm.value}</p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDelete}
+                loading={deleting}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* Lab Form Modal */}

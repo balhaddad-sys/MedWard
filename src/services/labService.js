@@ -1,6 +1,6 @@
 import {
   collection, doc, addDoc, getDocs, query, orderBy, limit,
-  onSnapshot, serverTimestamp, where,
+  onSnapshot, serverTimestamp, where, deleteDoc,
 } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import patientService from './patientService';
@@ -82,6 +82,28 @@ const labService = {
     const q = query(this._ref(patientId), orderBy('date', 'desc'));
     const snap = await getDocs(q);
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  },
+
+  // Delete a lab result
+  async delete(patientId, labId) {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('Not authenticated');
+
+    const labRef = doc(db, 'patients', patientId, 'labs', labId);
+    await deleteDoc(labRef);
+  },
+
+  // Delete multiple lab results
+  async deleteMany(patientId, labIds) {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('Not authenticated');
+
+    const deletePromises = labIds.map((labId) => {
+      const labRef = doc(db, 'patients', patientId, 'labs', labId);
+      return deleteDoc(labRef);
+    });
+
+    await Promise.all(deletePromises);
   },
 };
 
