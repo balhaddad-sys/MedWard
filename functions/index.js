@@ -9,7 +9,7 @@ initializeApp();
 const db = getFirestore();
 const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 
-const AI_MODEL = 'claude-3-5-haiku-20251022';
+const AI_MODEL = 'claude-haiku-4-5-20251001';
 
 // Shared: Create Anthropic client
 function getClient(apiKey) {
