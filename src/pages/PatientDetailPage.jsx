@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import usePatientDetail from '../hooks/usePatientDetail';
+import useModeStore from '../stores/modeStore';
 import PatientHeader from '../components/patients/PatientHeader';
 import PatientForm from '../components/patients/PatientForm';
 import Tabs from '../components/ui/Tabs';
@@ -36,8 +37,17 @@ const tabs = [
 export default function PatientDetailPage() {
   const { patientId } = useParams();
   const { patient, loading, error, refetch } = usePatientDetail(patientId);
+  const setSelectedPatient = useModeStore((s) => s.setSelectedPatient);
   const [activeTab, setActiveTab] = useState('summary');
   const [showEdit, setShowEdit] = useState(false);
+
+  // Update mode store with selected patient context
+  useEffect(() => {
+    if (patient) {
+      setSelectedPatient(patient);
+    }
+    return () => setSelectedPatient(null);
+  }, [patient, setSelectedPatient]);
 
   if (loading) return <Spinner size="lg" />;
   if (error) return <Card className="text-center py-8 text-critical-red">{error}</Card>;

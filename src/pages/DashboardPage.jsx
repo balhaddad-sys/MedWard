@@ -3,11 +3,14 @@ import { AlertTriangle, Plus, Users } from 'lucide-react';
 import usePatients from '../hooks/usePatients';
 import useWardStore from '../stores/wardStore';
 import useUIStore from '../stores/uiStore';
+import useModeStore from '../stores/modeStore';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import PatientCard from '../components/patients/PatientCard';
 import PatientForm from '../components/patients/PatientForm';
+import ClinicalModeView from '../components/clinical/ClinicalModeView';
+import { MODES } from '../config/modeConfig';
 import { useState } from 'react';
 
 export default function DashboardPage() {
@@ -15,7 +18,9 @@ export default function DashboardPage() {
   const { patients, criticalPatients, watchPatients, stablePatients, loading } = usePatients();
   const wards = useWardStore((s) => s.wards);
   const currentMode = useUIStore((s) => s.currentMode);
+  const clinicalMode = useModeStore((s) => s.currentMode);
   const [showAddPatient, setShowAddPatient] = useState(false);
+  const [showClinicalMode, setShowClinicalMode] = useState(false);
 
   if (loading) return <Spinner size="lg" />;
 
@@ -25,8 +30,44 @@ export default function DashboardPage() {
       ? [...criticalPatients, ...watchPatients]
       : patients;
 
+  // Clinical Mode View
+  if (showClinicalMode) {
+    return (
+      <div className="-mx-4 -mt-4">
+        <ClinicalModeView />
+        <div className="px-4 pt-4 pb-4">
+          <button
+            onClick={() => setShowClinicalMode(false)}
+            className="w-full py-2.5 text-sm font-medium text-neutral-600 bg-neutral-100 hover:bg-neutral-200 rounded-xl transition-colors"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+        <p className="text-center text-xs text-neutral-400 pb-4">
+          Educational Tool — Not for Clinical Decisions
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Clinical Mode Banner */}
+      <button
+        onClick={() => setShowClinicalMode(true)}
+        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 transition-all"
+      >
+        <div className="text-left">
+          <span className="text-sm font-bold text-blue-800">Clinical Mode</span>
+          <span className="block text-xs text-blue-600 mt-0.5">
+            Ward · Emergency · Clinic — context-aware tools
+          </span>
+        </div>
+        <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full">
+          Open
+        </span>
+      </button>
+
       {/* Critical Now Section */}
       {criticalPatients.length > 0 && (
         <section>
