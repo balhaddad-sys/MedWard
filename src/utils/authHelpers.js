@@ -8,25 +8,23 @@ import {
 /**
  * Detects environments where signInWithPopup is unreliable.
  * Returns true if redirect flow should be used instead.
+ * Only true for in-app browsers (WebViews) and standalone PWAs where popups
+ * genuinely cannot open. Regular mobile browsers handle popups fine.
  */
 export function shouldUseRedirect() {
   const ua = navigator.userAgent || '';
 
-  // Mobile browsers
-  const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(ua);
-
-  // In-app browsers (WebViews)
+  // In-app browsers (WebViews) — popups are blocked entirely
   const isInAppBrowser =
-    /FBAN|FBAV|Instagram|Twitter|Line|WhatsApp|Snapchat|LinkedIn|TikTok|Edg.*Mobile/i.test(ua) ||
-    // Generic WebView detection
+    /FBAN|FBAV|Instagram|Twitter|Line|WhatsApp|Snapchat|LinkedIn|TikTok/i.test(ua) ||
     (ua.includes('wv') && ua.includes('Android'));
 
-  // iOS Safari popup blocking (standalone PWA mode)
+  // Standalone PWA mode — no browser chrome to host a popup
   const isStandalonePWA =
     window.matchMedia?.('(display-mode: standalone)').matches ||
     navigator.standalone === true;
 
-  return isMobile || isInAppBrowser || isStandalonePWA;
+  return isInAppBrowser || isStandalonePWA;
 }
 
 /**
