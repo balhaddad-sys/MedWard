@@ -133,14 +133,14 @@ export function HandoverPage() {
   const isEmpty = patients.length === 0 && !summary
 
   return (
-    <div className="space-y-6 animate-fade-in pb-32 md:pb-6">
+    <div className="space-y-3 animate-fade-in pb-32 md:pb-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-ward-text flex items-center gap-2">
-            <ArrowRightLeft className="h-6 w-6" /> Handover
+          <h1 className="text-xl font-bold text-ward-text flex items-center gap-2">
+            <ArrowRightLeft className="h-5 w-5" /> Handover
           </h1>
-          <p className="text-sm text-ward-muted mt-1">Generate shift handover reports</p>
+          <p className="text-sm text-ward-muted mt-1 hidden sm:block">Generate shift handover reports</p>
         </div>
 
         {/* Desktop action buttons -- hidden on mobile, shown in sticky bar */}
@@ -235,7 +235,7 @@ export function HandoverPage() {
       </Card>
 
       {/* Mobile sticky bottom CTA bar */}
-      <div className="fixed bottom-16 left-0 right-0 md:hidden bg-white border-t border-ward-border shadow-lg px-4 py-3 z-20">
+      <div className="fixed bottom-[60px] left-0 right-0 md:hidden bg-white border-t border-ward-border shadow-lg px-4 py-3 z-20">
         <div className="flex items-center gap-3">
           <Button
             size="md"

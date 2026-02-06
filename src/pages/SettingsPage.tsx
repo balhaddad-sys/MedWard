@@ -10,10 +10,10 @@ export function SettingsPage() {
   const user = useAuthStore((s) => s.user)
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl">
+    <div className="space-y-4 animate-fade-in max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-ward-text">Settings</h1>
-        <p className="text-sm text-ward-muted mt-1">Configure your preferences</p>
+        <h1 className="text-xl font-bold text-ward-text">Settings</h1>
+        <p className="text-sm text-ward-muted mt-1 hidden sm:block">Configure your preferences</p>
       </div>
 
       <Card>

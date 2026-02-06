@@ -16,7 +16,7 @@ function SkeletonCard({ wide = false }: { wide?: boolean }) {
       }`}
     >
       <div className="flex items-center gap-3 animate-pulse">
-        <div className="h-10 w-10 rounded-lg bg-gray-200" />
+        <div className="h-8 w-8 rounded-lg bg-gray-200" />
         <div className="flex-1 space-y-2">
           <div className="h-6 w-16 bg-gray-200 rounded" />
           <div className="h-3 w-24 bg-gray-100 rounded" />
@@ -53,9 +53,9 @@ export function Dashboard() {
     totalPatients === 0 && criticalPatients === 0 && pendingTasks === 0 && criticalLabs === 0
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-3 animate-fade-in">
       {/* Today overview strip */}
-      <div className="flex items-center gap-1 px-1 py-2 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1 px-1 py-1 overflow-x-auto no-scrollbar">
         <span className="text-xs font-semibold text-ward-text whitespace-nowrap mr-1">Today</span>
         <button
           onClick={() => {}}
@@ -85,7 +85,7 @@ export function Dashboard() {
 
       {/* Stat cards */}
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <SkeletonCard />
           <SkeletonCard />
           <SkeletonCard />
@@ -97,7 +97,7 @@ export function Dashboard() {
           <span className="text-sm font-medium text-green-800">No alerts -- ward is clear</span>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {/* Critical card: span-2 and prominent when critical > 0 */}
           {criticalPatients > 0 && (
             <Card
@@ -107,11 +107,11 @@ export function Dashboard() {
               onClick={() => {}}
             >
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center">
-                  <Activity className="h-6 w-6 text-red-600" />
+                <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
+                  <Activity className="h-5 w-5 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-red-600">{criticalPatients}</p>
+                  <p className="text-2xl font-bold text-red-600">{criticalPatients}</p>
                   <p className="text-xs text-ward-muted">Critical / Acute</p>
                 </div>
                 <ArrowRight className="h-4 w-4 text-red-400 ml-auto" />
@@ -121,11 +121,11 @@ export function Dashboard() {
 
           <Card padding="sm" hover onClick={() => {}}>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary-600" />
+              <div className="h-8 w-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                <Users className="h-4 w-4 text-primary-600" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-ward-text">{totalPatients}</p>
+                <p className="text-2xl font-bold text-ward-text">{totalPatients}</p>
                 <p className="text-xs text-ward-muted">Total Patients</p>
               </div>
             </div>
@@ -134,11 +134,11 @@ export function Dashboard() {
           {criticalPatients === 0 && (
             <Card padding="sm">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-                  <Activity className="h-5 w-5 text-green-600" />
+                <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-green-600">0</p>
+                  <p className="text-2xl font-bold text-green-600">0</p>
                   <p className="text-xs text-ward-muted">Critical / Acute</p>
                 </div>
               </div>
@@ -147,11 +147,11 @@ export function Dashboard() {
 
           <Card padding="sm" hover onClick={() => {}}>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-yellow-100 flex items-center justify-center">
-                <CheckSquare className="h-5 w-5 text-yellow-600" />
+              <div className="h-8 w-8 rounded-lg bg-yellow-100 flex items-center justify-center">
+                <CheckSquare className="h-4 w-4 text-yellow-600" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-yellow-600">{pendingTasks}</p>
+                <p className="text-2xl font-bold text-yellow-600">{pendingTasks}</p>
                 <p className="text-xs text-ward-muted">Pending Tasks</p>
               </div>
             </div>
@@ -159,11 +159,11 @@ export function Dashboard() {
 
           <Card padding="sm" hover onClick={() => {}}>
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+              <div className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
               </div>
               <div>
-                <p className="text-3xl font-bold text-red-600">{criticalLabs}</p>
+                <p className="text-2xl font-bold text-red-600">{criticalLabs}</p>
                 <p className="text-xs text-ward-muted">Critical Labs</p>
               </div>
             </div>
@@ -172,11 +172,11 @@ export function Dashboard() {
           {dischargeReady > 0 && (
             <Card padding="sm" hover onClick={() => {}}>
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <LogOut className="h-5 w-5 text-blue-600" />
+                <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <LogOut className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-blue-600">{dischargeReady}</p>
+                  <p className="text-2xl font-bold text-blue-600">{dischargeReady}</p>
                   <p className="text-xs text-ward-muted">Discharge Ready</p>
                 </div>
               </div>

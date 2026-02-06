@@ -6,13 +6,33 @@ import { BottomNav } from './BottomNav'
 import { ToastContainer } from '@/components/ui/Toast'
 import { ModalManager } from '@/components/ModalManager'
 import { useUIStore } from '@/stores/uiStore'
+import { usePatientStore } from '@/stores/patientStore'
+import { useTaskStore } from '@/stores/taskStore'
+import { subscribeToAllPatients } from '@/services/firebase/patients'
+import { subscribeToTasks } from '@/services/firebase/tasks'
 
 export function AppShell() {
   const isMobile = useUIStore((s) => s.isMobile)
   const setIsMobile = useUIStore((s) => s.setIsMobile)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
+  const setPatients = usePatientStore((s) => s.setPatients)
+  const setTasks = useTaskStore((s) => s.setTasks)
   const [keyboardOpen, setKeyboardOpen] = useState(false)
+
+  // Subscribe to Firestore collections (real-time sync)
+  useEffect(() => {
+    const unsubPatients = subscribeToAllPatients((patients) => {
+      setPatients(patients)
+    })
+    const unsubTasks = subscribeToTasks((tasks) => {
+      setTasks(tasks)
+    })
+    return () => {
+      unsubPatients()
+      unsubTasks()
+    }
+  }, [setPatients, setTasks])
 
   // Responsive breakpoint detection
   useEffect(() => {
@@ -67,10 +87,10 @@ export function AppShell() {
     <div className="min-h-screen bg-ward-bg">
       <Header />
 
-      <div className="flex relative">
+      <div className={`flex relative ${isMobile ? 'h-[calc(100dvh-52px)]' : ''}`}>
         {/* Desktop sidebar - always visible */}
         {!isMobile && (
-          <div className="flex-shrink-0 border-r border-ward-border min-h-[calc(100vh-48px)]">
+          <div className="flex-shrink-0 border-r border-ward-border min-h-[calc(100vh-52px)]">
             <Sidebar />
           </div>
         )}
@@ -103,8 +123,8 @@ export function AppShell() {
 
         {/* Main content area */}
         <main
-          className={`flex-1 p-4 max-w-7xl mx-auto w-full ${
-            isMobile ? 'pb-24' : 'pb-6'
+          className={`flex-1 overflow-y-auto px-4 pt-3 max-w-7xl mx-auto w-full ${
+            isMobile ? 'pb-[76px]' : 'pb-3'
           }`}
         >
           <Outlet />

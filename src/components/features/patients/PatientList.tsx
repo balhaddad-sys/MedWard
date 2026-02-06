@@ -75,7 +75,7 @@ export function PatientList() {
   return (
     <div className="space-y-0">
       {/* Sticky search bar */}
-      <div className="sticky top-0 z-10 bg-ward-bg/95 backdrop-blur-sm pb-3 -mx-1 px-1">
+      <div className="sticky top-0 z-10 bg-ward-bg/95 backdrop-blur-sm pb-2 -mx-1 px-1">
         {/* Search input */}
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ward-muted pointer-events-none" />
@@ -99,7 +99,7 @@ export function PatientList() {
         {/* Quick filter chips - horizontal scrollable */}
         <div
           ref={chipScrollRef}
-          className="flex gap-2 mt-2.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1"
+          className="flex gap-2 mt-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1"
         >
           {filterChips.map((chip) => (
             <button
@@ -185,7 +185,7 @@ export function PatientList() {
           )}
         </div>
       ) : (
-        <div className="grid gap-3 pt-2">
+        <div className="grid gap-2 pt-2">
           {/* Results count */}
           <div className="flex items-center justify-between px-1">
             <span className="text-xs text-ward-muted">

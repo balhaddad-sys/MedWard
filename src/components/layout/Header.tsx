@@ -44,7 +44,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-ward-border shadow-sm">
-      <div className="flex items-center justify-between px-3 py-2">
+      <div className="flex items-center justify-between h-[52px] px-4">
         {/* Left: hamburger (mobile) + logo + app name */}
         <div className="flex items-center gap-2">
           {isMobile && (

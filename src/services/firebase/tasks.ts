@@ -64,9 +64,10 @@ export const deleteTask = async (id: string): Promise<void> => {
 }
 
 export const subscribeToTasks = (callback: (tasks: Task[]) => void): Unsubscribe => {
-  const q = query(tasksRef, orderBy('dueAt'))
-  return onSnapshot(q, (snapshot) => {
-    const tasks = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Task)
+  return onSnapshot(tasksRef, (snapshot) => {
+    const tasks = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Task)
     callback(tasks)
+  }, (error) => {
+    console.error('Task subscription error:', error)
   })
 }

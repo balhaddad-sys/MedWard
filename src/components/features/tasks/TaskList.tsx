@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { Plus, Filter, CheckSquare, Clock, ChevronDown, Beaker, Image, MessageSquare, LogOut, Pill, MoreHorizontal } from 'lucide-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useUIStore } from '@/stores/uiStore'
+import { updateTask as updateTaskFirebase } from '@/services/firebase/tasks'
 import { TaskCard } from './TaskCard'
 import { Button } from '@/components/ui/Button'
 import { Tabs } from '@/components/ui/Tabs'
@@ -170,6 +171,7 @@ export function TaskList() {
     (task: Task) => {
       const prevStatus = task.status
       updateTask(task.id, { status: 'completed' })
+      updateTaskFirebase(task.id, { status: 'completed' }).catch(console.error)
       setLastAction({ taskId: task.id, prevStatus })
       addToast({
         type: 'success',
@@ -185,6 +187,7 @@ export function TaskList() {
     (task: Task) => {
       const prevStatus = task.status
       updateTask(task.id, { status: 'pending' })
+      updateTaskFirebase(task.id, { status: 'pending' }).catch(console.error)
       setLastAction({ taskId: task.id, prevStatus })
       addToast({
         type: 'warning',
@@ -199,6 +202,7 @@ export function TaskList() {
   const handleUndo = useCallback(() => {
     if (!lastAction) return
     updateTask(lastAction.taskId, { status: lastAction.prevStatus as Task['status'] })
+    updateTaskFirebase(lastAction.taskId, { status: lastAction.prevStatus as Task['status'] }).catch(console.error)
     setLastAction(null)
     addToast({
       type: 'info',
@@ -215,7 +219,7 @@ export function TaskList() {
   return (
     <div className="space-y-0 relative">
       {/* Sticky tabs */}
-      <div className="sticky top-0 z-10 bg-ward-bg/95 backdrop-blur-sm pb-3 shadow-[0_1px_3px_-1px_rgba(0,0,0,0.06)]">
+      <div className="sticky top-0 z-10 bg-ward-bg/95 backdrop-blur-sm pb-2 shadow-[0_1px_3px_-1px_rgba(0,0,0,0.06)]">
         <div className="flex items-center justify-between gap-2">
           <div className="overflow-x-auto no-scrollbar flex-1">
             <Tabs
@@ -290,7 +294,7 @@ export function TaskList() {
 
       {/* Content */}
       {loading ? (
-        <div className="space-y-3 pt-2">
+        <div className="space-y-2 pt-2">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="bg-ward-card rounded-xl border border-ward-border p-4 animate-pulse">
               <div className="flex items-start gap-3">
@@ -356,7 +360,7 @@ export function TaskList() {
           )}
         </div>
       ) : (
-        <div className="space-y-3 pt-2">
+        <div className="space-y-2 pt-1">
           {/* Swipe hint - show once */}
           <p className="text-[11px] text-ward-muted text-center px-4 sm:hidden">
             Swipe right to complete, left to defer

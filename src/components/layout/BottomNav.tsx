@@ -37,7 +37,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-ward-border pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around px-1 py-1">
+      <div className="flex items-center justify-around h-[60px] px-2">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path
           return (
@@ -45,10 +45,10 @@ export function BottomNav() {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={clsx(
-                'flex flex-col items-center justify-center gap-0.5 min-h-[48px] min-w-[48px] rounded-xl transition-all active:scale-95',
+                'flex flex-col items-center justify-center gap-0.5 min-w-[44px] rounded-xl transition-all active:scale-95',
                 isActive
-                  ? 'bg-primary-50 px-4 py-1.5'
-                  : 'px-3 py-2 text-ward-muted'
+                  ? 'bg-primary-50 px-3 py-1'
+                  : 'px-2 py-1 text-ward-muted'
               )}
             >
               <item.icon

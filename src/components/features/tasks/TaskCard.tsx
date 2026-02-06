@@ -45,7 +45,7 @@ export function TaskCard({ task, onComplete, onClick }: TaskCardProps) {
           <p className="text-xs text-ward-muted mt-2 line-clamp-2">{task.description}</p>
         )}
 
-        <div className="flex items-center gap-3 mt-3 text-xs text-ward-muted">
+        <div className="flex items-center gap-2 mt-2 text-xs text-ward-muted">
           <span className="flex items-center gap-1">
             <User className="h-3 w-3" />
             {task.assignedToName}

@@ -102,6 +102,32 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Fixed viewport zones */
+  .app-header {
+    height: 52px;
+  }
+  .app-bottom-nav {
+    height: 60px;
+  }
+  .content-viewport {
+    height: calc(100dvh - 52px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .content-viewport-mobile {
+    height: calc(100dvh - 52px - 60px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /* Page transition animation */

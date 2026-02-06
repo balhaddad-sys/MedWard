@@ -50,7 +50,7 @@ export function PatientCard({ patient, compact = false, criticalLabCount = 0, pe
             </p>
           </div>
 
-          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-ward-border">
+          <div className="flex items-center gap-3 mt-2 pt-2 border-t border-ward-border">
             {criticalLabCount > 0 && (
               <div className="flex items-center gap-1 text-xs text-red-600">
                 <AlertTriangle className="h-3.5 w-3.5" />
