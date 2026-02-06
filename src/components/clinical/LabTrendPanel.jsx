@@ -295,7 +295,7 @@ export default function LabTrendPanel({ labs, patientContext }) {
     <div className="space-y-4">
       {/* Header */}
       <div className="bg-gradient-to-r from-trust-blue to-blue-600 rounded-lg p-4 text-white">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg">
               <Activity className="w-5 h-5" />
@@ -305,22 +305,22 @@ export default function LabTrendPanel({ labs, patientContext }) {
               <p className="text-sm text-white/80">{labs.length} results available</p>
             </div>
           </div>
-          <Button
+          <button
             onClick={runAnalysis}
-            loading={loading}
-            className="bg-white text-trust-blue hover:bg-white/90"
+            disabled={loading}
+            className="px-4 py-2 bg-white text-trust-blue font-semibold rounded-lg shadow-md hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm"
           >
             {loading ? (
               'Analyzing...'
             ) : aiAnalysis ? (
               <>
-                <RefreshCw className="w-4 h-4 mr-2" />
+                <RefreshCw className="w-4 h-4" />
                 Refresh
               </>
             ) : (
               'Analyze Trends'
             )}
-          </Button>
+          </button>
         </div>
       </div>
 
