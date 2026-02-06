@@ -28,7 +28,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!firebaseUser || !user) {
+  if (!firebaseUser) {
     return <Navigate to="/login" replace />
   }
 
@@ -53,7 +53,26 @@ export default function App() {
       if (firebaseUser) {
         try {
           const profile = await getUserProfile(firebaseUser.uid)
-          setUser(profile)
+          if (profile) {
+            setUser(profile)
+          } else {
+            setUser({
+              id: firebaseUser.uid,
+              displayName: firebaseUser.displayName ?? 'User',
+              email: firebaseUser.email ?? '',
+              role: 'physician',
+              department: '',
+              wardIds: [],
+              preferences: {
+                defaultWard: '',
+                defaultMode: 'clinical',
+                notificationSettings: { criticalLabs: true, taskReminders: true, handoverAlerts: true },
+                displaySettings: { compactView: false, showAISuggestions: true, labTrendDays: 7 },
+              },
+              createdAt: null as unknown as import('firebase/firestore').Timestamp,
+              lastLoginAt: null as unknown as import('firebase/firestore').Timestamp,
+            })
+          }
         } catch {
           setUser(null)
         }
