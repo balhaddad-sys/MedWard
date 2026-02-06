@@ -9,6 +9,9 @@ import PatientDetailPage from './pages/PatientDetailPage';
 import AIToolsPage from './pages/AIToolsPage';
 import ReferencePage from './pages/ReferencePage';
 import SettingsPage from './pages/SettingsPage';
+import WardModePage from './pages/WardModePage';
+import AcuteModePage from './pages/AcuteModePage';
+import ClinicModePage from './pages/ClinicModePage';
 import { ToastContainer } from './components/ui/Toast';
 
 function ProtectedRoute({ children }) {
@@ -45,6 +48,9 @@ export default function App() {
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/ward/:wardId" element={<WardPage />} />
                   <Route path="/patient/:patientId" element={<PatientDetailPage />} />
+                  <Route path="/ward-tasks" element={<WardModePage />} />
+                  <Route path="/acute" element={<AcuteModePage />} />
+                  <Route path="/clinic" element={<ClinicModePage />} />
                   <Route path="/ai" element={<AIToolsPage />} />
                   <Route path="/reference" element={<ReferencePage />} />
                   <Route path="/settings" element={<SettingsPage />} />

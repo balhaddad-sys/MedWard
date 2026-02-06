@@ -1,10 +1,12 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Brain, BookOpen, Settings } from 'lucide-react';
+import { LayoutDashboard, Brain, BookOpen, Settings, Zap, ClipboardList, FileText } from 'lucide-react';
 
 const items = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/ward-tasks', icon: ClipboardList, label: 'Ward' },
+  { to: '/acute', icon: Zap, label: 'Acute' },
+  { to: '/clinic', icon: FileText, label: 'Clinic' },
   { to: '/ai', icon: Brain, label: 'AI' },
-  { to: '/reference', icon: BookOpen, label: 'Reference' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
