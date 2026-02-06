@@ -11,7 +11,27 @@ const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 
 // Shared: Create Anthropic client
 function getClient(apiKey) {
+  if (!apiKey) throw new HttpsError('internal', 'API key not configured');
   return new Anthropic({ apiKey });
+}
+
+// Shared: Wrap API calls with error handling
+async function safeAPICall(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error('Anthropic API error:', err.message, err.status, err.error);
+    if (err.status === 401) {
+      throw new HttpsError('permission-denied', 'Invalid API key');
+    }
+    if (err.status === 429) {
+      throw new HttpsError('resource-exhausted', 'Rate limit exceeded. Try again shortly.');
+    }
+    if (err.status === 400) {
+      throw new HttpsError('invalid-argument', `API error: ${err.message}`);
+    }
+    throw new HttpsError('internal', `AI service error: ${err.message}`);
+  }
 }
 
 // Shared: Auth check
@@ -85,12 +105,12 @@ You give evidence-based answers structured for rapid comprehension during ward r
 ${patientContext ? `Patient context: ${JSON.stringify(patientContext)}` : ''}
 ${OUTPUT_FORMAT_INSTRUCTIONS}`;
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    const msg = await safeAPICall(() => client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
       system: systemPrompt,
       messages: [{ role: 'user', content: question }],
-    });
+    }));
 
     const response = msg.content[0].text;
     logAI(auth.uid, patientContext?.id || null, 'clinical-query', question, response, msg.model).catch(console.error);
@@ -113,12 +133,12 @@ Focus on: immediate stabilization (ABC), investigations to order NOW, medication
 Be concise and actionable — this is for a doctor at 3AM.
 ${OUTPUT_FORMAT_INSTRUCTIONS}`;
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    const msg = await safeAPICall(() => client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
       system: systemPrompt,
       messages: [{ role: 'user', content: scenario }],
-    });
+    }));
 
     const response = msg.content[0].text;
     logAI(auth.uid, null, 'oncall', scenario, response, msg.model).catch(console.error);
@@ -150,12 +170,12 @@ ALWAYS include:
 - Key monitoring (levels, cultures, imaging)
 ${OUTPUT_FORMAT_INSTRUCTIONS}`;
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    const msg = await safeAPICall(() => client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 2000,
       system: systemPrompt,
       messages: [{ role: 'user', content: `Infection: ${infection}` }],
-    });
+    }));
 
     const response = msg.content[0].text;
     logAI(auth.uid, patientContext?.id || null, 'antibiotics', infection, response, msg.model).catch(console.error);
@@ -179,12 +199,12 @@ major side effects, interactions, monitoring parameters, and pregnancy category.
 Format as a structured reference card.
 ${OUTPUT_FORMAT_INSTRUCTIONS}`;
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    const msg = await safeAPICall(() => client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 1500,
       system: systemPrompt,
       messages: [{ role: 'user', content: drugName }],
-    });
+    }));
 
     const response = msg.content[0].text;
     logAI(auth.uid, null, 'drug-info', drugName, response, msg.model).catch(console.error);
@@ -210,8 +230,8 @@ OUTPUT:
 3. Recommended actions
 4. ${DISCLAIMER}`;
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    const msg = await safeAPICall(() => client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 3000,
       system: systemPrompt,
       messages: [
@@ -226,7 +246,7 @@ OUTPUT:
           ],
         },
       ],
-    });
+    }));
 
     const response = msg.content[0].text;
     logAI(auth.uid, patientContext?.id || null, 'lab-analysis', '[image]', response, msg.model).catch(console.error);
@@ -283,12 +303,12 @@ Brief list of current meds with doses.
 
 TONE: Clinical. Urgent where needed. Zero fluff. Every word must earn its place.`;
 
-    const msg = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+    const msg = await safeAPICall(() => client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 1500,
       system: systemPrompt,
       messages: [{ role: 'user', content: 'Generate the SBAR handover now.' }],
-    });
+    }));
 
     const response = msg.content[0].text;
     logAI(auth.uid, patientData.id || null, 'sbar', 'SBAR generation', response, msg.model).catch(console.error);
