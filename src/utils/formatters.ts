@@ -30,7 +30,7 @@ export const formatAge = (dateOfBirth: string): string => {
 }
 
 export const formatPatientName = (firstName: string, lastName: string): string => {
-  return `${lastName.toUpperCase()}, ${firstName}`
+  return `${(lastName || '').toUpperCase()}, ${firstName || ''}`
 }
 
 export const formatMRN = (mrn: string): string => {

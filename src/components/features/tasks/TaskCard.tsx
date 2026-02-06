@@ -13,7 +13,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onComplete, onClick }: TaskCardProps) {
-  const priorityStyle = theme.priorityColors[task.priority]
+  const priorityStyle = theme.priorityColors[task.priority] ?? theme.priorityColors.medium
 
   return (
     <Card hover onClick={onClick} className="relative">
