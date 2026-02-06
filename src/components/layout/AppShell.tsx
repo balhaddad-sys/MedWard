@@ -4,6 +4,7 @@ import { Header } from './Header'
 import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
 import { ToastContainer } from '@/components/ui/Toast'
+import { ModalManager } from '@/components/ModalManager'
 import { useUIStore } from '@/stores/uiStore'
 
 export function AppShell() {
@@ -36,6 +37,7 @@ export function AppShell() {
         </main>
       </div>
       {isMobile && <BottomNav />}
+      <ModalManager />
       <ToastContainer />
     </div>
   )
