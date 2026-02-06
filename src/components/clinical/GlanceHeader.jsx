@@ -1,4 +1,4 @@
-import { Lock, Unlock, AlertTriangle, User } from 'lucide-react';
+import { Lock, Unlock, AlertTriangle, User, EyeOff, Eye } from 'lucide-react';
 import useModeStore from '../../stores/modeStore';
 import { MODE_META } from '../../config/modeConfig';
 
@@ -6,6 +6,8 @@ export default function GlanceHeader() {
   const currentMode = useModeStore((s) => s.currentMode);
   const isModeLocked = useModeStore((s) => s.isModeLocked);
   const toggleModeLock = useModeStore((s) => s.toggleModeLock);
+  const privacyMode = useModeStore((s) => s.privacyMode);
+  const togglePrivacy = useModeStore((s) => s.togglePrivacy);
   const selectedPatient = useModeStore((s) => s.modeContext.selectedPatient);
   const criticalAlerts = useModeStore((s) => s.modeContext.criticalAlerts);
 
@@ -24,7 +26,9 @@ export default function GlanceHeader() {
         {selectedPatient && (
           <div className="flex items-center gap-1.5 text-sm text-neutral-700 truncate">
             <User className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
-            <span className="font-medium truncate">{selectedPatient.name}</span>
+            <span className={`font-medium truncate ${privacyMode ? 'blur-sm select-none' : ''}`}>
+              {selectedPatient.name}
+            </span>
             {selectedPatient.currentStatus === 'Critical' && (
               <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-semibold flex-shrink-0">
                 CRITICAL
@@ -34,8 +38,8 @@ export default function GlanceHeader() {
         )}
       </div>
 
-      {/* Right: Alerts + lock */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      {/* Right: Alerts + privacy + lock */}
+      <div className="flex items-center gap-1.5 flex-shrink-0">
         {alertCount > 0 && (
           <span className="flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-1 rounded-full">
             <AlertTriangle className="w-3.5 h-3.5" />
@@ -43,6 +47,20 @@ export default function GlanceHeader() {
           </span>
         )}
 
+        {/* Privacy toggle */}
+        <button
+          onClick={togglePrivacy}
+          className={`p-1.5 rounded-lg transition-colors ${
+            privacyMode
+              ? 'bg-neutral-800 text-white'
+              : 'bg-white/60 text-neutral-500 hover:bg-white'
+          }`}
+          title={privacyMode ? 'Show patient data' : 'Hide patient data'}
+        >
+          {privacyMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+
+        {/* Mode lock toggle */}
         <button
           onClick={toggleModeLock}
           className={`p-1.5 rounded-lg transition-colors ${

@@ -9,6 +9,8 @@ const useModeStore = create(
       currentMode: MODES.WARD,
       previousMode: null,
       isModeLocked: false,
+      privacyMode: false,
+      isOffline: !navigator.onLine,
 
       // ── Context ────────────────────────────────────────────────────────
       modeContext: {
@@ -43,6 +45,10 @@ const useModeStore = create(
       toggleModeLock: () => set((s) => ({ isModeLocked: !s.isModeLocked })),
 
       setModeLock: (locked) => set({ isModeLocked: locked }),
+
+      togglePrivacy: () => set((s) => ({ privacyMode: !s.privacyMode })),
+
+      setOffline: (offline) => set({ isOffline: offline }),
 
       setSelectedPatient: (patient) =>
         set((s) => ({
@@ -139,6 +145,7 @@ const useModeStore = create(
       partialize: (state) => ({
         currentMode: state.currentMode,
         isModeLocked: state.isModeLocked,
+        privacyMode: state.privacyMode,
         sessions: state.sessions,
       }),
     }
