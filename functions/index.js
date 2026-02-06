@@ -62,6 +62,72 @@ async function logAI(userId, patientId, tool, prompt, response, model) {
 const DISCLAIMER =
   'Educational reference only. Always verify with local guidelines and senior clinical judgment.';
 
+// Lab Trend Analysis Prompt — Clinical Panel Organization
+const TREND_PROMPT = `
+ROLE: Clinical Lab Director & Medical Data Curator
+CONTEXT: You are organizing laboratory results as they appear in a professional Electronic Health Record (EHR) system.
+
+PRIMARY TASK:
+1. Compare CURRENT vs PREVIOUS lab values
+2. GROUP results into standardized clinical panels
+3. FLAG trend direction with clinical significance icons
+4. OUTPUT in strict medical markdown format
+
+CLASSIFICATION RULES - Organize into these panels:
+- HEMATOLOGY: CBC, WBC, RBC, Hemoglobin, Hematocrit, Platelets, MCV, MCH
+- RENAL/KIDNEY: Creatinine, BUN, eGFR, Uric Acid, Urea
+- ELECTROLYTES: Sodium, Potassium, Chloride, CO2, Bicarbonate, Osmolality
+- LIVER: AST, ALT, ALP, Bilirubin (Total/Direct), Albumin, Prealbumin, GGT
+- CARDIAC/MYOCARDIAL: Troponin, CK, CK-MB, BNP, NT-proBNP, Myoglobin
+- METABOLIC: Glucose, Fasting Glucose, HbA1c, Calcium, Phosphate, Magnesium, Lactate
+- COAGULATION: PT, INR, aPTT, Fibrinogen, D-dimer
+- LIPID: Cholesterol, Triglycerides, HDL, LDL, LDL-C
+- PROTEIN: Total Protein, Albumin, Globulin, A/G Ratio
+- THYROID: TSH, Free T4, Free T3, T3 Uptake
+- INFLAMMATORY: CRP, ESR, Procalcitonin, Ferritin, Complement
+- MISCELLANEOUS: Any test not fitting above categories
+
+TREND ICON RULES (CRITICAL):
+🔴 CRITICAL/WORSENING:
+  - Critical values (e.g., K+ < 2.5 or > 6.5, Glucose < 2.2 or > 30)
+  - Values moving TOWARD critical range
+  - New abnormality (was normal, now abnormal)
+  - Deteriorating trend (was mild abnormality, now severe)
+
+🟢 IMPROVING:
+  - Abnormal value moving toward normal range
+  - Critical value improving away from danger zone
+  - Test returning to baseline after acute change
+
+➡️ STABLE/UNCHANGED:
+  - Values within normal range
+  - Chronically abnormal but unchanged
+  - Minor fluctuations within acceptable variance
+
+OUTPUT FORMAT (STRICT):
+Use ONLY this markdown table structure. Do NOT add explanatory text outside the table.
+
+| Panel | Test | Current | Previous | Range | Icon |
+|-------|------|---------|----------|-------|------|
+| RENAL/KIDNEY | Creatinine (µmol/L) | 180 | 120 | 60-110 | 🔴 |
+| HEMATOLOGY | WBC (×10⁹/L) | 9.0 | 14.5 | 4.0-11.0 | 🟢 |
+| ELECTROLYTES | K+ (mmol/L) | 4.1 | 4.0 | 3.5-5.0 | ➡️ |
+
+QUALITY GATES:
+- Include reference range (normal range) for each test
+- Ensure Current and Previous values are numeric
+- Include unit of measurement in test name (e.g., "Hemoglobin (g/dL)" not just "Hemoglobin")
+- If units differ between readings, convert to same unit
+- Order tests within each panel by physiological importance
+- If a lab has no previous value, use "—" for previous and mark as ➡️ unless the value is abnormal
+
+NEVER:
+- Mix categories
+- Include commentary or clinical interpretation outside the table
+- Use icons for anything other than trend indication
+- Include incomplete rows
+`;
+
 // Shared: Standard output instructions appended to every clinical prompt
 const OUTPUT_FORMAT_INSTRUCTIONS = `
 OUTPUT FORMAT (use Markdown):
@@ -333,7 +399,51 @@ TONE: Clinical. Urgent where needed. Zero fluff. Every word must earn its place.
   }
 );
 
-// ─── 7. Subcollection Cleanup on Patient Delete ────────────────────────────
+// 7. Lab Trend Analysis — Clinical Panel Organization
+exports.analyzeTrends = onCall(
+  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90, memory: '512MiB' },
+  async (request) => {
+    const auth = requireAuth(request);
+    const { labData, patientContext } = request.data;
+    if (!labData || !Array.isArray(labData) || labData.length === 0) {
+      throw new HttpsError('invalid-argument', 'Lab data array required');
+    }
+
+    const client = getClient(ANTHROPIC_API_KEY.value());
+    const patientInfo = patientContext
+      ? `Patient: ${patientContext.name}, ${patientContext.ageSex}, Dx: ${patientContext.diagnosis}`
+      : '';
+
+    try {
+      const msg = await client.messages.create({
+        model: AI_MODEL,
+        max_tokens: 3000,
+        system: `${TREND_PROMPT}\n${patientInfo}`,
+        messages: [
+          {
+            role: 'user',
+            content: `Organize these lab results into clinical panels:\n${JSON.stringify(labData)}`,
+          },
+        ],
+      });
+
+      const response = msg.content[0].text;
+      logAI(
+        auth.uid,
+        patientContext?.id || null,
+        'lab-trends',
+        `Trend analysis (${labData.length} labs)`,
+        response,
+        msg.model
+      ).catch(console.error);
+      return { response, model: msg.model };
+    } catch (err) {
+      handleAIError(err);
+    }
+  }
+);
+
+// ─── 8. Subcollection Cleanup on Patient Delete ────────────────────────────
 // Firestore does not cascade-delete subcollections. This trigger cleans them up.
 exports.onPatientDeleted = onDocumentDeleted(
   'patients/{patientId}',

@@ -4,11 +4,12 @@ import Badge from '../ui/Badge';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import LabForm from './LabForm';
+import LabTrendAnalysis from './LabTrendAnalysis';
 import Sparkline from '../ui/Sparkline';
 import { getDeltaSeverity, getTrendColor } from '../../utils/deltaEngine';
 import { formatDateTime } from '../../utils/formatters';
 
-export default function LabPanel({ patientId }) {
+export default function LabPanel({ patientId, patient }) {
   const [labs, setLabs] = useState([]);
   const [showForm, setShowForm] = useState(false);
 
@@ -79,6 +80,13 @@ export default function LabPanel({ patientId }) {
           </Card>
         );
       })}
+
+      {/* AI Trend Analysis */}
+      {labs.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-neutral-200">
+          <LabTrendAnalysis labs={labs} patient={patient} patientId={patientId} />
+        </div>
+      )}
 
       {labs.length === 0 && (
         <Card className="text-center py-6 text-neutral-400 text-sm">
