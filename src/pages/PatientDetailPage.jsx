@@ -84,7 +84,7 @@ export default function PatientDetailPage() {
         {activeTab === 'vitals' && (
           <VitalsPanel patient={patient} patientId={patientId} />
         )}
-        {activeTab === 'labs' && <LabPanel patientId={patientId} />}
+        {activeTab === 'labs' && <LabPanel patientId={patientId} patient={patient} />}
         {activeTab === 'meds' && (
           <MedPanel patientId={patientId} renalFunction={patient.renalFunction} />
         )}

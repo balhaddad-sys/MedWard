@@ -43,6 +43,13 @@ const aiService = {
     const result = await fn({ patientData, recentLabs, currentMeds });
     return result.data;
   },
+
+  // Lab trend analysis — clinical panel organization
+  async analyzeTrends(labData, patientContext = null) {
+    const fn = httpsCallable(functions, 'analyzeTrends');
+    const result = await fn({ labData, patientContext });
+    return result.data;
+  },
 };
 
 export default aiService;
