@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
@@ -9,6 +9,8 @@ import { HandoverPage } from '@/pages/HandoverPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { useAuthStore } from '@/stores/authStore'
 import { onAuthChange, getUserProfile } from '@/services/firebase/auth'
+import { initRemoteConfig } from '@/config/remoteConfig'
+import { MaintenanceBanner } from '@/components/ui/SafetyBanner'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
@@ -37,6 +39,13 @@ export default function App() {
   const setFirebaseUser = useAuthStore((s) => s.setFirebaseUser)
   const setUser = useAuthStore((s) => s.setUser)
   const setLoading = useAuthStore((s) => s.setLoading)
+  const [_configReady, setConfigReady] = useState(false)
+
+  useEffect(() => {
+    initRemoteConfig()
+      .then(() => setConfigReady(true))
+      .catch(() => setConfigReady(true))
+  }, [])
 
   useEffect(() => {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
@@ -58,6 +67,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <MaintenanceBanner />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route
