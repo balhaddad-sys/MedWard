@@ -1,50 +1,62 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function signedIn() {
+    // Helper functions
+    function isAuthenticated() {
       return request.auth != null;
     }
 
-    function isOwner() {
-      return signedIn() && resource.data.userId == request.auth.uid;
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    function isNewOwner() {
-      return signedIn() && request.resource.data.userId == request.auth.uid;
+    function hasRole(role) {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
     }
 
-    // Patient documents
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    // Patients collection
     match /patients/{patientId} {
-      allow read: if isOwner();
-      allow create: if isNewOwner();
-      allow update, delete: if isOwner();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if hasRole('admin');
 
-      // All subcollections inherit patient ownership check
+      // Labs subcollection
       match /labs/{labId} {
-        allow read: if signedIn() && get(/databases/$(database)/documents/patients/$(patientId)).data.userId == request.auth.uid;
-        allow create: if signedIn() && get(/databases/$(database)/documents/patients/$(patientId)).data.userId == request.auth.uid;
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
       }
 
+      // Notes subcollection
       match /notes/{noteId} {
-        allow read: if signedIn() && get(/databases/$(database)/documents/patients/$(patientId)).data.userId == request.auth.uid;
-        allow create: if signedIn() && get(/databases/$(database)/documents/patients/$(patientId)).data.userId == request.auth.uid;
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
       }
+    }
 
-      match /meds/{medId} {
-        allow read: if signedIn() && get(/databases/$(database)/documents/patients/$(patientId)).data.userId == request.auth.uid;
-        allow create, update: if signedIn() && get(/databases/$(database)/documents/patients/$(patientId)).data.userId == request.auth.uid;
-      }
+    // Tasks collection
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
 
-      match /aiLogs/{logId} {
-        allow read: if signedIn() && get(/databases/$(database)/documents/patients/$(patientId)).data.userId == request.auth.uid;
-        allow create: if signedIn();
-      }
+    // Audit log - append only
+    match /auditLog/{logId} {
+      allow read: if hasRole('admin');
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
 
-      match /events/{eventId} {
-        allow read: if signedIn() && get(/databases/$(database)/documents/patients/$(patientId)).data.userId == request.auth.uid;
-        allow create: if signedIn();
-      }
+    // Settings
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if hasRole('admin');
     }
   }
 }
