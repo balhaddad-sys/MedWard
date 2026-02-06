@@ -6,7 +6,8 @@ import { PatientCard } from './PatientCard'
 import { Button } from '@/components/ui/Button'
 
 export function PatientList() {
-  const patients = usePatientStore((s) => s.getFilteredPatients())
+  const getFilteredPatients = usePatientStore((s) => s.getFilteredPatients)
+  const patients = getFilteredPatients()
   const searchQuery = usePatientStore((s) => s.searchQuery)
   const setSearchQuery = usePatientStore((s) => s.setSearchQuery)
   const filterAcuity = usePatientStore((s) => s.filterAcuity)

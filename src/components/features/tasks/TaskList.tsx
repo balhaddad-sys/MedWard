@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button'
 import { Tabs } from '@/components/ui/Tabs'
 
 export function TaskList() {
-  const tasks = useTaskStore((s) => s.getFilteredTasks())
+  const getFilteredTasks = useTaskStore((s) => s.getFilteredTasks)
+  const tasks = getFilteredTasks()
   const filterStatus = useTaskStore((s) => s.filterStatus)
   const setFilterStatus = useTaskStore((s) => s.setFilterStatus)
   const loading = useTaskStore((s) => s.loading)
