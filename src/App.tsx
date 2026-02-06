@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Component, useEffect, useState } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
 import { AppShell } from '@/components/layout/AppShell'
 import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
@@ -11,6 +12,35 @@ import { useAuthStore } from '@/stores/authStore'
 import { onAuthChange, getUserProfile } from '@/services/firebase/auth'
 import { initRemoteConfig } from '@/config/remoteConfig'
 import { MaintenanceBanner } from '@/components/ui/SafetyBanner'
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
+  constructor(props: { children: ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: '' }
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message }
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('[MedWard Error]', error, info)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
+            <h1 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h1>
+            <p className="text-sm text-gray-600 mb-4">{this.state.error}</p>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">
+              Reload App
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
@@ -85,26 +115,28 @@ export default function App() {
   }, [setFirebaseUser, setUser, setLoading])
 
   return (
-    <BrowserRouter>
-      <MaintenanceBanner />
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppShell />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/patients" element={<Dashboard />} />
-          <Route path="/patients/:id" element={<PatientDetailPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/handover" element={<HandoverPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <MaintenanceBanner />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/patients" element={<Dashboard />} />
+            <Route path="/patients/:id" element={<PatientDetailPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/handover" element={<HandoverPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

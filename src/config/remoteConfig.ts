@@ -43,16 +43,28 @@ export async function initRemoteConfig(): Promise<void> {
 }
 
 export function getFeatureFlag(key: string): boolean {
-  return getBoolean(remoteConfig, key)
+  try {
+    return getBoolean(remoteConfig, key)
+  } catch {
+    return (DEFAULTS[key] as boolean) ?? false
+  }
 }
 
 export function getConfigString(key: string): string {
-  return getString(remoteConfig, key)
+  try {
+    return getString(remoteConfig, key)
+  } catch {
+    return (DEFAULTS[key] as string) ?? ''
+  }
 }
 
 export function getConfigNumber(key: string): number {
-  const value = getValue(remoteConfig, key)
-  return Number(value.asString()) || (DEFAULTS[key] as number) || 0
+  try {
+    const value = getValue(remoteConfig, key)
+    return Number(value.asString()) || (DEFAULTS[key] as number) || 0
+  } catch {
+    return (DEFAULTS[key] as number) || 0
+  }
 }
 
 export function isAIEnabled(): boolean {
