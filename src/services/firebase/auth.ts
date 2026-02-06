@@ -1,5 +1,7 @@
 import {
   signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type User as FirebaseUser,
@@ -8,11 +10,28 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '@/config/firebase'
 import type { User } from '@/types'
 
+const googleProvider = new GoogleAuthProvider()
+
 export const signIn = async (email: string, password: string): Promise<FirebaseUser> => {
   const credential = await signInWithEmailAndPassword(auth, email, password)
   await setDoc(
     doc(db, 'users', credential.user.uid),
     { lastLoginAt: serverTimestamp() },
+    { merge: true }
+  )
+  return credential.user
+}
+
+export const signInWithGoogle = async (): Promise<FirebaseUser> => {
+  const credential = await signInWithPopup(auth, googleProvider)
+  await setDoc(
+    doc(db, 'users', credential.user.uid),
+    {
+      displayName: credential.user.displayName,
+      email: credential.user.email,
+      photoURL: credential.user.photoURL,
+      lastLoginAt: serverTimestamp(),
+    },
     { merge: true }
   )
   return credential.user
