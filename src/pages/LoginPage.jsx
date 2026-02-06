@@ -1,10 +1,14 @@
+import { Navigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 
 export default function LoginPage() {
+  const user = useAuthStore((s) => s.user);
   const login = useAuthStore((s) => s.login);
   const error = useAuthStore((s) => s.error);
   const signingIn = useAuthStore((s) => s.signingIn);
   const clearError = useAuthStore((s) => s.clearError);
+
+  if (user) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-clinical-white">
