@@ -1,10 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { X, LayoutDashboard, Users, Brain, BookOpen, Settings, LogOut, Activity } from 'lucide-react';
+import { X, LayoutDashboard, Users, Brain, BookOpen, Settings, LogOut } from 'lucide-react';
 import useAuthStore from '../../stores/authStore';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/clinical', icon: Activity, label: 'Clinical Modes' },
   { to: '/ai', icon: Brain, label: 'AI Tools' },
   { to: '/reference', icon: BookOpen, label: 'Reference' },
   { to: '/settings', icon: Settings, label: 'Settings' },

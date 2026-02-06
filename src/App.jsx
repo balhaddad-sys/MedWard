@@ -9,7 +9,6 @@ import PatientDetailPage from './pages/PatientDetailPage';
 import AIToolsPage from './pages/AIToolsPage';
 import ReferencePage from './pages/ReferencePage';
 import SettingsPage from './pages/SettingsPage';
-import ClinicalModesPage from './pages/ClinicalModesPage';
 import { ToastContainer } from './components/ui/Toast';
 
 function ProtectedRoute({ children }) {
@@ -49,7 +48,6 @@ export default function App() {
                   <Route path="/ai" element={<AIToolsPage />} />
                   <Route path="/reference" element={<ReferencePage />} />
                   <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/clinical" element={<ClinicalModesPage />} />
                 </Routes>
               </AppShell>
             </ProtectedRoute>
