@@ -16,11 +16,18 @@ const paddingStyles = {
 }
 
 export function Card({ children, className, hover = false, padding = 'md', onClick }: CardProps) {
+  const isClickable = !!onClick || hover
+
   return (
     <div
       className={clsx(
-        'bg-ward-card rounded-xl border border-ward-border shadow-sm',
-        hover && 'transition-all duration-200 hover:shadow-md hover:border-primary-300 cursor-pointer',
+        'bg-ward-card rounded-2xl border border-ward-border shadow-sm',
+        isClickable && [
+          'transition-all duration-200',
+          'hover:shadow-md hover:border-primary-300',
+          'active:scale-[0.98]',
+          'cursor-pointer',
+        ],
         paddingStyles[padding],
         className
       )}
