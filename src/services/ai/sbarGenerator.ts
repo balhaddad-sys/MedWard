@@ -29,8 +29,8 @@ export const generateSBARReport = async (
   const prompt = `Generate SBAR report for:
 Patient: ${patient.firstName} ${patient.lastName}, ${patient.primaryDiagnosis}
 Acuity: ${patient.acuity}, Code Status: ${patient.codeStatus}
-Diagnoses: ${patient.diagnoses.join(', ')}
-Allergies: ${patient.allergies.join(', ')}
+Diagnoses: ${(patient.diagnoses || []).join(', ')}
+Allergies: ${(patient.allergies || []).join(', ')}
 
 Recent Labs:
 ${labSummary}

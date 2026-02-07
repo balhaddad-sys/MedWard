@@ -53,7 +53,7 @@ export function PatientDetail({ patient }: PatientDetailProps) {
           <CardContent>
             <dl className="space-y-2">
               <div><dt className="text-xs text-ward-muted">Primary Diagnosis</dt><dd className="text-sm font-medium">{patient.primaryDiagnosis}</dd></div>
-              <div><dt className="text-xs text-ward-muted">Other Diagnoses</dt><dd className="text-sm">{patient.diagnoses.join(', ') || 'None'}</dd></div>
+              <div><dt className="text-xs text-ward-muted">Other Diagnoses</dt><dd className="text-sm">{(patient.diagnoses || []).join(', ') || 'None'}</dd></div>
               <div><dt className="text-xs text-ward-muted">Attending</dt><dd className="text-sm">Dr. {patient.attendingPhysician}</dd></div>
               <div><dt className="text-xs text-ward-muted">Team</dt><dd className="text-sm">{patient.team}</dd></div>
               <div><dt className="text-xs text-ward-muted">Code Status</dt><dd className="text-sm font-medium">{patient.codeStatus}</dd></div>
@@ -71,8 +71,8 @@ export function PatientDetail({ patient }: PatientDetailProps) {
               <div>
                 <dt className="text-xs text-ward-muted">Allergies</dt>
                 <dd className="flex flex-wrap gap-1 mt-1">
-                  {patient.allergies.length > 0
-                    ? patient.allergies.map((a) => <Badge key={a} variant="danger" size="sm">{a}</Badge>)
+                  {(patient.allergies || []).length > 0
+                    ? (patient.allergies || []).map((a) => <Badge key={a} variant="danger" size="sm">{a}</Badge>)
                     : <span className="text-sm text-green-600">NKDA</span>}
                 </dd>
               </div>
@@ -82,7 +82,7 @@ export function PatientDetail({ patient }: PatientDetailProps) {
                   <dd className="flex items-center gap-1 mt-1">
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
                     <span className="text-sm font-medium text-yellow-700">
-                      {patient.isolationPrecautions.join(', ')}
+                      {(patient.isolationPrecautions || []).join(', ')}
                     </span>
                   </dd>
                 </div>

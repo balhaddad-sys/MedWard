@@ -51,7 +51,7 @@ export function LabAnalysisPage() {
     try {
       const patient = patients.find((p) => p.id === panel.patientId)
       const context = patient
-        ? `${patient.firstName} ${patient.lastName}, ${patient.primaryDiagnosis}, Diagnoses: ${patient.diagnoses.join(', ')}`
+        ? `${patient.firstName} ${patient.lastName}, ${patient.primaryDiagnosis}, Diagnoses: ${(patient.diagnoses || []).join(', ')}`
         : undefined
       const result = await analyzeLabPanel(panel, context)
       setAnalysisResult(result)

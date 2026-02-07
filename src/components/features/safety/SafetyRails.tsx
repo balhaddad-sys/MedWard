@@ -11,14 +11,14 @@ interface SafetyRailsProps {
 export function SafetyRails({ patient, criticalValues }: SafetyRailsProps) {
   const warnings: string[] = []
 
-  if (patient.allergies.length > 0) {
-    warnings.push(`Allergies: ${patient.allergies.join(', ')}`)
+  if ((patient.allergies || []).length > 0) {
+    warnings.push(`Allergies: ${(patient.allergies || []).join(', ')}`)
   }
   if (patient.codeStatus !== 'full') {
     warnings.push(`Code Status: ${patient.codeStatus}`)
   }
   if (patient.isolationPrecautions && patient.isolationPrecautions.length > 0) {
-    warnings.push(`Isolation: ${patient.isolationPrecautions.join(', ')}`)
+    warnings.push(`Isolation: ${(patient.isolationPrecautions || []).join(', ')}`)
   }
 
   return (

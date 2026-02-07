@@ -28,7 +28,7 @@ export const exportPatientSummary = (patient: Patient, labs: LabPanel[], tasks: 
       ['Primary Diagnosis', patient.primaryDiagnosis],
       ['Acuity', String(patient.acuity)],
       ['Code Status', patient.codeStatus],
-      ['Allergies', patient.allergies.join(', ') || 'NKDA'],
+      ['Allergies', (patient.allergies || []).join(', ') || 'NKDA'],
     ],
     theme: 'grid',
   })
