@@ -43,19 +43,19 @@ export function HandoverPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-ward-text flex items-center gap-2">
-            <ArrowRightLeft className="h-6 w-6" /> Handover
+          <h1 className="text-xl sm:text-2xl font-bold text-ward-text flex items-center gap-2">
+            <ArrowRightLeft className="h-5 w-5 sm:h-6 sm:w-6" /> Handover
           </h1>
           <p className="text-sm text-ward-muted mt-1">Generate shift handover reports</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />} onClick={handleExport} disabled={!summary}>
+          <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />} onClick={handleExport} disabled={!summary} className="min-h-[44px] flex-1 sm:flex-none">
             Export PDF
           </Button>
-          <Button size="sm" icon={<Sparkles className="h-4 w-4" />} onClick={handleGenerate} loading={generating}>
-            Generate Summary
+          <Button size="sm" icon={<Sparkles className="h-4 w-4" />} onClick={handleGenerate} loading={generating} className="min-h-[44px] flex-1 sm:flex-none">
+            Generate
           </Button>
         </div>
       </div>

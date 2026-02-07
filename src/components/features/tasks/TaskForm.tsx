@@ -60,7 +60,7 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
         <label className="block text-sm font-medium text-ward-text mb-1">Description</label>
         <textarea className="input-field" rows={3} value={data.description} onChange={(e) => handleChange('description', e.target.value)} />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-ward-text mb-1">Category</label>
           <select className="input-field" value={data.category} onChange={(e) => handleChange('category', e.target.value)}>
@@ -69,13 +69,13 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
         </div>
         <div>
           <label className="block text-sm font-medium text-ward-text mb-1">Priority</label>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             {priorities.map((p) => (
               <button
                 key={p.value}
                 type="button"
                 onClick={() => handleChange('priority', p.value)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`flex-1 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition-all min-h-[44px] sm:min-h-0 ${
                   data.priority === p.value ? `${p.color} text-white` : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -93,9 +93,9 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
         <label className="block text-sm font-medium text-ward-text mb-1">Notes</label>
         <textarea className="input-field" rows={2} value={data.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} />
       </div>
-      <div className="flex justify-end gap-3 pt-4 border-t border-ward-border">
-        <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
-        <Button type="submit" loading={loading}>{initialData ? 'Update Task' : 'Create Task'}</Button>
+      <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-ward-border">
+        <Button type="button" variant="secondary" onClick={onCancel} className="min-h-[44px]">Cancel</Button>
+        <Button type="submit" loading={loading} className="min-h-[44px]">{initialData ? 'Update Task' : 'Create Task'}</Button>
       </div>
     </form>
   )

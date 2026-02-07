@@ -17,32 +17,32 @@ export function PatientList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ward-muted" />
           <input
             type="text"
-            placeholder="Search by name, MRN, or bed..."
+            placeholder="Search patients..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input-field pl-9"
+            className="input-field pl-9 text-sm"
           />
         </div>
-        <Button variant="ghost" size="sm" icon={<Filter className="h-4 w-4" />} onClick={() => setShowFilters(!showFilters)}>
-          Filter
+        <Button variant="ghost" size="sm" icon={<Filter className="h-4 w-4" />} onClick={() => setShowFilters(!showFilters)} className="flex-shrink-0 min-h-[44px]">
+          <span className="hidden sm:inline">Filter</span>
         </Button>
-        <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => openModal('patient-form')}>
-          Add
+        <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => openModal('patient-form')} className="flex-shrink-0 min-h-[44px]">
+          <span className="hidden sm:inline">Add</span>
         </Button>
       </div>
 
       {showFilters && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-1.5 sm:gap-2 flex-wrap">
           {[null, 1, 2, 3, 4, 5].map((acuity) => (
             <button
               key={String(acuity)}
               onClick={() => setFilterAcuity(acuity)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[36px] ${
                 filterAcuity === acuity ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >

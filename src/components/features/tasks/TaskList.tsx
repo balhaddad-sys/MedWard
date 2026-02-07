@@ -27,9 +27,11 @@ export function TaskList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Tabs tabs={tabs} activeTab={filterStatus} onChange={(id) => setFilterStatus(id as typeof filterStatus)} />
-        <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => openModal('task-form')}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0 overflow-x-auto">
+          <Tabs tabs={tabs} activeTab={filterStatus} onChange={(id) => setFilterStatus(id as typeof filterStatus)} />
+        </div>
+        <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => openModal('task-form')} className="flex-shrink-0 min-h-[44px] self-end sm:self-auto">
           Add Task
         </Button>
       </div>

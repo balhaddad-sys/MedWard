@@ -40,28 +40,31 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-fade-in"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose()
       }}
     >
       <div
         className={clsx(
-          'w-full bg-white rounded-2xl shadow-xl animate-slide-up',
+          'w-full bg-white shadow-xl animate-slide-up',
+          'rounded-t-2xl sm:rounded-2xl',
+          'max-h-[90vh] sm:max-h-[85vh]',
+          'flex flex-col',
           sizeStyles[size],
           className
         )}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ward-border">
-          <h2 className="text-lg font-semibold text-ward-text">{title}</h2>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-ward-border flex-shrink-0">
+          <h2 className="text-base sm:text-lg font-semibold text-ward-text">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-ward-muted hover:bg-gray-100 transition-colors"
+            className="p-2 -mr-1 rounded-lg text-ward-muted hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="px-6 py-4 max-h-[70vh] overflow-y-auto">{children}</div>
+        <div className="px-4 sm:px-6 py-4 overflow-y-auto flex-1 overscroll-contain">{children}</div>
       </div>
     </div>
   )
