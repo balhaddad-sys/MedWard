@@ -24,20 +24,20 @@ export function PatientDetail({ patient }: PatientDetailProps) {
       </div>
 
       <Card>
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-ward-text">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-ward-text truncate">
               {formatPatientName(patient.firstName, patient.lastName)}
             </h1>
-            <p className="text-sm text-ward-muted mt-1">
+            <p className="text-xs sm:text-sm text-ward-muted mt-1">
               MRN: {patient.mrn} | {formatAge(patient.dateOfBirth)} | {patient.gender} | Bed {patient.bedNumber}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Badge variant={patient.acuity <= 2 ? 'danger' : patient.acuity === 3 ? 'warning' : 'success'}>
               Acuity {patient.acuity} - {acuityInfo.label}
             </Badge>
-            <Button variant="secondary" size="sm" icon={<Edit className="h-4 w-4" />}>
+            <Button variant="secondary" size="sm" icon={<Edit className="h-4 w-4" />} className="min-h-[44px]">
               Edit
             </Button>
           </div>

@@ -16,13 +16,13 @@ interface TabsProps {
 
 export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
   return (
-    <div className={clsx('flex gap-1 p-1 bg-gray-100 rounded-lg', className)}>
+    <div className={clsx('flex gap-1 p-1 bg-gray-100 rounded-lg overflow-x-auto scrollbar-hide min-w-0', className)}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={clsx(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+            'flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 min-h-[36px]',
             activeTab === tab.id
               ? 'bg-white text-primary-700 shadow-sm'
               : 'text-ward-muted hover:text-ward-text'
@@ -33,7 +33,7 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
           {tab.count !== undefined && (
             <span
               className={clsx(
-                'ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold',
+                'ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 rounded-full text-[10px] font-bold',
                 activeTab === tab.id ? 'bg-primary-100 text-primary-700' : 'bg-gray-200 text-gray-600'
               )}
             >

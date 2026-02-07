@@ -28,48 +28,48 @@ export function Dashboard() {
         <p className="text-sm text-ward-muted mt-1">Ward overview and patient summary</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         <Card padding="sm">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary-100 flex items-center justify-center">
-              <Users className="h-5 w-5 text-primary-600" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-primary-600" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-ward-text">{stats.totalPatients}</p>
-              <p className="text-xs text-ward-muted">Total Patients</p>
+            <div className="min-w-0">
+              <p className="text-xl sm:text-2xl font-bold text-ward-text">{stats.totalPatients}</p>
+              <p className="text-[10px] sm:text-xs text-ward-muted truncate">Total Patients</p>
             </div>
           </div>
         </Card>
         <Card padding="sm">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-red-600" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-red-600">{stats.criticalPatients}</p>
-              <p className="text-xs text-ward-muted">Critical/Acute</p>
-            </div>
-          </div>
-        </Card>
-        <Card padding="sm">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-yellow-100 flex items-center justify-center">
-              <CheckSquare className="h-5 w-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-yellow-600">{stats.pendingTasks}</p>
-              <p className="text-xs text-ward-muted">Pending Tasks</p>
+            <div className="min-w-0">
+              <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.criticalPatients}</p>
+              <p className="text-[10px] sm:text-xs text-ward-muted truncate">Critical/Acute</p>
             </div>
           </div>
         </Card>
         <Card padding="sm">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-yellow-100 flex items-center justify-center flex-shrink-0">
+              <CheckSquare className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-red-600">{stats.criticalLabs}</p>
-              <p className="text-xs text-ward-muted">Critical Labs</p>
+            <div className="min-w-0">
+              <p className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.pendingTasks}</p>
+              <p className="text-[10px] sm:text-xs text-ward-muted truncate">Pending Tasks</p>
+            </div>
+          </div>
+        </Card>
+        <Card padding="sm">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.criticalLabs}</p>
+              <p className="text-[10px] sm:text-xs text-ward-muted truncate">Critical Labs</p>
             </div>
           </div>
         </Card>

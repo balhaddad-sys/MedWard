@@ -65,8 +65,10 @@ export function PatientDetailPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <PatientDetail patient={patient} />
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <PatientDetail patient={patient} />
+        </div>
         <ExportButton options={exportOptions} />
       </div>
 
