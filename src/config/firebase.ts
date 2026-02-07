@@ -1,8 +1,8 @@
-import { initializeApp } from 'firebase/app'
-import { getAuth, connectAuthEmulator } from 'firebase/auth'
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore'
-import { getStorage, connectStorageEmulator } from 'firebase/storage'
-import { getFunctions, connectFunctionsEmulator } from 'firebase/functions'
+import { initializeApp, type FirebaseApp } from 'firebase/app'
+import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth'
+import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore'
+import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage'
+import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,23 +13,37 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-const app = initializeApp(firebaseConfig)
+export const firebaseConfigMissing = !firebaseConfig.apiKey || !firebaseConfig.projectId
 
-export const auth = getAuth(app)
-export const db = getFirestore(app)
-export const storage = getStorage(app)
-export const functions = getFunctions(app)
+let app: FirebaseApp
+let auth: Auth
+let db: Firestore
+let storage: FirebaseStorage
+let functions: Functions
 
-// Connect to emulators in development
-if (import.meta.env.DEV) {
-  try {
-    connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
-    connectFirestoreEmulator(db, 'localhost', 8080)
-    connectStorageEmulator(storage, 'localhost', 9199)
-    connectFunctionsEmulator(functions, 'localhost', 5001)
-  } catch {
-    // Emulators already connected
+if (!firebaseConfigMissing) {
+  app = initializeApp(firebaseConfig)
+  auth = getAuth(app)
+  db = getFirestore(app)
+  storage = getStorage(app)
+  functions = getFunctions(app)
+
+  // Connect to emulators only if explicitly enabled
+  if (import.meta.env.VITE_USE_EMULATORS === 'true') {
+    try {
+      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
+      connectFirestoreEmulator(db, 'localhost', 8080)
+      connectStorageEmulator(storage, 'localhost', 9199)
+      connectFunctionsEmulator(functions, 'localhost', 5001)
+    } catch {
+      // Emulators already connected
+    }
   }
+} else {
+  console.error(
+    'Firebase configuration is missing. Create a .env file with VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, and other required variables. See .env.example for reference.'
+  )
 }
 
-export default app
+export { app, auth, db, storage, functions }
+export default app!
