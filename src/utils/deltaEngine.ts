@@ -83,7 +83,7 @@ export const analyzeTrend = (panels: LabPanel[], labName: string): LabTrend | nu
 
   if (values.length < 2) return null
 
-  values.sort((a, b) => a.date.seconds - b.date.seconds)
+  values.sort((a, b) => (a.date?.seconds ?? 0) - (b.date?.seconds ?? 0))
 
   const first = values[0].value
   const last = values[values.length - 1].value

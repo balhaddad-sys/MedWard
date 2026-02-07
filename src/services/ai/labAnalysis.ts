@@ -5,8 +5,8 @@ export const analyzeLabPanel = async (
   panel: LabPanel,
   patientHistory?: string
 ): Promise<LabAIAnalysis> => {
-  const labSummary = panel.values
-    .map((v) => `${v.name}: ${v.value} ${v.unit} (ref: ${v.referenceMin}-${v.referenceMax}) [${v.flag}]`)
+  const labSummary = (panel.values ?? [])
+    .map((v) => `${v.name ?? 'Unknown'}: ${v.value ?? ''} ${v.unit ?? ''} (ref: ${v.referenceMin ?? '?'}-${v.referenceMax ?? '?'}) [${v.flag ?? 'normal'}]`)
     .join('\n')
 
   const prompt = `Analyze these ${panel.panelName} results:\n${labSummary}${
@@ -28,7 +28,7 @@ export const analyzeLabPanel = async (
 }
 
 export const detectCriticalValues = (values: LabValue[]): LabValue[] => {
-  return values.filter((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
+  return (values ?? []).filter((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
 }
 
 export const calculateDelta = (current: number, previous: number): { delta: number; deltaPercent: number } => {
