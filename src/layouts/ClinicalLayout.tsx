@@ -46,6 +46,9 @@ export default function ClinicalLayout() {
     { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
     { path: '/labs', icon: FlaskConical, label: 'Labs' },
     { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
+    { path: '/ai', icon: Bot, label: 'AI' },
+    { path: '/drugs', icon: Pill, label: 'Drugs' },
+    { path: '/settings', icon: Settings, label: 'Settings' },
   ]
 
   const primaryMobileNav = [
@@ -132,17 +135,31 @@ export default function ClinicalLayout() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Mode Indicator Pill */}
-          <div
-            className={clsx(
-              'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider',
-              mode === 'ward' && 'bg-blue-100 text-blue-700',
-              mode === 'acute' && 'bg-red-600 text-white animate-pulse',
-              mode === 'clinic' && 'bg-stone-200 text-stone-700'
-            )}
-          >
-            {mode}
-          </div>
+          {/* Desktop Mode Switcher */}
+          {!isMobile && (
+            <div className={clsx(
+              'flex items-center gap-0.5 p-1 rounded-lg',
+              mode === 'acute' ? 'bg-slate-800' : 'bg-gray-100'
+            )}>
+              <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />
+              <ModeNavButton id="acute" label="Acute" Icon={Siren} />
+              <ModeNavButton id="clinic" label="Clinic" Icon={Stethoscope} />
+            </div>
+          )}
+
+          {/* Mode Indicator Pill (mobile only) */}
+          {isMobile && (
+            <div
+              className={clsx(
+                'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider',
+                mode === 'ward' && 'bg-blue-100 text-blue-700',
+                mode === 'acute' && 'bg-red-600 text-white animate-pulse',
+                mode === 'clinic' && 'bg-stone-200 text-stone-700'
+              )}
+            >
+              {mode}
+            </div>
+          )}
 
           {/* Mode Lock */}
           <button

@@ -1,4 +1,4 @@
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Sparkles } from 'lucide-react'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import type { LabPanel } from '@/types'
@@ -42,17 +42,22 @@ export function LabTriageView({ panels, onSelectPanel }: LabTriageViewProps) {
                     <CardTitle>{panel.panelName}</CardTitle>
                     <p className="text-xs text-ward-muted">{formatTimestamp(panel.collectedAt)}</p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-2">
                     {criticalCount > 0 && <Badge variant="danger" pulse>{criticalCount} critical</Badge>}
                     <Badge variant="warning">{abnormalCount} abnormal</Badge>
                   </div>
                 </CardHeader>
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="flex flex-wrap gap-2 mt-2 px-4 pb-3">
                   {(panel.values ?? []).filter((v) => v.flag !== 'normal').map((v) => (
                     <span key={v.name} className={clsx('text-xs font-mono', getLabFlagColor(v.flag))}>
                       {v.name}: {v.value} {v.unit}
                     </span>
                   ))}
+                  {onSelectPanel && (
+                    <button className="ml-auto text-xs text-primary-600 font-medium flex items-center gap-1 hover:underline">
+                      <Sparkles className="h-3 w-3" /> AI Analyze
+                    </button>
+                  )}
                 </div>
               </Card>
             )
