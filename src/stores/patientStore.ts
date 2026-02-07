@@ -69,9 +69,9 @@ export const usePatientStore = create<PatientStore>()((set, get) => ({
     return patients.filter((p) => {
       const matchesSearch =
         !searchQuery ||
-        `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.mrn.includes(searchQuery) ||
-        p.bedNumber.toLowerCase().includes(searchQuery.toLowerCase())
+        `${p.firstName ?? ''} ${p.lastName ?? ''}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (p.mrn ?? '').includes(searchQuery) ||
+        (p.bedNumber ?? '').toLowerCase().includes(searchQuery.toLowerCase())
       const matchesAcuity = filterAcuity === null || p.acuity === filterAcuity
       return matchesSearch && matchesAcuity
     })

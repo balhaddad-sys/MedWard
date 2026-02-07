@@ -13,11 +13,11 @@ export const generateSBARReport = async (
   recentLabs: LabPanel[],
   activeTasks: Task[]
 ): Promise<SBARData> => {
-  const labSummary = recentLabs
+  const labSummary = (recentLabs ?? [])
     .slice(0, 5)
     .map((panel) => {
-      const abnormal = panel.values.filter((v) => v.flag !== 'normal')
-      return `${panel.panelName}: ${abnormal.map((v) => `${v.name}=${v.value}${v.unit}[${v.flag}]`).join(', ') || 'all normal'}`
+      const abnormal = (panel.values ?? []).filter((v) => v.flag && v.flag !== 'normal')
+      return `${panel.panelName ?? 'Unknown'}: ${abnormal.map((v) => `${v.name ?? ''}=${v.value ?? ''}${v.unit ?? ''}[${v.flag ?? 'normal'}]`).join(', ') || 'all normal'}`
     })
     .join('\n')
 
@@ -27,10 +27,10 @@ export const generateSBARReport = async (
     .join('\n')
 
   const prompt = `Generate SBAR report for:
-Patient: ${patient.firstName} ${patient.lastName}, ${patient.primaryDiagnosis}
-Acuity: ${patient.acuity}, Code Status: ${patient.codeStatus}
-Diagnoses: ${(patient.diagnoses || []).join(', ')}
-Allergies: ${(patient.allergies || []).join(', ')}
+Patient: ${patient.firstName ?? ''} ${patient.lastName ?? ''}, ${patient.primaryDiagnosis ?? 'Unknown'}
+Acuity: ${patient.acuity ?? 'N/A'}, Code Status: ${patient.codeStatus ?? 'Unknown'}
+Diagnoses: ${(patient.diagnoses ?? []).join(', ')}
+Allergies: ${(patient.allergies ?? []).join(', ')}
 
 Recent Labs:
 ${labSummary}
@@ -45,7 +45,7 @@ Respond in JSON: { "situation": "", "background": "", "assessment": "", "recomme
     return JSON.parse(response.content)
   } catch {
     return {
-      situation: `${patient.firstName} ${patient.lastName} - ${patient.primaryDiagnosis}`,
+      situation: `${patient.firstName ?? ''} ${patient.lastName ?? ''} - ${patient.primaryDiagnosis ?? 'Unknown'}`,
       background: response.content,
       assessment: '',
       recommendation: '',

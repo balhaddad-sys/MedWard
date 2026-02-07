@@ -17,9 +17,9 @@ interface PatientCardProps {
 
 export function PatientCard({ patient, compact = false, criticalLabCount = 0, pendingTaskCount = 0 }: PatientCardProps) {
   const navigate = useNavigate()
-  const acuity = (patient.acuity >= 1 && patient.acuity <= 5 ? patient.acuity : 3) as keyof typeof theme.acuityColors
-  const acuityStyle = theme.acuityColors[acuity]
-  const acuityInfo = ACUITY_LEVELS[acuity as keyof typeof ACUITY_LEVELS]
+  const acuity = (Number.isFinite(patient.acuity) && patient.acuity >= 1 && patient.acuity <= 5 ? patient.acuity : 3) as keyof typeof theme.acuityColors
+  const acuityStyle = theme.acuityColors[acuity] ?? theme.acuityColors[3]
+  const acuityInfo = ACUITY_LEVELS[acuity as keyof typeof ACUITY_LEVELS] ?? ACUITY_LEVELS[3]
 
   return (
     <Card hover onClick={() => navigate(`/patients/${patient.id}`)} className={clsx(compact && 'p-3')}>

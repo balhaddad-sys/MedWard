@@ -12,11 +12,11 @@ interface LabTriageViewProps {
 }
 
 export function LabTriageView({ panels, onSelectPanel }: LabTriageViewProps) {
-  const triagePanels = panels
-    .filter((p) => p.values.some((v) => v.flag !== 'normal'))
+  const triagePanels = (panels ?? [])
+    .filter((p) => p.values?.some((v) => v.flag && v.flag !== 'normal'))
     .sort((a, b) => {
-      const aCrit = a.values.filter((v) => v.flag.startsWith('critical')).length
-      const bCrit = b.values.filter((v) => v.flag.startsWith('critical')).length
+      const aCrit = a.values.filter((v) => v.flag?.startsWith('critical')).length
+      const bCrit = b.values.filter((v) => v.flag?.startsWith('critical')).length
       return bCrit - aCrit
     })
 
@@ -33,8 +33,8 @@ export function LabTriageView({ panels, onSelectPanel }: LabTriageViewProps) {
       ) : (
         <div className="grid gap-3">
           {triagePanels.map((panel) => {
-            const criticalCount = panel.values.filter((v) => v.flag.startsWith('critical')).length
-            const abnormalCount = panel.values.filter((v) => v.flag !== 'normal').length
+            const criticalCount = panel.values.filter((v) => v.flag?.startsWith('critical')).length
+            const abnormalCount = panel.values.filter((v) => v.flag && v.flag !== 'normal').length
             return (
               <Card key={panel.id} hover onClick={() => onSelectPanel?.(panel.id)}>
                 <CardHeader>

@@ -14,7 +14,7 @@ interface LabPanelProps {
 }
 
 export function LabPanelComponent({ panel, trendData, onReview }: LabPanelProps) {
-  const hasCritical = panel.values.some((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
+  const hasCritical = panel.values?.some((v) => v.flag === 'critical_low' || v.flag === 'critical_high') ?? false
 
   return (
     <Card className={clsx(hasCritical && 'border-red-300 shadow-red-100')}>
@@ -37,20 +37,20 @@ export function LabPanelComponent({ panel, trendData, onReview }: LabPanelProps)
       </CardHeader>
       <div className="text-xs text-ward-muted mb-3">{formatTimestamp(panel.collectedAt)}</div>
       <div className="space-y-1.5">
-        {panel.values.map((value) => (
+        {(panel.values ?? []).map((value) => (
           <div key={value.name} className={clsx('flex items-center justify-between px-2 py-1.5 rounded-lg border', getLabFlagBg(value.flag))}>
             <span className="text-xs text-ward-muted w-24 flex-shrink-0">{value.name}</span>
             <span className={clsx('text-sm font-mono font-medium flex-1 text-center', getLabFlagColor(value.flag))}>
               {formatLabValue(value.value)}
             </span>
             <span className="text-[10px] text-ward-muted w-16 text-right">{value.unit}</span>
-            {value.flag !== 'normal' && (
+            {value.flag && value.flag !== 'normal' && (
               <Badge variant={value.flag.startsWith('critical') ? 'danger' : 'warning'} size="sm" className="ml-2">
                 {getLabFlagLabel(value.flag)}
               </Badge>
             )}
             {trendData?.[value.name] && (
-              <Sparkline data={trendData[value.name]} width={60} height={20} color={value.flag.startsWith('critical') ? '#dc2626' : '#3b82f6'} className="ml-2" referenceMin={value.referenceMin} referenceMax={value.referenceMax} />
+              <Sparkline data={trendData[value.name]} width={60} height={20} color={value.flag?.startsWith('critical') ? '#dc2626' : '#3b82f6'} className="ml-2" referenceMin={value.referenceMin} referenceMax={value.referenceMax} />
             )}
           </div>
         ))}
