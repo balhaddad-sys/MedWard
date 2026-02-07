@@ -18,14 +18,16 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import type { Patient, LabPanel, LabAIAnalysis } from '@/types'
-import { FileText, ClipboardList, Sparkles, Download, Bot } from 'lucide-react'
+import { FileText, ClipboardList, Sparkles, Download, Bot, Plus } from 'lucide-react'
+import { LabEntryForm } from '@/components/features/labs/LabEntryForm'
 
 export function PatientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [patient, setPatient] = useState<Patient | null>(null)
-  const [labs, setLabs] = useState<LabPanel[]>([])
+  const [labs, setLabs] = useState<LabPanel[]>([])  
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
+  const [showLabEntry, setShowLabEntry] = useState(false)
   const criticalValues = usePatientStore((s) => s.criticalValues)
   const tasks = useTaskStore((s) => s.tasks)
 
@@ -131,6 +133,27 @@ export function PatientDetailPage() {
       )}
       {activeTab === 'labs' && (
         <div className="space-y-4">
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => setShowLabEntry(!showLabEntry)}
+              className="min-h-[44px]"
+            >
+              {showLabEntry ? 'Cancel' : 'Add Labs'}
+            </Button>
+          </div>
+          {showLabEntry && id && (
+            <LabEntryForm
+              patientId={id}
+              onComplete={async () => {
+                setShowLabEntry(false)
+                const updatedLabs = await getLabPanels(id)
+                setLabs(updatedLabs)
+              }}
+              onCancel={() => setShowLabEntry(false)}
+            />
+          )}
           <LabPanelView panels={labs} onReview={handleAnalyzeLab} />
           {analyzingLab && (
             <Card>

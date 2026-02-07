@@ -8,6 +8,7 @@ import { LabPanelView } from '@/components/features/labs/LabPanelView'
 import { LabTriageView } from '@/components/features/labs/LabTriageView'
 import { LabTrendSummary } from '@/components/features/labs/LabTrendSummary'
 import { LabUploader } from '@/components/features/labs/LabUploader'
+import { LabEntryForm } from '@/components/features/labs/LabEntryForm'
 import { usePatientStore } from '@/stores/patientStore'
 import { getLabPanels } from '@/services/firebase/labs'
 import { analyzeLabPanel } from '@/services/ai/labAnalysis'
@@ -65,7 +66,7 @@ export function LabAnalysisPage() {
   const tabs = [
     { id: 'triage', label: 'Triage', icon: <FlaskConical className="h-3.5 w-3.5" /> },
     { id: 'all', label: 'All Results', count: allLabs.length },
-    { id: 'upload', label: 'Upload', icon: <Upload className="h-3.5 w-3.5" /> },
+    { id: 'upload', label: 'Add Labs', icon: <Upload className="h-3.5 w-3.5" /> },
   ]
 
   const criticalLabs = allLabs.filter((p) =>
@@ -225,14 +226,27 @@ export function LabAnalysisPage() {
 
           {activeTab === 'upload' && (
             <div className="space-y-4">
-              <LabUploader patientId={selectedPatientId || undefined} />
-              <Card padding="sm">
-                <CardContent>
-                  <p className="text-xs text-ward-muted text-center">
-                    Upload lab result images to cloud storage. Use Camera on mobile to capture lab reports directly.
-                  </p>
-                </CardContent>
-              </Card>
+              {!selectedPatientId ? (
+                <Card className="p-8 text-center">
+                  <FlaskConical className="h-10 w-10 text-ward-muted mx-auto mb-3" />
+                  <p className="text-ward-muted">Select a patient above to add lab results</p>
+                </Card>
+              ) : (
+                <>
+                  <LabEntryForm
+                    patientId={selectedPatientId}
+                    onComplete={async () => {
+                      const labs = await getLabPanels(selectedPatientId)
+                      setAllLabs(labs)
+                      setActiveTab('all')
+                    }}
+                  />
+                  <div className="pt-4 border-t border-ward-border">
+                    <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider mb-3">Or upload lab images</h3>
+                    <LabUploader patientId={selectedPatientId} />
+                  </div>
+                </>
+              )}
             </div>
           )}
         </>

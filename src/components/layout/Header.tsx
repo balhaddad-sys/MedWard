@@ -1,16 +1,27 @@
-import { Menu, Bell, User, LogOut } from 'lucide-react'
+import { Bell, User, LogOut, LayoutDashboard, CheckSquare, FlaskConical, ArrowRightLeft, Users } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { ModeSelector } from './ModeSelector'
 import { APP_NAME } from '@/config/constants'
 import { signOut } from '@/services/firebase/auth'
 import { useState } from 'react'
+import { clsx } from 'clsx'
+
+const desktopNav = [
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/patients', icon: Users, label: 'Patients' },
+  { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
+  { path: '/labs', icon: FlaskConical, label: 'Labs' },
+  { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
+]
 
 export function Header() {
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const isMobile = useUIStore((s) => s.isMobile)
   const user = useAuthStore((s) => s.user)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
 
   const handleSignOut = async () => {
     await signOut()
@@ -20,17 +31,33 @@ export function Header() {
     <header className="sticky top-0 z-30 bg-white border-b border-ward-border shadow-sm">
       <div className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 gap-1 sm:gap-2">
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          {isMobile && (
-            <button onClick={toggleSidebar} className="p-2 rounded-lg hover:bg-gray-100 min-h-[44px] min-w-[44px] flex items-center justify-center">
-              <Menu className="h-5 w-5 text-ward-muted" />
-            </button>
-          )}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
             <div className="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center flex-shrink-0">
               <span className="text-white font-bold text-sm">M</span>
             </div>
             <span className="font-semibold text-ward-text hidden sm:block">{APP_NAME}</span>
           </div>
+          {/* Desktop navigation */}
+          {!isMobile && (
+            <nav className="flex items-center gap-1 ml-4">
+              {desktopNav.map((item) => {
+                const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => navigate(item.path)}
+                    className={clsx(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                      isActive ? 'bg-primary-50 text-primary-700' : 'text-ward-muted hover:bg-gray-50 hover:text-ward-text'
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </button>
+                )
+              })}
+            </nav>
+          )}
         </div>
 
         <div className="flex-shrink min-w-0 overflow-x-auto scrollbar-hide">
