@@ -77,12 +77,12 @@ export function Login() {
           type="button"
           onClick={handleGoogleSignIn}
           disabled={googleLoading || loading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg border border-ward-border bg-white text-ward-text font-medium text-sm hover:bg-gray-50 active:bg-gray-100 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg border border-gray-300 bg-white text-ward-text font-medium text-sm shadow-sm hover:bg-gray-50 hover:shadow active:bg-gray-100 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {googleLoading ? (
             <div className="h-5 w-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
           ) : (
-            <GoogleIcon className="h-5 w-5" />
+            <GoogleIcon className="h-5 w-5 flex-shrink-0" />
           )}
           Sign in with Google
         </button>
