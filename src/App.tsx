@@ -7,6 +7,9 @@ import { PatientDetailPage } from '@/pages/PatientDetailPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { HandoverPage } from '@/pages/HandoverPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { AIAssistantPage } from '@/pages/AIAssistantPage'
+import { LabAnalysisPage } from '@/pages/LabAnalysisPage'
+import { DrugInfoPage } from '@/pages/DrugInfoPage'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuthStore } from '@/stores/authStore'
 import { firebaseConfigMissing } from '@/config/firebase'
@@ -103,6 +106,9 @@ export default function App() {
             <Route path="/patients/:id" element={<PatientDetailPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/handover" element={<HandoverPage />} />
+            <Route path="/ai" element={<AIAssistantPage />} />
+            <Route path="/labs" element={<LabAnalysisPage />} />
+            <Route path="/drugs" element={<DrugInfoPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

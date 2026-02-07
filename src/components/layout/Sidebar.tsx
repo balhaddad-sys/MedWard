@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CheckSquare, ArrowRightLeft, Settings, Activity, FlaskConical } from 'lucide-react'
+import { LayoutDashboard, Users, CheckSquare, ArrowRightLeft, Settings, Activity, FlaskConical, Bot, Pill } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useUIStore } from '@/stores/uiStore'
 
@@ -7,6 +7,9 @@ const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/patients', icon: Users, label: 'Patients' },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
+  { path: '/labs', icon: FlaskConical, label: 'Lab Analysis' },
+  { path: '/ai', icon: Bot, label: 'AI Assistant' },
+  { path: '/drugs', icon: Pill, label: 'Drug Info' },
   { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ]
