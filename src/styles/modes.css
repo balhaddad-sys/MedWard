@@ -33,21 +33,21 @@ body.theme-ward {
    ACUTE MODE - Dark cockpit, high-contrast, glanceable
    =============================================== */
 body.theme-acute {
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #2d2d2d;
-  --text-primary: #ffffff;
-  --text-secondary: #e0e0e0;
-  --text-muted: #888888;
-  --border-color: #404040;
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --border-color: #475569;
   --accent-color: #3b82f6;
   --accent-hover: #60a5fa;
-  --alert-color: #ff4444;
-  --alert-bg: #3a1111;
-  --success-color: #22c55e;
-  --success-bg: #0a2e14;
+  --alert-color: #f87171;
+  --alert-bg: #1e1b2e;
+  --success-color: #34d399;
+  --success-bg: #0f2b1d;
   --warning-color: #fbbf24;
-  --warning-bg: #2e2304;
+  --warning-bg: #27200e;
 
   --font-size-body: 18px;
   --font-size-small: 14px;

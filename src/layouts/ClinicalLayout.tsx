@@ -78,7 +78,7 @@ export default function ClinicalLayout() {
         className={clsx(
           'h-14 flex items-center justify-between px-3 sm:px-4 border-b shrink-0 transition-colors duration-300 z-30',
           mode === 'ward' && 'bg-white border-neutral-200',
-          mode === 'acute' && 'bg-slate-900 border-slate-800 text-white',
+          mode === 'acute' && 'bg-[#0f172a] border-slate-700 text-white',
           mode === 'clinic' && 'bg-stone-50 border-stone-200'
         )}
       >
@@ -139,7 +139,7 @@ export default function ClinicalLayout() {
           {!isMobile && (
             <div className={clsx(
               'flex items-center gap-0.5 p-1 rounded-lg',
-              mode === 'acute' ? 'bg-slate-800' : 'bg-gray-100'
+              mode === 'acute' ? 'bg-slate-800/60' : 'bg-gray-100'
             )}>
               <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />
               <ModeNavButton id="acute" label="Acute" Icon={Siren} />
@@ -215,7 +215,7 @@ export default function ClinicalLayout() {
               <div
                 className={clsx(
                   'h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0',
-                  mode === 'acute' ? 'bg-slate-700' : 'bg-primary-100'
+                  mode === 'acute' ? 'bg-slate-600/60' : 'bg-primary-100'
                 )}
               >
                 <User
@@ -263,7 +263,7 @@ export default function ClinicalLayout() {
         className={clsx(
           'flex-1 overflow-y-auto relative transition-opacity duration-150',
           isTransitioning ? 'opacity-50 blur-sm' : 'opacity-100',
-          mode === 'acute' ? 'bg-[#0f0f0f]' : mode === 'clinic' ? 'bg-[#faf8f6]' : 'bg-[#f8fafc]'
+          mode === 'acute' ? 'bg-[#0f172a]' : mode === 'clinic' ? 'bg-[#faf8f6]' : 'bg-[#f8fafc]'
         )}
       >
         <div className="p-3 sm:p-4 md:p-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full min-w-0">
@@ -283,7 +283,7 @@ export default function ClinicalLayout() {
                 className={clsx(
                   'absolute bottom-[64px] left-0 right-0 rounded-t-2xl p-4 safe-bottom animate-slide-up border-t',
                   mode === 'acute'
-                    ? 'bg-slate-900 border-slate-800'
+                    ? 'bg-[#1e293b] border-slate-700'
                     : 'bg-white border-ward-border'
                 )}
                 onClick={(e) => e.stopPropagation()}
@@ -349,7 +349,7 @@ export default function ClinicalLayout() {
             className={clsx(
               'fixed bottom-0 left-0 right-0 z-30 border-t safe-bottom transition-colors duration-300',
               mode === 'acute'
-                ? 'bg-slate-900 border-slate-800'
+                ? 'bg-[#0f172a] border-slate-700'
                 : 'bg-white border-neutral-200'
             )}
           >
@@ -403,7 +403,7 @@ export default function ClinicalLayout() {
             <div
               className={clsx(
                 'flex items-center justify-around border-t px-2 py-1',
-                mode === 'acute' ? 'border-slate-800' : 'border-neutral-100'
+                mode === 'acute' ? 'border-slate-700' : 'border-neutral-100'
               )}
             >
               <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />

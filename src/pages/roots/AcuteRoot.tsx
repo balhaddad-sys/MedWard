@@ -121,7 +121,7 @@ export default function AcuteRoot() {
       {/* Patient Selector (if needed) */}
       <div className="flex items-center gap-2">
         <select
-          className="flex-1 bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          className="flex-1 bg-slate-700/40 text-white border border-slate-600 rounded-lg px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-red-500 focus:border-transparent"
           value={selectedPatientId}
           onChange={(e) => {
             triggerHaptic('tap')
@@ -138,7 +138,7 @@ export default function AcuteRoot() {
       </div>
 
       {/* Section Tabs */}
-      <div className="flex gap-1 bg-slate-800 rounded-lg p-1">
+      <div className="flex gap-1 bg-slate-700/40 rounded-lg p-1">
         {[
           { id: 'vitals' as const, label: 'Vitals', Icon: Activity },
           { id: 'tools' as const, label: 'Tools', Icon: Calculator },
@@ -196,7 +196,7 @@ export default function AcuteRoot() {
       {activeSection === 'tools' && (
         <div className="space-y-4">
           {/* MAP Calculator */}
-          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
               <Calculator className="h-4 w-4 text-blue-400" />
               MAP Calculator
@@ -207,7 +207,7 @@ export default function AcuteRoot() {
                 placeholder="SBP"
                 value={mapSystolic}
                 onChange={(e) => setMapSystolic(e.target.value)}
-                className="flex-1 bg-slate-900 text-white border border-slate-600 rounded-lg px-3 py-2.5 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500"
+                className="flex-1 bg-slate-800/60 text-white border border-slate-600 rounded-lg px-3 py-2.5 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500"
               />
               <span className="text-slate-400 font-bold">/</span>
               <input
@@ -215,7 +215,7 @@ export default function AcuteRoot() {
                 placeholder="DBP"
                 value={mapDiastolic}
                 onChange={(e) => setMapDiastolic(e.target.value)}
-                className="flex-1 bg-slate-900 text-white border border-slate-600 rounded-lg px-3 py-2.5 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500"
+                className="flex-1 bg-slate-800/60 text-white border border-slate-600 rounded-lg px-3 py-2.5 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500"
               />
             </div>
             {mapResult !== null && (
@@ -234,7 +234,7 @@ export default function AcuteRoot() {
           </div>
 
           {/* GCS Calculator */}
-          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
               <Brain className="h-4 w-4 text-purple-400" />
               GCS Calculator
@@ -244,7 +244,7 @@ export default function AcuteRoot() {
               <GCSInput label="Verbal" value={gcsVerbal} min={1} max={5} onChange={setGcsVerbal} />
               <GCSInput label="Motor" value={gcsMotor} min={1} max={6} onChange={setGcsMotor} />
             </div>
-            <div className="text-center mt-3 pt-3 border-t border-slate-700">
+            <div className="text-center mt-3 pt-3 border-t border-slate-600">
               <span
                 className={clsx(
                   'text-3xl font-bold font-mono',
@@ -277,7 +277,7 @@ export default function AcuteRoot() {
               <button
                 key={tool.label}
                 onClick={() => triggerHaptic('tap')}
-                className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-left hover:bg-slate-750 transition-colors touch"
+                className="bg-slate-700/40 border border-slate-600 rounded-xl p-4 text-left hover:bg-slate-750 transition-colors touch"
               >
                 <p className="text-sm font-bold text-white">{tool.label}</p>
                 <p className="text-xs text-slate-400 mt-0.5">{tool.desc}</p>
@@ -299,12 +299,12 @@ export default function AcuteRoot() {
               <div
                 key={timer.id}
                 className={clsx(
-                  'bg-slate-800 rounded-xl p-4 border transition-colors',
+                  'bg-slate-700/40 rounded-xl p-4 border transition-colors',
                   isOverdue
                     ? 'border-red-500 animate-pulse'
                     : timer.isRunning
                       ? 'border-amber-500/50'
-                      : 'border-slate-700'
+                      : 'border-slate-600'
                 )}
               >
                 <div className="flex items-center justify-between mb-3">
@@ -331,7 +331,7 @@ export default function AcuteRoot() {
 
                 {/* Progress bar */}
                 {timer.isRunning && (
-                  <div className="w-full h-1.5 bg-slate-700 rounded-full mb-3 overflow-hidden">
+                  <div className="w-full h-1.5 bg-slate-600/60 rounded-full mb-3 overflow-hidden">
                     <div
                       className={clsx(
                         'h-full rounded-full transition-all',
@@ -364,7 +364,7 @@ export default function AcuteRoot() {
                   </button>
                   <button
                     onClick={() => resetTimer(timer.id)}
-                    className="p-2.5 rounded-lg bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors touch min-h-[48px] min-w-[48px] flex items-center justify-center"
+                    className="p-2.5 rounded-lg bg-slate-600/60 text-slate-300 hover:bg-slate-600 transition-colors touch min-h-[48px] min-w-[48px] flex items-center justify-center"
                   >
                     <RotateCcw className="h-4 w-4" />
                   </button>
@@ -400,21 +400,21 @@ export default function AcuteRoot() {
           </div>
 
           {/* SBAR Generator */}
-          <div className="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <div className="bg-slate-700/40 rounded-xl p-4 border border-slate-600">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3 flex items-center gap-2">
               <ClipboardList className="h-4 w-4 text-blue-400" />
               Quick SBAR
             </h3>
             {selectedPatient ? (
               <div className="space-y-2 text-sm">
-                <div className="bg-slate-900 rounded-lg p-3">
+                <div className="bg-slate-800/60 rounded-lg p-3">
                   <span className="text-red-400 font-bold text-xs uppercase">S — Situation</span>
                   <p className="text-slate-300 mt-1">
                     Calling about {selectedPatient.firstName} {selectedPatient.lastName}, Bed{' '}
                     {selectedPatient.bedNumber}, admitted with {selectedPatient.primaryDiagnosis}
                   </p>
                 </div>
-                <div className="bg-slate-900 rounded-lg p-3">
+                <div className="bg-slate-800/60 rounded-lg p-3">
                   <span className="text-amber-400 font-bold text-xs uppercase">B — Background</span>
                   <p className="text-slate-300 mt-1">
                     Acuity: {selectedPatient.acuity}/5. Allergies:{' '}
@@ -423,11 +423,11 @@ export default function AcuteRoot() {
                       : 'NKDA'}
                   </p>
                 </div>
-                <div className="bg-slate-900 rounded-lg p-3">
+                <div className="bg-slate-800/60 rounded-lg p-3">
                   <span className="text-blue-400 font-bold text-xs uppercase">A — Assessment</span>
                   <p className="text-slate-400 mt-1 italic">Enter current clinical concern...</p>
                 </div>
-                <div className="bg-slate-900 rounded-lg p-3">
+                <div className="bg-slate-800/60 rounded-lg p-3">
                   <span className="text-green-400 font-bold text-xs uppercase">R — Recommendation</span>
                   <p className="text-slate-400 mt-1 italic">Enter requested action...</p>
                 </div>
@@ -502,7 +502,7 @@ function GCSInput({
             triggerHaptic('tap')
             if (value > min) onChange(value - 1)
           }}
-          className="h-10 w-10 rounded-lg bg-slate-700 flex items-center justify-center text-white hover:bg-slate-600 touch"
+          className="h-10 w-10 rounded-lg bg-slate-600/60 flex items-center justify-center text-white hover:bg-slate-600 touch"
           disabled={value <= min}
         >
           <Minus className="h-4 w-4" />
@@ -513,7 +513,7 @@ function GCSInput({
             triggerHaptic('tap')
             if (value < max) onChange(value + 1)
           }}
-          className="h-10 w-10 rounded-lg bg-slate-700 flex items-center justify-center text-white hover:bg-slate-600 touch"
+          className="h-10 w-10 rounded-lg bg-slate-600/60 flex items-center justify-center text-white hover:bg-slate-600 touch"
           disabled={value >= max}
         >
           <Plus className="h-4 w-4" />
