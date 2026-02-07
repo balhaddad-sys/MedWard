@@ -78,7 +78,7 @@ export default function ClinicalLayout() {
         className={clsx(
           'h-14 flex items-center justify-between px-3 sm:px-4 border-b shrink-0 transition-colors duration-300 z-30',
           mode === 'ward' && 'bg-white border-neutral-200',
-          mode === 'acute' && 'bg-[#0f172a] border-slate-700 text-white',
+          mode === 'acute' && 'bg-gray-900 border-gray-700 text-white',
           mode === 'clinic' && 'bg-stone-50 border-stone-200'
         )}
       >
@@ -87,7 +87,7 @@ export default function ClinicalLayout() {
             <div
               className={clsx(
                 'h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0',
-                mode === 'acute' ? 'bg-red-600' : 'bg-primary-600'
+                mode === 'acute' ? 'bg-amber-500' : 'bg-primary-600'
               )}
             >
               <span className="text-white font-bold text-sm">M</span>
@@ -118,10 +118,10 @@ export default function ClinicalLayout() {
                       'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors touch',
                       isActive
                         ? mode === 'acute'
-                          ? 'bg-white/10 text-white'
+                          ? 'bg-amber-500/15 text-amber-400'
                           : 'bg-primary-50 text-primary-700'
                         : mode === 'acute'
-                          ? 'text-slate-400 hover:text-white hover:bg-white/5'
+                          ? 'text-gray-400 hover:text-white hover:bg-white/5'
                           : 'text-ward-muted hover:bg-gray-50 hover:text-ward-text'
                     )}
                   >
@@ -139,10 +139,10 @@ export default function ClinicalLayout() {
           {!isMobile && (
             <div className={clsx(
               'flex items-center gap-0.5 p-1 rounded-lg',
-              mode === 'acute' ? 'bg-slate-800/60' : 'bg-gray-100'
+              mode === 'acute' ? 'bg-gray-800/60' : 'bg-gray-100'
             )}>
               <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />
-              <ModeNavButton id="acute" label="Acute" Icon={Siren} />
+              <ModeNavButton id="acute" label="On-Call" Icon={Siren} />
               <ModeNavButton id="clinic" label="Clinic" Icon={Stethoscope} />
             </div>
           )}
@@ -153,11 +153,11 @@ export default function ClinicalLayout() {
               className={clsx(
                 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider',
                 mode === 'ward' && 'bg-blue-100 text-blue-700',
-                mode === 'acute' && 'bg-red-600 text-white animate-pulse',
+                mode === 'acute' && 'bg-amber-500 text-white',
                 mode === 'clinic' && 'bg-stone-200 text-stone-700'
               )}
             >
-              {mode}
+              {mode === 'acute' ? 'On-Call' : mode}
             </div>
           )}
 
@@ -263,7 +263,7 @@ export default function ClinicalLayout() {
         className={clsx(
           'flex-1 overflow-y-auto relative transition-opacity duration-150',
           isTransitioning ? 'opacity-50 blur-sm' : 'opacity-100',
-          mode === 'acute' ? 'bg-[#0f172a]' : mode === 'clinic' ? 'bg-[#faf8f6]' : 'bg-[#f8fafc]'
+          'bg-ward-bg'
         )}
       >
         <div className="p-3 sm:p-4 md:p-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full min-w-0">
@@ -283,7 +283,7 @@ export default function ClinicalLayout() {
                 className={clsx(
                   'absolute bottom-[64px] left-0 right-0 rounded-t-2xl p-4 safe-bottom animate-slide-up border-t',
                   mode === 'acute'
-                    ? 'bg-[#1e293b] border-slate-700'
+                    ? 'bg-gray-800 border-gray-700'
                     : 'bg-white border-ward-border'
                 )}
                 onClick={(e) => e.stopPropagation()}
@@ -326,10 +326,10 @@ export default function ClinicalLayout() {
                           'flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors touch',
                           isActive
                             ? mode === 'acute'
-                              ? 'bg-red-500/20 text-red-400'
+                              ? 'bg-amber-500/20 text-amber-400'
                               : 'bg-primary-50 text-primary-600'
                             : mode === 'acute'
-                              ? 'text-slate-400 hover:bg-white/5'
+                              ? 'text-gray-400 hover:bg-white/5'
                               : 'text-ward-muted hover:bg-gray-50'
                         )}
                       >
@@ -349,7 +349,7 @@ export default function ClinicalLayout() {
             className={clsx(
               'fixed bottom-0 left-0 right-0 z-30 border-t safe-bottom transition-colors duration-300',
               mode === 'acute'
-                ? 'bg-[#0f172a] border-slate-700'
+                ? 'bg-gray-900 border-gray-700'
                 : 'bg-white border-neutral-200'
             )}
           >
@@ -367,10 +367,10 @@ export default function ClinicalLayout() {
                       'flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors min-h-[48px] min-w-[48px] touch',
                       isActive
                         ? mode === 'acute'
-                          ? 'text-red-400'
+                          ? 'text-amber-400'
                           : 'text-primary-600'
                         : mode === 'acute'
-                          ? 'text-slate-500'
+                          ? 'text-gray-500'
                           : 'text-ward-muted'
                     )}
                   >
@@ -387,10 +387,10 @@ export default function ClinicalLayout() {
                   'flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors min-h-[48px] min-w-[48px] touch',
                   isMoreActive || showMore
                     ? mode === 'acute'
-                      ? 'text-red-400'
+                      ? 'text-amber-400'
                       : 'text-primary-600'
                     : mode === 'acute'
-                      ? 'text-slate-500'
+                      ? 'text-gray-500'
                       : 'text-ward-muted'
                 )}
               >
@@ -403,11 +403,11 @@ export default function ClinicalLayout() {
             <div
               className={clsx(
                 'flex items-center justify-around border-t px-2 py-1',
-                mode === 'acute' ? 'border-slate-700' : 'border-neutral-100'
+                mode === 'acute' ? 'border-gray-700' : 'border-neutral-100'
               )}
             >
               <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />
-              <ModeNavButton id="acute" label="Acute" Icon={Siren} />
+              <ModeNavButton id="acute" label="On-Call" Icon={Siren} />
               <ModeNavButton id="clinic" label="Clinic" Icon={Stethoscope} />
             </div>
           </nav>
@@ -438,10 +438,10 @@ function ModeNavButton({
       className={clsx(
         'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 touch text-xs font-medium',
         isActive && id === 'ward' && 'text-blue-600 bg-blue-50',
-        isActive && id === 'acute' && 'text-red-500 bg-red-500/10',
+        isActive && id === 'acute' && 'text-amber-500 bg-amber-500/10',
         isActive && id === 'clinic' && 'text-stone-700 bg-stone-100',
         !isActive &&
-          (mode === 'acute' ? 'text-slate-500 hover:text-slate-300' : 'text-neutral-400 hover:text-neutral-600')
+          (mode === 'acute' ? 'text-gray-500 hover:text-gray-300' : 'text-neutral-400 hover:text-neutral-600')
       )}
       aria-label={`Switch to ${label} mode`}
       aria-current={isActive ? 'page' : undefined}

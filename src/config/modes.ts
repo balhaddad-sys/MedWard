@@ -45,7 +45,7 @@ export const MODES: Record<ClinicalMode, ModeConfig> = {
   },
   acute: {
     id: 'acute',
-    label: 'Acute / Resus',
+    label: 'On-Call',
     theme: 'theme-acute',
     layout: 'cockpit',
     refreshRate: 5000,

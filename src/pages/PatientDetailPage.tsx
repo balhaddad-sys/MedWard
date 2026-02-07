@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit, AlertTriangle, Plus, Sparkles, Download, Bot, ClipboardList, CheckCircle, FlaskConical, Trash2 } from 'lucide-react'
+import { ArrowLeft, Edit, AlertTriangle, Plus, Sparkles, Download, Bot, ClipboardList, CheckCircle, FlaskConical, Trash2, Camera, Upload } from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { LabEntryForm } from '@/components/features/labs/LabEntryForm'
+import { LabUploader } from '@/components/features/labs/LabUploader'
 import { LabPanelView } from '@/components/features/labs/LabPanelView'
 import { SafetyRails } from '@/components/features/safety/SafetyRails'
 import { TaskForm } from '@/components/features/tasks/TaskForm'
@@ -33,6 +34,7 @@ export function PatientDetailPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
   const [showLabEntry, setShowLabEntry] = useState(false)
+  const [labEntryMode, setLabEntryMode] = useState<'manual' | 'upload'>('manual')
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const criticalValues = usePatientStore((s) => s.criticalValues)
@@ -248,15 +250,65 @@ export function PatientDetailPage() {
           )}
 
           {showLabEntry && id && (
-            <LabEntryForm
-              patientId={id}
-              onComplete={async () => {
-                setShowLabEntry(false)
-                const updatedLabs = await getLabPanels(id)
-                setLabs(updatedLabs)
-              }}
-              onCancel={() => setShowLabEntry(false)}
-            />
+            <div className="space-y-3">
+              {/* Manual vs Upload toggle */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setLabEntryMode('manual')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
+                    labEntryMode === 'manual'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-ward-card border border-ward-border text-ward-muted hover:text-ward-text'
+                  }`}
+                >
+                  <Edit className="h-4 w-4" />
+                  Manual Entry
+                </button>
+                <button
+                  onClick={() => setLabEntryMode('upload')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors min-h-[44px] ${
+                    labEntryMode === 'upload'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-ward-card border border-ward-border text-ward-muted hover:text-ward-text'
+                  }`}
+                >
+                  <Camera className="h-4 w-4" />
+                  Upload Image
+                </button>
+              </div>
+
+              {labEntryMode === 'manual' && (
+                <LabEntryForm
+                  patientId={id}
+                  onComplete={async () => {
+                    setShowLabEntry(false)
+                    const updatedLabs = await getLabPanels(id)
+                    setLabs(updatedLabs)
+                  }}
+                  onCancel={() => setShowLabEntry(false)}
+                />
+              )}
+
+              {labEntryMode === 'upload' && (
+                <div className="space-y-3">
+                  <LabUploader
+                    patientId={id}
+                    onUploadComplete={async () => {
+                      const updatedLabs = await getLabPanels(id)
+                      setLabs(updatedLabs)
+                      addToast({ type: 'info', title: 'Image uploaded', message: 'You can now add the lab values manually if needed.' })
+                    }}
+                    onManualEntry={() => setLabEntryMode('manual')}
+                  />
+                  <button
+                    onClick={() => setShowLabEntry(false)}
+                    className="w-full py-2 text-sm text-ward-muted hover:text-ward-text transition-colors min-h-[44px]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {labs.length === 0 && !showLabEntry ? (

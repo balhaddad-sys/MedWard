@@ -1,23 +1,31 @@
 import { Modal } from '@/components/ui/Modal'
 import { PatientForm } from '@/components/features/patients/PatientForm'
 import { TaskForm } from '@/components/features/tasks/TaskForm'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { createPatient, updatePatient } from '@/services/firebase/patients'
-import { createTask } from '@/services/firebase/tasks'
-import type { PatientFormData, TaskFormData } from '@/types'
+import { createTask, updateTask, completeTask, deleteTask } from '@/services/firebase/tasks'
+import { CheckCircle, Edit, Trash2, Clock, User } from 'lucide-react'
+import { formatRelativeTime } from '@/utils/formatters'
+import type { PatientFormData, TaskFormData, Task } from '@/types'
 
 export function ModalController() {
   const activeModal = useUIStore((s) => s.activeModal)
   const modalData = useUIStore((s) => s.modalData)
   const closeModal = useUIStore((s) => s.closeModal)
+  const openModal = useUIStore((s) => s.openModal)
   const addToast = useUIStore((s) => s.addToast)
   const user = useAuthStore((s) => s.user)
   const firebaseUser = useAuthStore((s) => s.firebaseUser)
   const addPatient = usePatientStore((s) => s.addPatient)
+  const tasks = useTaskStore((s) => s.tasks)
   const addTask = useTaskStore((s) => s.addTask)
+  const storeUpdateTask = useTaskStore((s) => s.updateTask)
+  const storeRemoveTask = useTaskStore((s) => s.removeTask)
 
   const handlePatientSubmit = async (data: PatientFormData) => {
     if (!firebaseUser) return
@@ -45,16 +53,70 @@ export function ModalController() {
 
   const handleTaskSubmit = async (data: TaskFormData) => {
     if (!firebaseUser) return
+    const taskId = modalData?.taskId as string | undefined
+
     try {
-      const userName = user?.displayName || 'Unknown'
-      const id = await createTask(data, firebaseUser.uid, userName)
-      addTask({ id, ...data, status: 'pending', createdAt: new Date(), updatedAt: new Date() } as never)
-      addToast({ type: 'success', title: 'Task created successfully' })
+      if (taskId) {
+        // Update existing task
+        const { dueAt, recurring, ...rest } = data
+        await updateTask(taskId, rest)
+        storeUpdateTask(taskId, rest as unknown as Partial<Task>)
+        addToast({ type: 'success', title: 'Task updated successfully' })
+      } else {
+        // Create new task
+        const userName = user?.displayName || 'Unknown'
+        const id = await createTask(data, firebaseUser.uid, userName)
+        addTask({ id, ...data, status: 'pending', createdAt: new Date(), updatedAt: new Date() } as never)
+        addToast({ type: 'success', title: 'Task created successfully' })
+      }
       closeModal()
     } catch {
-      addToast({ type: 'error', title: 'Failed to create task', message: 'Please try again.' })
+      addToast({ type: 'error', title: taskId ? 'Failed to update task' : 'Failed to create task', message: 'Please try again.' })
     }
   }
+
+  const handleCompleteTask = async (taskId: string) => {
+    if (!firebaseUser) return
+    try {
+      await completeTask(taskId, firebaseUser.uid)
+      storeUpdateTask(taskId, { status: 'completed' })
+      addToast({ type: 'success', title: 'Task marked as done' })
+      closeModal()
+    } catch {
+      addToast({ type: 'error', title: 'Failed to complete task' })
+    }
+  }
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask(taskId)
+      storeRemoveTask(taskId)
+      addToast({ type: 'success', title: 'Task deleted' })
+      closeModal()
+    } catch {
+      addToast({ type: 'error', title: 'Failed to delete task' })
+    }
+  }
+
+  const handleEditTask = (task: Task) => {
+    openModal('task-form', {
+      taskId: task.id,
+      initialData: {
+        patientId: task.patientId,
+        title: task.title,
+        description: task.description || '',
+        category: task.category || 'other',
+        priority: task.priority || 'medium',
+        assignedTo: task.assignedTo || '',
+        notes: '',
+      },
+    })
+  }
+
+  // Find the current task for task-detail modal
+  const currentTask = activeModal === 'task-detail'
+    ? tasks.find((t) => t.id === modalData?.taskId)
+    : null
 
   return (
     <>
@@ -83,6 +145,105 @@ export function ModalController() {
           onSubmit={handleTaskSubmit}
           onCancel={closeModal}
         />
+      </Modal>
+
+      <Modal
+        isOpen={activeModal === 'task-detail'}
+        onClose={closeModal}
+        title="Task Details"
+        size="md"
+      >
+        {currentTask ? (
+          <div className="space-y-4">
+            {/* Task header */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="text-base font-bold text-ward-text">{currentTask.title}</h3>
+                <Badge
+                  variant={currentTask.priority === 'critical' ? 'danger' : currentTask.priority === 'high' ? 'warning' : 'default'}
+                  size="sm"
+                >
+                  {currentTask.priority || 'medium'}
+                </Badge>
+              </div>
+              {currentTask.description && (
+                <p className="text-sm text-ward-muted">{currentTask.description}</p>
+              )}
+            </div>
+
+            {/* Task info rows */}
+            <div className="space-y-2 py-3 border-y border-ward-border">
+              <div className="flex justify-between text-sm">
+                <span className="text-ward-muted">Patient</span>
+                <span className="font-medium text-ward-text">{currentTask.patientName || '—'} {currentTask.bedNumber ? `· Bed ${currentTask.bedNumber}` : ''}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-ward-muted">Category</span>
+                <span className="font-medium text-ward-text capitalize">{currentTask.category || 'other'}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-ward-muted">Status</span>
+                <Badge variant={(currentTask.status ?? 'pending') === 'completed' ? 'success' : (currentTask.status ?? 'pending') === 'in_progress' ? 'info' : 'default'} size="sm">
+                  {(currentTask.status ?? 'pending').replace('_', ' ')}
+                </Badge>
+              </div>
+              {currentTask.assignedToName && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-ward-muted flex items-center gap-1"><User className="h-3.5 w-3.5" /> Assigned to</span>
+                  <span className="font-medium text-ward-text">{currentTask.assignedToName}</span>
+                </div>
+              )}
+              {currentTask.dueAt && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-ward-muted flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Due</span>
+                  <span className="font-medium text-ward-text">{formatRelativeTime(currentTask.dueAt)}</span>
+                </div>
+              )}
+              {currentTask.notes && (
+                <div className="pt-1">
+                  <span className="text-xs text-ward-muted block mb-1">Notes</span>
+                  <p className="text-sm text-ward-text bg-ward-bg rounded-lg p-2">{currentTask.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            {(currentTask.status ?? 'pending') !== 'completed' ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  className="flex-1 min-h-[44px]"
+                  icon={<CheckCircle className="h-4 w-4" />}
+                  onClick={() => handleCompleteTask(currentTask.id)}
+                >
+                  Mark as Done
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="flex-1 min-h-[44px]"
+                  icon={<Edit className="h-4 w-4" />}
+                  onClick={() => handleEditTask(currentTask)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="min-h-[44px] text-red-600 hover:bg-red-50 border-red-200"
+                  icon={<Trash2 className="h-4 w-4" />}
+                  onClick={() => handleDeleteTask(currentTask.id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <span className="text-sm font-medium text-green-700">This task has been completed</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-ward-muted text-center py-8">Task not found</p>
+        )}
       </Modal>
     </>
   )

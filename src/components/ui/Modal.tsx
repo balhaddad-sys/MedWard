@@ -47,7 +47,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
     >
       <div
         className={clsx(
-          'w-full bg-white shadow-xl animate-slide-up',
+          'w-full bg-ward-card shadow-xl animate-slide-up',
           'rounded-t-2xl sm:rounded-2xl',
           'max-h-[90vh] sm:max-h-[85vh]',
           'flex flex-col',
@@ -59,7 +59,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
           <h2 className="text-base sm:text-lg font-semibold text-ward-text">{title}</h2>
           <button
             onClick={onClose}
-            className="p-2 -mr-1 rounded-lg text-ward-muted hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="p-2 -mr-1 rounded-lg text-ward-muted hover:bg-ward-border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <X className="h-5 w-5" />
           </button>

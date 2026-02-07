@@ -28,11 +28,11 @@ export default {
           info: '#3b82f6',
         },
         ward: {
-          bg: '#f8fafc',
-          card: '#ffffff',
-          border: '#e2e8f0',
-          text: '#1e293b',
-          muted: '#64748b',
+          bg: 'var(--ward-bg, #f8fafc)',
+          card: 'var(--ward-card, #ffffff)',
+          border: 'var(--ward-border, #e2e8f0)',
+          text: 'var(--ward-text, #1e293b)',
+          muted: 'var(--ward-muted, #64748b)',
         },
       },
       fontFamily: {

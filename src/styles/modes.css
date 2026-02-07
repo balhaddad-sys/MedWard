@@ -2,6 +2,12 @@
    WARD MODE - Dense, efficient, light
    =============================================== */
 body.theme-ward {
+  --ward-bg: #f8fafc;
+  --ward-card: #ffffff;
+  --ward-border: #e2e8f0;
+  --ward-text: #1e293b;
+  --ward-muted: #64748b;
+
   --bg-primary: #ffffff;
   --bg-secondary: #f5f5f5;
   --bg-tertiary: #eeeeee;
@@ -30,18 +36,24 @@ body.theme-ward {
 }
 
 /* ===============================================
-   ACUTE MODE - Dark cockpit, high-contrast, glanceable
+   ON-CALL MODE - Refined dark, high-contrast, glanceable
    =============================================== */
 body.theme-acute {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --border-color: #475569;
-  --accent-color: #3b82f6;
-  --accent-hover: #60a5fa;
+  --ward-bg: #111827;
+  --ward-card: #1f2937;
+  --ward-border: #374151;
+  --ward-text: #f3f4f6;
+  --ward-muted: #9ca3af;
+
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --text-primary: #f3f4f6;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  --border-color: #374151;
+  --accent-color: #f59e0b;
+  --accent-hover: #fbbf24;
   --alert-color: #f87171;
   --alert-bg: #1e1b2e;
   --success-color: #34d399;
@@ -64,6 +76,12 @@ body.theme-acute {
    CLINIC MODE - Warm, paper-like, readable
    =============================================== */
 body.theme-clinic {
+  --ward-bg: #faf8f6;
+  --ward-card: #ffffff;
+  --ward-border: #ddd5cc;
+  --ward-text: #2c2c2c;
+  --ward-muted: #8c8c8c;
+
   --bg-primary: #faf8f6;
   --bg-secondary: #f3f0eb;
   --bg-tertiary: #ebe5dd;
@@ -102,23 +120,71 @@ body {
 /* ===============================================
    Mode-aware utility overrides
    =============================================== */
+
+/* On-Call dark mode: card overrides */
 body.theme-acute .card {
-  background-color: var(--bg-secondary);
-  border-color: var(--border-color);
-  color: var(--text-primary);
+  background-color: var(--ward-card);
+  border-color: var(--ward-border);
+  color: var(--ward-text);
 }
 
+/* On-Call dark mode: input overrides */
 body.theme-acute .input-field {
-  background-color: var(--bg-secondary);
-  border-color: var(--border-color);
-  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border-color: var(--ward-border);
+  color: var(--ward-text);
 }
 
 body.theme-acute .input-field::placeholder {
-  color: var(--text-muted);
+  color: var(--ward-muted);
 }
 
+/* On-Call dark mode: select overrides */
+body.theme-acute select {
+  background-color: var(--bg-tertiary);
+  color: var(--ward-text);
+}
+
+body.theme-acute select option {
+  background-color: var(--bg-secondary);
+  color: var(--ward-text);
+}
+
+/* On-Call dark mode: general bg overrides for Tailwind classes */
+body.theme-acute .bg-white {
+  background-color: var(--ward-card);
+}
+
+body.theme-acute .bg-gray-100,
+body.theme-acute .bg-gray-50 {
+  background-color: var(--bg-tertiary);
+}
+
+/* On-Call dark mode: text overrides */
+body.theme-acute .text-gray-600,
+body.theme-acute .text-gray-700 {
+  color: var(--text-secondary);
+}
+
+/* On-Call dark mode: hover overrides */
+body.theme-acute .hover\:bg-gray-100:hover,
+body.theme-acute .hover\:bg-gray-50:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* On-Call dark mode: border overrides */
+body.theme-acute .border-gray-100,
+body.theme-acute .border-gray-200 {
+  border-color: var(--ward-border);
+}
+
+/* On-Call dark mode: Modal overlay */
+body.theme-acute .bg-black\/50 {
+  background-color: rgba(0, 0, 0, 0.65);
+}
+
+/* Clinic mode: card overrides */
 body.theme-clinic .card {
   background-color: #ffffff;
-  border-color: var(--border-color);
+  border-color: var(--ward-border);
 }

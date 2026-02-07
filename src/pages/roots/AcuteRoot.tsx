@@ -317,7 +317,7 @@ export default function AcuteRoot() {
               onFocus={() => {
                 if (searchQuery.length >= 2) setShowSearch(true)
               }}
-              className="w-full bg-slate-900/80 border border-slate-600 rounded-lg py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all"
+              className="w-full bg-slate-900/80 border border-slate-600 rounded-lg py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
             />
             {searchQuery && (
               <button
@@ -426,7 +426,7 @@ export default function AcuteRoot() {
                     className={clsx(
                       'flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 text-xs font-bold uppercase tracking-wider transition-colors',
                       activeToolTab === tab.id
-                        ? 'bg-red-600/20 text-red-400 border-b-2 border-red-500'
+                        ? 'bg-amber-500/20 text-amber-400 border-b-2 border-amber-500'
                         : 'text-slate-400 hover:text-white hover:bg-slate-700/40'
                     )}
                   >
@@ -643,14 +643,14 @@ export default function AcuteRoot() {
                                   value={editForm.firstName}
                                   onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
                                   placeholder="First name"
-                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-red-500"
+                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-amber-500"
                                 />
                                 <input
                                   type="text"
                                   value={editForm.lastName}
                                   onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
                                   placeholder="Last name"
-                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-red-500"
+                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-amber-500"
                                 />
                               </div>
                               <div className="flex gap-2">
@@ -659,21 +659,21 @@ export default function AcuteRoot() {
                                   value={editForm.mrn}
                                   onChange={(e) => setEditForm((f) => ({ ...f, mrn: e.target.value }))}
                                   placeholder="MRN"
-                                  className="w-28 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-red-500 font-mono"
+                                  className="w-28 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-amber-500 font-mono"
                                 />
                                 <input
                                   type="text"
                                   value={editForm.bedNumber}
                                   onChange={(e) => setEditForm((f) => ({ ...f, bedNumber: e.target.value }))}
                                   placeholder="Bed"
-                                  className="w-20 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-red-500"
+                                  className="w-20 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-amber-500"
                                 />
                                 <input
                                   type="text"
                                   value={editForm.primaryDiagnosis}
                                   onChange={(e) => setEditForm((f) => ({ ...f, primaryDiagnosis: e.target.value }))}
                                   placeholder="Diagnosis"
-                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-red-500"
+                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-amber-500"
                                 />
                               </div>
                             </div>
