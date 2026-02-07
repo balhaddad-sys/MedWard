@@ -94,7 +94,7 @@ export const getCriticalLabs = async (wardId: string): Promise<LabPanel[]> => {
     const labsSnap = await getDocs(labsQ)
     for (const labDoc of labsSnap.docs) {
       const lab = { id: labDoc.id, ...labDoc.data() } as LabPanel
-      const hasCritical = lab.values.some(
+      const hasCritical = (lab.values ?? []).some(
         (v) => v.flag === 'critical_low' || v.flag === 'critical_high'
       )
       if (hasCritical) criticalLabs.push(lab)

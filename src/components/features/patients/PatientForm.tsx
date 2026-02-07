@@ -46,7 +46,7 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
 
   const addAllergy = () => {
     if (allergyInput.trim()) {
-      handleChange('allergies', [...data.allergies, allergyInput.trim()])
+      handleChange('allergies', [...(data.allergies ?? []), allergyInput.trim()])
       setAllergyInput('')
     }
   }
@@ -122,8 +122,8 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
           <Button type="button" variant="secondary" size="sm" onClick={addAllergy}>Add</Button>
         </div>
         <div className="flex flex-wrap gap-1 mt-2">
-          {data.allergies.map((a, i) => (
-            <span key={i} className="badge bg-red-100 text-red-700 cursor-pointer" onClick={() => handleChange('allergies', data.allergies.filter((_, idx) => idx !== i))}>
+          {(data.allergies ?? []).map((a, i) => (
+            <span key={i} className="badge bg-red-100 text-red-700 cursor-pointer" onClick={() => handleChange('allergies', (data.allergies ?? []).filter((_, idx) => idx !== i))}>
               {a} ×
             </span>
           ))}

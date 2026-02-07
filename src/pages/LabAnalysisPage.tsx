@@ -69,7 +69,7 @@ export function LabAnalysisPage() {
   ]
 
   const criticalLabs = allLabs.filter((p) =>
-    p.values.some((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
+    (p.values ?? []).some((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
   )
 
   return (
@@ -150,7 +150,7 @@ export function LabAnalysisPage() {
                                 : 'success'
                             }
                           >
-                            {analysisResult.clinicalSignificance}
+                            {analysisResult.clinicalSignificance || 'routine'}
                           </Badge>
                         )}
                       </CardHeader>
@@ -163,11 +163,11 @@ export function LabAnalysisPage() {
                         ) : analysisResult ? (
                           <div className="space-y-4">
                             <p className="text-sm text-ward-text">{analysisResult.summary}</p>
-                            {analysisResult.keyFindings.length > 0 && (
+                            {(analysisResult.keyFindings ?? []).length > 0 && (
                               <div>
                                 <h4 className="text-xs font-semibold text-ward-muted uppercase tracking-wider mb-2">Key Findings</h4>
                                 <ul className="space-y-1">
-                                  {analysisResult.keyFindings.map((f, i) => (
+                                  {(analysisResult.keyFindings ?? []).map((f, i) => (
                                     <li key={i} className="text-sm text-ward-text flex items-start gap-2">
                                       <span className="text-primary-600 mt-1">•</span> {f}
                                     </li>
@@ -175,11 +175,11 @@ export function LabAnalysisPage() {
                                 </ul>
                               </div>
                             )}
-                            {analysisResult.suggestedActions.length > 0 && (
+                            {(analysisResult.suggestedActions ?? []).length > 0 && (
                               <div>
                                 <h4 className="text-xs font-semibold text-ward-muted uppercase tracking-wider mb-2">Suggested Actions</h4>
                                 <ul className="space-y-1">
-                                  {analysisResult.suggestedActions.map((a, i) => (
+                                  {(analysisResult.suggestedActions ?? []).map((a, i) => (
                                     <li key={i} className="text-sm text-ward-text flex items-start gap-2">
                                       <span className="text-yellow-600 mt-1">→</span> {a}
                                     </li>

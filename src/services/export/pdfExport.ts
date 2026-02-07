@@ -39,13 +39,13 @@ export const exportPatientSummary = (patient: Patient, labs: LabPanel[], tasks: 
     doc.setFontSize(14)
     doc.text('Recent Lab Results', 14, lastY + 12)
     const labRows = labs.slice(0, 5).flatMap((panel) =>
-      panel.values.map((v) => [
-        panel.panelName,
-        v.name,
-        String(v.value),
-        v.unit,
+      (panel.values ?? []).map((v) => [
+        panel.panelName ?? '',
+        v.name ?? '',
+        String(v.value ?? ''),
+        v.unit ?? '',
         `${v.referenceMin ?? ''}-${v.referenceMax ?? ''}`,
-        v.flag,
+        v.flag ?? 'normal',
       ])
     )
     autoTable(doc, {
@@ -84,7 +84,7 @@ export const exportSBARReport = (patient: Patient, sbar: SBARData): void => {
     y += 6
     doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
-    const lines = doc.splitTextToSize(section.content, 170)
+    const lines = doc.splitTextToSize(section.content || '', 170)
     doc.text(lines, 14, y)
     y += lines.length * 5 + 8
     if (y > 270) {

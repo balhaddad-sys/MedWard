@@ -156,26 +156,26 @@ export function PatientDetailPage() {
                     : 'success'
                   }
                 >
-                  {labAnalysis.clinicalSignificance}
+                  {labAnalysis.clinicalSignificance || 'routine'}
                 </Badge>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-ward-text mb-3">{labAnalysis.summary}</p>
-                {labAnalysis.keyFindings.length > 0 && (
+                {(labAnalysis.keyFindings ?? []).length > 0 && (
                   <div className="mb-3">
                     <h4 className="text-xs font-semibold text-ward-muted uppercase tracking-wider mb-1">Key Findings</h4>
                     <ul className="space-y-1">
-                      {labAnalysis.keyFindings.map((f, i) => (
+                      {(labAnalysis.keyFindings ?? []).map((f, i) => (
                         <li key={i} className="text-sm flex items-start gap-2"><span className="text-primary-600">•</span> {f}</li>
                       ))}
                     </ul>
                   </div>
                 )}
-                {labAnalysis.suggestedActions.length > 0 && (
+                {(labAnalysis.suggestedActions ?? []).length > 0 && (
                   <div>
                     <h4 className="text-xs font-semibold text-ward-muted uppercase tracking-wider mb-1">Suggested Actions</h4>
                     <ul className="space-y-1">
-                      {labAnalysis.suggestedActions.map((a, i) => (
+                      {(labAnalysis.suggestedActions ?? []).map((a, i) => (
                         <li key={i} className="text-sm flex items-start gap-2"><span className="text-yellow-600">→</span> {a}</li>
                       ))}
                     </ul>

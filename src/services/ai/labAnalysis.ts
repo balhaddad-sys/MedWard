@@ -15,7 +15,14 @@ export const analyzeLabPanel = async (
 
   const response = await callAI({ prompt, maxTokens: 1024 })
   try {
-    return JSON.parse(response.content) as LabAIAnalysis
+    const parsed = JSON.parse(response.content)
+    return {
+      summary: parsed.summary ?? response.content,
+      clinicalSignificance: parsed.clinicalSignificance ?? 'routine',
+      keyFindings: Array.isArray(parsed.keyFindings) ? parsed.keyFindings : [],
+      suggestedActions: Array.isArray(parsed.suggestedActions) ? parsed.suggestedActions : [],
+      trends: Array.isArray(parsed.trends) ? parsed.trends : [],
+    } as unknown as LabAIAnalysis
   } catch {
     return {
       summary: response.content,

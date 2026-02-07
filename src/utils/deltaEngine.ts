@@ -31,10 +31,10 @@ export const calculateDeltas = (
 
   const results: DeltaResult[] = []
 
-  for (const currentValue of currentPanel.values) {
+  for (const currentValue of (currentPanel.values ?? [])) {
     if (typeof currentValue.value !== 'number') continue
 
-    const previousValue = previousPanel.values.find((v) => v.name === currentValue.name)
+    const previousValue = (previousPanel.values ?? []).find((v) => v.name === currentValue.name)
     if (!previousValue || typeof previousValue.value !== 'number') continue
 
     const delta = currentValue.value - (previousValue.value as number)
@@ -75,7 +75,7 @@ export const analyzeTrend = (panels: LabPanel[], labName: string): LabTrend | nu
   const values: { date: LabTrend['values'][0]['date']; value: number }[] = []
 
   for (const panel of panels) {
-    const labValue = panel.values.find((v) => v.name === labName)
+    const labValue = (panel.values ?? []).find((v) => v.name === labName)
     if (labValue && typeof labValue.value === 'number') {
       values.push({ date: panel.collectedAt, value: labValue.value })
     }

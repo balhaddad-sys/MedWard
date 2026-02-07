@@ -12,7 +12,7 @@ export interface CriticalAlert {
 export const checkCriticalValues = (panel: LabPanel): CriticalAlert[] => {
   const alerts: CriticalAlert[] = []
 
-  for (const value of panel.values) {
+  for (const value of (panel.values ?? [])) {
     if (value.flag === 'critical_low' || value.flag === 'critical_high') {
       alerts.push({
         labName: value.name,
@@ -45,15 +45,15 @@ export const formatCriticalAlert = (alert: CriticalAlert): string => {
 }
 
 export const hasCriticalValues = (panels: LabPanel[]): boolean => {
-  return panels.some((panel) =>
-    panel.values.some((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
+  return (panels ?? []).some((panel) =>
+    (panel.values ?? []).some((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
   )
 }
 
 export const getCriticalCount = (panels: LabPanel[]): number => {
-  return panels.reduce(
+  return (panels ?? []).reduce(
     (count, panel) =>
-      count + panel.values.filter((v) => v.flag === 'critical_low' || v.flag === 'critical_high').length,
+      count + (panel.values ?? []).filter((v) => v.flag === 'critical_low' || v.flag === 'critical_high').length,
     0
   )
 }

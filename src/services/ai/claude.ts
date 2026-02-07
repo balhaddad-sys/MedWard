@@ -38,7 +38,13 @@ export const generateSBAR = async (
     maxTokens: 2048,
   })
   try {
-    return JSON.parse(response.content)
+    const parsed = JSON.parse(response.content)
+    return {
+      situation: parsed.situation ?? response.content,
+      background: parsed.background ?? '',
+      assessment: parsed.assessment ?? '',
+      recommendation: parsed.recommendation ?? '',
+    }
   } catch {
     return {
       situation: response.content,

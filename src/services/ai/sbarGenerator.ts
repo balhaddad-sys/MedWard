@@ -42,7 +42,13 @@ Respond in JSON: { "situation": "", "background": "", "assessment": "", "recomme
 
   const response = await callAI({ prompt, maxTokens: 2048 })
   try {
-    return JSON.parse(response.content)
+    const parsed = JSON.parse(response.content)
+    return {
+      situation: parsed.situation ?? '',
+      background: parsed.background ?? '',
+      assessment: parsed.assessment ?? '',
+      recommendation: parsed.recommendation ?? '',
+    }
   } catch {
     return {
       situation: `${patient.firstName ?? ''} ${patient.lastName ?? ''} - ${patient.primaryDiagnosis ?? 'Unknown'}`,
