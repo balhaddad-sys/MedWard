@@ -12,8 +12,7 @@ dist
 dist-ssr
 *.local
 
-# Environment
-.env
+# Environment (local overrides only)
 .env.local
 .env.*.local
 

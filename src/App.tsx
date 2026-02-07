@@ -7,8 +7,29 @@ import { PatientDetailPage } from '@/pages/PatientDetailPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { HandoverPage } from '@/pages/HandoverPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuthStore } from '@/stores/authStore'
+import { firebaseConfigMissing } from '@/config/firebase'
 import { onAuthChange, getUserProfile } from '@/services/firebase/auth'
+
+function FirebaseConfigError() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-yellow-200 p-8 text-center">
+        <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+          <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h1 className="text-xl font-bold text-gray-900 mb-2">Firebase not configured</h1>
+        <p className="text-sm text-gray-600 mb-4">
+          Missing Firebase environment variables. Create a <code className="bg-gray-100 px-1 rounded">.env</code> file
+          in the project root with your Firebase config. See <code className="bg-gray-100 px-1 rounded">.env.example</code> for the required variables.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user)
@@ -39,6 +60,11 @@ export default function App() {
   const setLoading = useAuthStore((s) => s.setLoading)
 
   useEffect(() => {
+    if (firebaseConfigMissing) {
+      setLoading(false)
+      return
+    }
+
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       setFirebaseUser(firebaseUser)
       if (firebaseUser) {
@@ -56,26 +82,32 @@ export default function App() {
     return unsubscribe
   }, [setFirebaseUser, setUser, setLoading])
 
+  if (firebaseConfigMissing) {
+    return <FirebaseConfigError />
+  }
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppShell />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/patients" element={<Dashboard />} />
-          <Route path="/patients/:id" element={<PatientDetailPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/handover" element={<HandoverPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/patients" element={<Dashboard />} />
+            <Route path="/patients/:id" element={<PatientDetailPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/handover" element={<HandoverPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
