@@ -1,0 +1,124 @@
+/* ===============================================
+   WARD MODE - Dense, efficient, light
+   =============================================== */
+body.theme-ward {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #eeeeee;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --border-color: #e0e0e0;
+  --accent-color: #2563eb;
+  --accent-hover: #1d4ed8;
+  --alert-color: #dc2626;
+  --alert-bg: #fef2f2;
+  --success-color: #16a34a;
+  --success-bg: #f0fdf4;
+  --warning-color: #d97706;
+  --warning-bg: #fffbeb;
+
+  --font-size-body: 14px;
+  --font-size-small: 12px;
+  --font-size-heading: 18px;
+  --line-height-body: 1.4;
+  --spacing-base: 8px;
+  --border-radius: 8px;
+
+  --animation-duration: 150ms;
+  --animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===============================================
+   ACUTE MODE - Dark cockpit, high-contrast, glanceable
+   =============================================== */
+body.theme-acute {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2d2d2d;
+  --text-primary: #ffffff;
+  --text-secondary: #e0e0e0;
+  --text-muted: #888888;
+  --border-color: #404040;
+  --accent-color: #3b82f6;
+  --accent-hover: #60a5fa;
+  --alert-color: #ff4444;
+  --alert-bg: #3a1111;
+  --success-color: #22c55e;
+  --success-bg: #0a2e14;
+  --warning-color: #fbbf24;
+  --warning-bg: #2e2304;
+
+  --font-size-body: 18px;
+  --font-size-small: 14px;
+  --font-size-heading: 24px;
+  --line-height-body: 1.6;
+  --spacing-base: 12px;
+  --border-radius: 12px;
+
+  --animation-duration: 100ms;
+  --animation-easing: cubic-bezier(0, 0, 1, 1);
+}
+
+/* ===============================================
+   CLINIC MODE - Warm, paper-like, readable
+   =============================================== */
+body.theme-clinic {
+  --bg-primary: #faf8f6;
+  --bg-secondary: #f3f0eb;
+  --bg-tertiary: #ebe5dd;
+  --text-primary: #2c2c2c;
+  --text-secondary: #5c5c5c;
+  --text-muted: #8c8c8c;
+  --border-color: #ddd5cc;
+  --accent-color: #1e40af;
+  --accent-hover: #1e3a8a;
+  --alert-color: #ea580c;
+  --alert-bg: #fff7ed;
+  --success-color: #059669;
+  --success-bg: #ecfdf5;
+  --warning-color: #b45309;
+  --warning-bg: #fffbeb;
+
+  --font-size-body: 16px;
+  --font-size-small: 13px;
+  --font-size-heading: 20px;
+  --line-height-body: 1.8;
+  --spacing-base: 10px;
+  --border-radius: 10px;
+
+  --animation-duration: 300ms;
+  --animation-easing: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* ===============================================
+   Mode Transition Animation
+   =============================================== */
+body {
+  transition: background-color var(--animation-duration, 150ms) var(--animation-easing, ease),
+              color var(--animation-duration, 150ms) var(--animation-easing, ease);
+}
+
+/* ===============================================
+   Mode-aware utility overrides
+   =============================================== */
+body.theme-acute .card {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+body.theme-acute .input-field {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+body.theme-acute .input-field::placeholder {
+  color: var(--text-muted);
+}
+
+body.theme-clinic .card {
+  background-color: #ffffff;
+  border-color: var(--border-color);
+}
