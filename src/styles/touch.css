@@ -1,0 +1,21 @@
+.touch {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transform: translateZ(0);
+  transition: transform var(--animation-duration, 150ms) ease,
+              filter var(--animation-duration, 150ms) ease;
+  cursor: pointer;
+}
+
+.touch:active {
+  transform: scale(0.98);
+  filter: brightness(0.97);
+}
+
+.touch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}

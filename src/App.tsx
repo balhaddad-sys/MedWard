@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
-import { AppShell } from '@/components/layout/AppShell'
+import ClinicalLayout from '@/layouts/ClinicalLayout'
+import { ModeProvider } from '@/context/ModeContext'
 import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
 import { PatientDetailPage } from '@/pages/PatientDetailPage'
@@ -11,9 +12,16 @@ import { AIAssistantPage } from '@/pages/AIAssistantPage'
 import { LabAnalysisPage } from '@/pages/LabAnalysisPage'
 import { DrugInfoPage } from '@/pages/DrugInfoPage'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { ModalController } from '@/components/layout/ModalController'
+import { ToastContainer } from '@/components/ui/Toast'
 import { useAuthStore } from '@/stores/authStore'
+import { useUIStore } from '@/stores/uiStore'
+import { usePatientStore } from '@/stores/patientStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { firebaseConfigMissing } from '@/config/firebase'
 import { onAuthChange, getUserProfile } from '@/services/firebase/auth'
+import { subscribeToAllPatients } from '@/services/firebase/patients'
+import { subscribeToTasks } from '@/services/firebase/tasks'
 
 function FirebaseConfigError() {
   return (
@@ -57,6 +65,34 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function DataSubscriptions() {
+  const setPatients = usePatientStore((s) => s.setPatients)
+  const setTasks = useTaskStore((s) => s.setTasks)
+  const setIsMobile = useUIStore((s) => s.setIsMobile)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [setIsMobile])
+
+  useEffect(() => {
+    const unsubPatients = subscribeToAllPatients((patients) => {
+      setPatients(patients)
+    })
+    const unsubTasks = subscribeToTasks((tasks) => {
+      setTasks(tasks)
+    })
+    return () => {
+      unsubPatients()
+      unsubTasks()
+    }
+  }, [setPatients, setTasks])
+
+  return null
+}
+
 export default function App() {
   const setFirebaseUser = useAuthStore((s) => s.setFirebaseUser)
   const setUser = useAuthStore((s) => s.setUser)
@@ -91,29 +127,32 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            element={
-              <ProtectedRoute>
-                <AppShell />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/patients" element={<Dashboard />} />
-            <Route path="/patients/:id" element={<PatientDetailPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/handover" element={<HandoverPage />} />
-            <Route path="/ai" element={<AIAssistantPage />} />
-            <Route path="/labs" element={<LabAnalysisPage />} />
-            <Route path="/drugs" element={<DrugInfoPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <ModeProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              element={
+                <ProtectedRoute>
+                  <DataSubscriptions />
+                  <ClinicalLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/patients" element={<Dashboard />} />
+              <Route path="/patients/:id" element={<PatientDetailPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/handover" element={<HandoverPage />} />
+              <Route path="/ai" element={<AIAssistantPage />} />
+              <Route path="/labs" element={<LabAnalysisPage />} />
+              <Route path="/drugs" element={<DrugInfoPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </ModeProvider>
     </ErrorBoundary>
   )
 }
