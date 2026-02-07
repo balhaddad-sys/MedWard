@@ -17,18 +17,35 @@ import type { Task, TaskFormData } from '@/types'
 
 const tasksRef = collection(db, 'tasks')
 
+const safeTask = (id: string, data: Record<string, unknown>): Task => ({
+  status: 'pending',
+  priority: 'medium',
+  category: 'other',
+  title: '',
+  description: '',
+  patientId: '',
+  patientName: '',
+  bedNumber: '',
+  assignedTo: '',
+  assignedToName: '',
+  createdBy: '',
+  createdByName: '',
+  ...data,
+  id,
+} as Task)
+
 export const getTasks = async (wardId?: string): Promise<Task[]> => {
   const q = wardId
     ? query(tasksRef, where('wardId', '==', wardId))
     : tasksRef
   const snapshot = await getDocs(q)
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Task)
+  return snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
 }
 
 export const getTasksByPatient = async (patientId: string): Promise<Task[]> => {
   const q = query(tasksRef, where('patientId', '==', patientId), orderBy('dueAt'))
   const snapshot = await getDocs(q)
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Task)
+  return snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
 }
 
 export const createTask = async (data: TaskFormData, userId: string, userName: string): Promise<string> => {
@@ -65,7 +82,7 @@ export const deleteTask = async (id: string): Promise<void> => {
 
 export const subscribeToTasks = (callback: (tasks: Task[]) => void): Unsubscribe => {
   return onSnapshot(tasksRef, (snapshot) => {
-    const tasks = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Task)
+    const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
     callback(tasks)
   })
 }

@@ -22,8 +22,8 @@ export const generateSBARReport = async (
     .join('\n')
 
   const taskSummary = activeTasks
-    .filter((t) => t.status !== 'completed')
-    .map((t) => `- [${t.priority}] ${t.title}`)
+    .filter((t) => (t.status ?? 'pending') !== 'completed')
+    .map((t) => `- [${t.priority ?? 'medium'}] ${t.title ?? ''}`)
     .join('\n')
 
   const prompt = `Generate SBAR report for:

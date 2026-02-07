@@ -24,11 +24,11 @@ export function LabPanelComponent({ panel, trendData, onReview }: LabPanelProps)
           {hasCritical && <Badge variant="danger" pulse size="sm">CRITICAL</Badge>}
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={panel.status === 'reviewed' ? 'success' : panel.status === 'resulted' ? 'info' : 'default'} size="sm">
-            {panel.status === 'reviewed' ? <CheckCircle className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
-            {panel.status}
+          <Badge variant={(panel.status ?? 'pending') === 'reviewed' ? 'success' : (panel.status ?? 'pending') === 'resulted' ? 'info' : 'default'} size="sm">
+            {(panel.status ?? 'pending') === 'reviewed' ? <CheckCircle className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
+            {panel.status ?? 'pending'}
           </Badge>
-          {onReview && panel.status === 'resulted' && (
+          {onReview && (panel.status ?? 'pending') === 'resulted' && (
             <button onClick={onReview} className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
               <Eye className="h-3 w-3" /> Review
             </button>

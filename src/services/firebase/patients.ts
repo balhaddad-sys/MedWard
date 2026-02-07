@@ -18,23 +18,43 @@ import type { Patient, PatientFormData } from '@/types'
 
 const patientsRef = collection(db, 'patients')
 
+const safePatient = (id: string, data: Record<string, unknown>): Patient => ({
+  mrn: '',
+  firstName: '',
+  lastName: '',
+  dateOfBirth: '',
+  gender: 'other',
+  wardId: 'default',
+  bedNumber: '',
+  acuity: 3,
+  primaryDiagnosis: '',
+  diagnoses: [],
+  allergies: [],
+  codeStatus: 'full',
+  attendingPhysician: '',
+  team: '',
+  createdBy: '',
+  ...data,
+  id,
+} as unknown as Patient)
+
 export const getPatients = async (wardId?: string): Promise<Patient[]> => {
   const q = wardId
     ? query(patientsRef, where('wardId', '==', wardId))
     : patientsRef
   const snapshot = await getDocs(q)
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Patient)
+  return snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
 }
 
 export const getAllPatients = async (): Promise<Patient[]> => {
   const snapshot = await getDocs(patientsRef)
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Patient)
+  return snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
 }
 
 export const getPatient = async (id: string): Promise<Patient | null> => {
   const docSnap = await getDoc(doc(db, 'patients', id))
   if (!docSnap.exists()) return null
-  return { id: docSnap.id, ...docSnap.data() } as Patient
+  return safePatient(docSnap.id, docSnap.data())
 }
 
 export const createPatient = async (data: PatientFormData, userId: string): Promise<string> => {
@@ -64,7 +84,7 @@ export const subscribeToPatients = (
 ): Unsubscribe => {
   const q = query(patientsRef, where('wardId', '==', wardId), orderBy('bedNumber'))
   return onSnapshot(q, (snapshot) => {
-    const patients = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Patient)
+    const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
   })
 }
@@ -73,7 +93,7 @@ export const subscribeToAllPatients = (
   callback: (patients: Patient[]) => void
 ): Unsubscribe => {
   return onSnapshot(patientsRef, (snapshot) => {
-    const patients = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Patient)
+    const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
   })
 }

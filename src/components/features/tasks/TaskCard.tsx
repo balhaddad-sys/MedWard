@@ -13,7 +13,9 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onComplete, onClick }: TaskCardProps) {
-  const priorityStyle = theme.priorityColors[task.priority as keyof typeof theme.priorityColors] ?? theme.priorityColors.medium
+  const status = task.status ?? 'pending'
+  const priority = task.priority ?? 'medium'
+  const priorityStyle = theme.priorityColors[priority as keyof typeof theme.priorityColors] ?? theme.priorityColors.medium
 
   return (
     <Card hover onClick={onClick} className="relative">
@@ -23,15 +25,15 @@ export function TaskCard({ task, onComplete, onClick }: TaskCardProps) {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-ward-text">{task.title}</h3>
-              <Badge variant={task.priority === 'critical' ? 'danger' : task.priority === 'high' ? 'warning' : 'default'} size="sm">
-                {task.priority}
+              <Badge variant={priority === 'critical' ? 'danger' : priority === 'high' ? 'warning' : 'default'} size="sm">
+                {priority}
               </Badge>
             </div>
             <p className="text-xs text-ward-muted mt-1">
               {task.patientName} - Bed {task.bedNumber}
             </p>
           </div>
-          {task.status !== 'completed' && onComplete && (
+          {status !== 'completed' && onComplete && (
             <button
               onClick={(e) => { e.stopPropagation(); onComplete() }}
               className="p-1.5 rounded-lg text-ward-muted hover:text-green-600 hover:bg-green-50 transition-colors"
@@ -56,8 +58,8 @@ export function TaskCard({ task, onComplete, onClick }: TaskCardProps) {
               {formatRelativeTime(task.dueAt)}
             </span>
           )}
-          <Badge variant={task.status === 'completed' ? 'success' : task.status === 'in_progress' ? 'info' : 'default'} size="sm">
-            {task.status.replace('_', ' ')}
+          <Badge variant={status === 'completed' ? 'success' : status === 'in_progress' ? 'info' : 'default'} size="sm">
+            {status.replace('_', ' ')}
           </Badge>
         </div>
       </div>

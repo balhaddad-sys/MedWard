@@ -17,7 +17,7 @@ export function Dashboard() {
   const stats = {
     totalPatients: patients.length,
     criticalPatients: patients.filter((p) => p.acuity <= 2).length,
-    pendingTasks: tasks.filter((t) => t.status === 'pending').length,
+    pendingTasks: tasks.filter((t) => (t.status ?? 'pending') === 'pending').length,
     criticalLabs: criticalValues.length,
   }
 

@@ -16,6 +16,18 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '@/config/firebase'
 import type { LabPanel } from '@/types'
 
+const safeLabPanel = (id: string, data: Record<string, unknown>): LabPanel => ({
+  patientId: '',
+  category: 'MISC',
+  panelName: 'Unknown',
+  values: [],
+  status: 'pending',
+  orderedBy: '',
+  source: 'manual',
+  ...data,
+  id,
+} as unknown as LabPanel)
+
 export const getLabPanels = async (patientId: string, maxResults = 50): Promise<LabPanel[]> => {
   const q = query(
     collection(db, 'patients', patientId, 'labs'),
@@ -23,7 +35,7 @@ export const getLabPanels = async (patientId: string, maxResults = 50): Promise<
     limit(maxResults)
   )
   const snapshot = await getDocs(q)
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as LabPanel)
+  return snapshot.docs.map((doc) => safeLabPanel(doc.id, doc.data()))
 }
 
 export const addLabPanel = async (patientId: string, panel: Omit<LabPanel, 'id' | 'createdAt'>): Promise<string> => {
@@ -63,7 +75,7 @@ export const subscribeToLabs = (
     orderBy('collectedAt', 'desc')
   )
   return onSnapshot(q, (snapshot) => {
-    const labs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as LabPanel)
+    const labs = snapshot.docs.map((doc) => safeLabPanel(doc.id, doc.data()))
     callback(labs)
   })
 }
@@ -93,7 +105,7 @@ export const getCriticalLabs = async (wardId: string): Promise<LabPanel[]> => {
     )
     const labsSnap = await getDocs(labsQ)
     for (const labDoc of labsSnap.docs) {
-      const lab = { id: labDoc.id, ...labDoc.data() } as LabPanel
+      const lab = safeLabPanel(labDoc.id, labDoc.data())
       const hasCritical = (lab.values ?? []).some(
         (v) => v.flag === 'critical_low' || v.flag === 'critical_high'
       )

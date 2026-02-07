@@ -44,9 +44,9 @@ export const useTaskStore = create<TaskStore>()((set, get) => ({
   getFilteredTasks: () => {
     const { tasks, filterStatus, filterPriority, filterAssignedTo } = get()
     return tasks.filter((t) => {
-      const matchesStatus = filterStatus === 'all' || t.status === filterStatus
-      const matchesPriority = filterPriority === 'all' || t.priority === filterPriority
-      const matchesAssigned = filterAssignedTo === 'all' || t.assignedTo === filterAssignedTo
+      const matchesStatus = filterStatus === 'all' || (t.status ?? 'pending') === filterStatus
+      const matchesPriority = filterPriority === 'all' || (t.priority ?? 'medium') === filterPriority
+      const matchesAssigned = filterAssignedTo === 'all' || (t.assignedTo ?? '') === filterAssignedTo
       return matchesStatus && matchesPriority && matchesAssigned
     })
   },

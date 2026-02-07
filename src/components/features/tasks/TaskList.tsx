@@ -15,12 +15,12 @@ export function TaskList() {
 
   const tasks = useMemo(() => {
     if (filterStatus === 'all') return allTasks
-    return allTasks.filter((t) => t.status === filterStatus)
+    return allTasks.filter((t) => (t.status ?? 'pending') === filterStatus)
   }, [allTasks, filterStatus])
 
-  const pendingCount = allTasks.filter((t) => t.status === 'pending').length
-  const inProgressCount = allTasks.filter((t) => t.status === 'in_progress').length
-  const completedCount = allTasks.filter((t) => t.status === 'completed').length
+  const pendingCount = allTasks.filter((t) => (t.status ?? 'pending') === 'pending').length
+  const inProgressCount = allTasks.filter((t) => (t.status ?? 'pending') === 'in_progress').length
+  const completedCount = allTasks.filter((t) => (t.status ?? 'pending') === 'completed').length
 
   const tabs = [
     { id: 'all', label: 'All', count: allTasks.length },
