@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
@@ -12,9 +12,17 @@ export function AppShell() {
   const setIsMobile = useUIStore((s) => s.setIsMobile)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
+  const isMobileRef = useRef(isMobile)
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    isMobileRef.current = isMobile
+  }, [isMobile])
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const next = window.innerWidth < 768
+      if (next !== isMobileRef.current) setIsMobile(next)
+    }
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)

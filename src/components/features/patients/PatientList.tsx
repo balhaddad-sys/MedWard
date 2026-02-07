@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Search, Filter, Plus } from 'lucide-react'
 import { usePatientStore } from '@/stores/patientStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -6,7 +6,7 @@ import { PatientCard } from './PatientCard'
 import { Button } from '@/components/ui/Button'
 
 export function PatientList() {
-  const patients = usePatientStore((s) => s.getFilteredPatients())
+  const allPatients = usePatientStore((s) => s.patients)
   const searchQuery = usePatientStore((s) => s.searchQuery)
   const setSearchQuery = usePatientStore((s) => s.setSearchQuery)
   const filterAcuity = usePatientStore((s) => s.filterAcuity)
@@ -14,6 +14,21 @@ export function PatientList() {
   const loading = usePatientStore((s) => s.loading)
   const openModal = useUIStore((s) => s.openModal)
   const [showFilters, setShowFilters] = useState(false)
+
+  const patients = useMemo(() => {
+    let filtered = allPatients
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      filtered = filtered.filter((p) =>
+        `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
+        p.mrn?.toLowerCase().includes(q)
+      )
+    }
+    if (filterAcuity !== null) {
+      filtered = filtered.filter((p) => p.acuity === filterAcuity)
+    }
+    return filtered
+  }, [allPatients, searchQuery, filterAcuity])
 
   return (
     <div className="space-y-4">

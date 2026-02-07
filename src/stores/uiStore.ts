@@ -50,5 +50,8 @@ export const useUIStore = create<UIStore>()((set) => ({
     }
   },
   removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
-  setIsMobile: (isMobile) => set({ isMobile }),
+  setIsMobile: (isMobile) => set((state) => {
+    if (state.isMobile === isMobile) return state
+    return { isMobile }
+  }),
 }))

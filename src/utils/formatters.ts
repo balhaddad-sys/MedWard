@@ -1,17 +1,33 @@
 import { format, formatDistanceToNow, isToday, isYesterday, parseISO } from 'date-fns'
 import type { Timestamp } from 'firebase/firestore'
 
-export const formatTimestamp = (timestamp: Timestamp | null | undefined): string => {
-  if (!timestamp) return 'N/A'
-  const date = timestamp.toDate()
+type DateLike = Timestamp | Date | string | number | null | undefined
+
+const toJsDate = (value: DateLike): Date | null => {
+  if (!value) return null
+  if (value instanceof Date) return value
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+  if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+    return value.toDate() as Date
+  }
+  return null
+}
+
+export const formatTimestamp = (timestamp: DateLike): string => {
+  const date = toJsDate(timestamp)
+  if (!date) return 'N/A'
   if (isToday(date)) return `Today ${format(date, 'HH:mm')}`
   if (isYesterday(date)) return `Yesterday ${format(date, 'HH:mm')}`
   return format(date, 'dd MMM yyyy HH:mm')
 }
 
-export const formatRelativeTime = (timestamp: Timestamp | null | undefined): string => {
-  if (!timestamp) return 'N/A'
-  return formatDistanceToNow(timestamp.toDate(), { addSuffix: true })
+export const formatRelativeTime = (timestamp: DateLike): string => {
+  const date = toJsDate(timestamp)
+  if (!date) return 'N/A'
+  return formatDistanceToNow(date, { addSuffix: true })
 }
 
 export const formatDate = (dateStr: string): string => {

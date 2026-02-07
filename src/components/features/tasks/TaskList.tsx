@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo } from 'react'
 import { Plus, Filter } from 'lucide-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -7,13 +7,17 @@ import { Button } from '@/components/ui/Button'
 import { Tabs } from '@/components/ui/Tabs'
 
 export function TaskList() {
-  const tasks = useTaskStore((s) => s.getFilteredTasks())
+  const allTasks = useTaskStore((s) => s.tasks)
   const filterStatus = useTaskStore((s) => s.filterStatus)
   const setFilterStatus = useTaskStore((s) => s.setFilterStatus)
   const loading = useTaskStore((s) => s.loading)
   const openModal = useUIStore((s) => s.openModal)
 
-  const allTasks = useTaskStore((s) => s.tasks)
+  const tasks = useMemo(() => {
+    if (filterStatus === 'all') return allTasks
+    return allTasks.filter((t) => t.status === filterStatus)
+  }, [allTasks, filterStatus])
+
   const pendingCount = allTasks.filter((t) => t.status === 'pending').length
   const inProgressCount = allTasks.filter((t) => t.status === 'in_progress').length
   const completedCount = allTasks.filter((t) => t.status === 'completed').length
