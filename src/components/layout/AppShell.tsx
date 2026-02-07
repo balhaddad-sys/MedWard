@@ -6,12 +6,18 @@ import { BottomNav } from './BottomNav'
 import { ModalController } from './ModalController'
 import { ToastContainer } from '@/components/ui/Toast'
 import { useUIStore } from '@/stores/uiStore'
+import { usePatientStore } from '@/stores/patientStore'
+import { useTaskStore } from '@/stores/taskStore'
+import { subscribeToAllPatients } from '@/services/firebase/patients'
+import { subscribeToTasks } from '@/services/firebase/tasks'
 
 export function AppShell() {
   const isMobile = useUIStore((s) => s.isMobile)
   const setIsMobile = useUIStore((s) => s.setIsMobile)
   const sidebarOpen = useUIStore((s) => s.sidebarOpen)
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen)
+  const setPatients = usePatientStore((s) => s.setPatients)
+  const setTasks = useTaskStore((s) => s.setTasks)
   const isMobileRef = useRef(isMobile)
 
   useEffect(() => {
@@ -27,6 +33,24 @@ export function AppShell() {
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [setIsMobile])
+
+  // Load data from Firestore on mount
+  useEffect(() => {
+    // Real-time patient subscription
+    const unsubPatients = subscribeToAllPatients((patients) => {
+      setPatients(patients)
+    })
+
+    // Real-time task subscription
+    const unsubTasks = subscribeToTasks((tasks) => {
+      setTasks(tasks)
+    })
+
+    return () => {
+      unsubPatients()
+      unsubTasks()
+    }
+  }, [setPatients, setTasks])
 
   return (
     <div className="min-h-screen bg-ward-bg">

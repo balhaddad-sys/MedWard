@@ -18,9 +18,16 @@ import type { Patient, PatientFormData } from '@/types'
 
 const patientsRef = collection(db, 'patients')
 
-export const getPatients = async (wardId: string): Promise<Patient[]> => {
-  const q = query(patientsRef, where('wardId', '==', wardId), orderBy('bedNumber'))
+export const getPatients = async (wardId?: string): Promise<Patient[]> => {
+  const q = wardId
+    ? query(patientsRef, where('wardId', '==', wardId))
+    : patientsRef
   const snapshot = await getDocs(q)
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Patient)
+}
+
+export const getAllPatients = async (): Promise<Patient[]> => {
+  const snapshot = await getDocs(patientsRef)
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Patient)
 }
 
@@ -57,6 +64,15 @@ export const subscribeToPatients = (
 ): Unsubscribe => {
   const q = query(patientsRef, where('wardId', '==', wardId), orderBy('bedNumber'))
   return onSnapshot(q, (snapshot) => {
+    const patients = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Patient)
+    callback(patients)
+  })
+}
+
+export const subscribeToAllPatients = (
+  callback: (patients: Patient[]) => void
+): Unsubscribe => {
+  return onSnapshot(patientsRef, (snapshot) => {
     const patients = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Patient)
     callback(patients)
   })

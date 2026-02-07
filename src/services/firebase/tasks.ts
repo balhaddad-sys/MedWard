@@ -19,8 +19,8 @@ const tasksRef = collection(db, 'tasks')
 
 export const getTasks = async (wardId?: string): Promise<Task[]> => {
   const q = wardId
-    ? query(tasksRef, where('wardId', '==', wardId), orderBy('dueAt'))
-    : query(tasksRef, orderBy('dueAt'))
+    ? query(tasksRef, where('wardId', '==', wardId))
+    : tasksRef
   const snapshot = await getDocs(q)
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Task)
 }
@@ -64,8 +64,7 @@ export const deleteTask = async (id: string): Promise<void> => {
 }
 
 export const subscribeToTasks = (callback: (tasks: Task[]) => void): Unsubscribe => {
-  const q = query(tasksRef, orderBy('dueAt'))
-  return onSnapshot(q, (snapshot) => {
+  return onSnapshot(tasksRef, (snapshot) => {
     const tasks = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Task)
     callback(tasks)
   })

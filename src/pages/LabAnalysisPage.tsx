@@ -62,11 +62,6 @@ export function LabAnalysisPage() {
     }
   }
 
-  const handleUpload = async (_file: File) => {
-    // OCR upload would be handled here - for now show placeholder
-    console.log('Lab upload feature - OCR processing would happen here')
-  }
-
   const tabs = [
     { id: 'triage', label: 'Triage', icon: <FlaskConical className="h-3.5 w-3.5" /> },
     { id: 'all', label: 'All Results', count: allLabs.length },
@@ -230,11 +225,11 @@ export function LabAnalysisPage() {
 
           {activeTab === 'upload' && (
             <div className="space-y-4">
-              <LabUploader onUpload={handleUpload} onManualEntry={() => {}} />
+              <LabUploader patientId={selectedPatientId || undefined} />
               <Card padding="sm">
                 <CardContent>
                   <p className="text-xs text-ward-muted text-center">
-                    Upload lab result images for OCR processing, or use manual entry to add results directly.
+                    Upload lab result images to cloud storage. Use Camera on mobile to capture lab reports directly.
                   </p>
                 </CardContent>
               </Card>

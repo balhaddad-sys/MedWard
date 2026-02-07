@@ -11,7 +11,7 @@ interface PatientFormProps {
 
 const defaultData: PatientFormData = {
   mrn: '', firstName: '', lastName: '', dateOfBirth: '',
-  gender: 'male', wardId: '', bedNumber: '', acuity: 3,
+  gender: 'male', wardId: 'default', bedNumber: '', acuity: 3,
   primaryDiagnosis: '', diagnoses: [], allergies: [],
   codeStatus: 'full', attendingPhysician: '', team: '',
 }
