@@ -13,7 +13,8 @@ interface PatientDetailProps {
 
 export function PatientDetail({ patient }: PatientDetailProps) {
   const navigate = useNavigate()
-  const acuityInfo = ACUITY_LEVELS[patient.acuity]
+  const acuityKey = (patient.acuity >= 1 && patient.acuity <= 5 ? patient.acuity : 3) as keyof typeof ACUITY_LEVELS
+  const acuityInfo = ACUITY_LEVELS[acuityKey]
 
   return (
     <div className="space-y-4">

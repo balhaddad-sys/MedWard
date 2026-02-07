@@ -96,7 +96,7 @@ export function HandoverPage() {
                       variant={patient.acuity <= 2 ? 'danger' : patient.acuity === 3 ? 'warning' : 'success'}
                       size="sm"
                     >
-                      {ACUITY_LEVELS[patient.acuity].label}
+                      {ACUITY_LEVELS[(patient.acuity >= 1 && patient.acuity <= 5 ? patient.acuity : 3) as keyof typeof ACUITY_LEVELS].label}
                     </Badge>
                   </div>
                 ))}
