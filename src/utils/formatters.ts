@@ -1,17 +1,18 @@
 import { format, formatDistanceToNow, isToday, isYesterday, parseISO } from 'date-fns'
 import type { Timestamp } from 'firebase/firestore'
 
-export const formatTimestamp = (timestamp: Timestamp | null | undefined): string => {
+export const formatTimestamp = (timestamp: Timestamp | Date | null | undefined): string => {
   if (!timestamp) return 'N/A'
-  const date = timestamp.toDate()
+  const date = timestamp instanceof Date ? timestamp : timestamp.toDate()
   if (isToday(date)) return `Today ${format(date, 'HH:mm')}`
   if (isYesterday(date)) return `Yesterday ${format(date, 'HH:mm')}`
   return format(date, 'dd MMM yyyy HH:mm')
 }
 
-export const formatRelativeTime = (timestamp: Timestamp | null | undefined): string => {
+export const formatRelativeTime = (timestamp: Timestamp | Date | null | undefined): string => {
   if (!timestamp) return 'N/A'
-  return formatDistanceToNow(timestamp.toDate(), { addSuffix: true })
+  const date = timestamp instanceof Date ? timestamp : timestamp.toDate()
+  return formatDistanceToNow(date, { addSuffix: true })
 }
 
 export const formatDate = (dateStr: string): string => {
