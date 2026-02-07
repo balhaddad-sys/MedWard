@@ -30,26 +30,40 @@ export const formatRelativeTime = (timestamp: DateLike): string => {
   return formatDistanceToNow(date, { addSuffix: true })
 }
 
-export const formatDate = (dateStr: string): string => {
-  return format(parseISO(dateStr), 'dd MMM yyyy')
-}
-
-export const formatAge = (dateOfBirth: string): string => {
-  const dob = parseISO(dateOfBirth)
-  const now = new Date()
-  let age = now.getFullYear() - dob.getFullYear()
-  const monthDiff = now.getMonth() - dob.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
-    age--
+export const formatDate = (dateStr?: string | null): string => {
+  if (!dateStr) return 'N/A'
+  try {
+    return format(parseISO(dateStr), 'dd MMM yyyy')
+  } catch {
+    return 'N/A'
   }
-  return `${age}y`
 }
 
-export const formatPatientName = (firstName: string, lastName: string): string => {
-  return `${lastName.toUpperCase()}, ${firstName}`
+export const formatAge = (dateOfBirth?: string | null): string => {
+  if (!dateOfBirth) return ''
+  try {
+    const dob = parseISO(dateOfBirth)
+    if (Number.isNaN(dob.getTime())) return ''
+    const now = new Date()
+    let age = now.getFullYear() - dob.getFullYear()
+    const monthDiff = now.getMonth() - dob.getMonth()
+    if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) {
+      age--
+    }
+    return `${age}y`
+  } catch {
+    return ''
+  }
 }
 
-export const formatMRN = (mrn: string): string => {
+export const formatPatientName = (firstName?: string | null, lastName?: string | null): string => {
+  const last = lastName || ''
+  const first = firstName || ''
+  return `${last.toUpperCase()}, ${first}`
+}
+
+export const formatMRN = (mrn?: string | null): string => {
+  if (!mrn) return ''
   return mrn.replace(/(\d{3})(\d{3})(\d{3})/, '$1-$2-$3')
 }
 

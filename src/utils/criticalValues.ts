@@ -35,7 +35,7 @@ const getCriticalMessage = (value: LabValue): string => {
 
 const getUrgency = (value: LabValue): 'immediate' | 'urgent' => {
   const immediateTests = ['K', 'NA', 'GLU', 'TROP', 'HGB', 'PLT', 'LACT']
-  const testCode = value.name.toUpperCase().replace(/\s/g, '')
+  const testCode = (value.name || '').toUpperCase().replace(/\s/g, '')
   return immediateTests.some((t) => testCode.includes(t)) ? 'immediate' : 'urgent'
 }
 

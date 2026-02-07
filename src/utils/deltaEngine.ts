@@ -45,7 +45,7 @@ export const calculateDeltas = (
     const direction: 'up' | 'down' | 'stable' =
       absDelta < 0.01 ? 'stable' : delta > 0 ? 'up' : 'down'
 
-    const threshold = SIGNIFICANCE_THRESHOLDS[currentValue.name.toUpperCase()]
+    const threshold = SIGNIFICANCE_THRESHOLDS[(currentValue.name || '').toUpperCase()]
     let significance: DeltaResult['significance'] = 'none'
     if (threshold) {
       if (absDelta >= threshold.critical) significance = 'critical'
