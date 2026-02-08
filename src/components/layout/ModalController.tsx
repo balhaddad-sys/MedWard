@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
-import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { createPatient, updatePatient } from '@/services/firebase/patients'
 import { createTask, updateTask, completeTask, deleteTask } from '@/services/firebase/tasks'
@@ -21,36 +20,39 @@ export function ModalController() {
   const addToast = useUIStore((s) => s.addToast)
   const user = useAuthStore((s) => s.user)
   const firebaseUser = useAuthStore((s) => s.firebaseUser)
-  const addPatient = usePatientStore((s) => s.addPatient)
+
   const tasks = useTaskStore((s) => s.tasks)
   const addTask = useTaskStore((s) => s.addTask)
   const storeUpdateTask = useTaskStore((s) => s.updateTask)
   const storeRemoveTask = useTaskStore((s) => s.removeTask)
 
   const handlePatientSubmit = async (data: PatientFormData) => {
-    if (!firebaseUser) return
+    if (!firebaseUser) {
+      addToast({ type: 'error', title: 'Not logged in', message: 'Please log in to add patients.' })
+      return
+    }
     try {
-      const id = await createPatient(data, firebaseUser.uid)
-      addPatient({ id, ...data, createdAt: new Date(), updatedAt: new Date() } as never)
+      await createPatient(data, firebaseUser.uid)
       addToast({ type: 'success', title: 'Patient added successfully' })
       closeModal()
-    } catch {
-      addToast({ type: 'error', title: 'Failed to save patient', message: 'Please try again.' })
+      // Store update handled by onSnapshot listener
+    } catch (err) {
+      console.error('Create patient failed:', err)
+      addToast({ type: 'error', title: 'Failed to save patient', message: String(err) })
     }
   }
-
-  const storeUpdatePatient = usePatientStore((s) => s.updatePatient)
 
   const handlePatientUpdate = async (data: PatientFormData) => {
     const patientId = modalData?.patientId as string | undefined
     if (!patientId) return
     try {
       await updatePatient(patientId, data)
-      storeUpdatePatient(patientId, data as unknown as Partial<import('@/types').Patient>)
       addToast({ type: 'success', title: 'Patient updated successfully' })
       closeModal()
-    } catch {
-      addToast({ type: 'error', title: 'Failed to update patient', message: 'Please try again.' })
+      // Store update handled by onSnapshot listener
+    } catch (err) {
+      console.error('Update patient failed:', err)
+      addToast({ type: 'error', title: 'Failed to update patient', message: String(err) })
     }
   }
 

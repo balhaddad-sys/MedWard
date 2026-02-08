@@ -6,6 +6,7 @@ import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ModalController } from '@/components/layout/ModalController'
+import { ToastContainer } from '@/components/ui/Toast'
 
 const PatientDetailPage = lazy(() => import('@/pages/PatientDetailPage').then(m => ({ default: m.PatientDetailPage })))
 const TasksPage = lazy(() => import('@/pages/TasksPage').then(m => ({ default: m.TasksPage })))
@@ -161,6 +162,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <ModalController />
+          <ToastContainer />
         </BrowserRouter>
       </ModeProvider>
     </ErrorBoundary>
