@@ -58,7 +58,7 @@ export function ModalController() {
     try {
       if (taskId) {
         // Update existing task
-        const { dueAt, recurring, ...rest } = data
+        const { dueAt: _dueAt, recurring: _recurring, ...rest } = data
         await updateTask(taskId, rest)
         storeUpdateTask(taskId, rest as unknown as Partial<Task>)
         addToast({ type: 'success', title: 'Task updated successfully' })

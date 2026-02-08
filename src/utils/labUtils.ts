@@ -1,4 +1,4 @@
-import type { LabValue, LabFlag, LabCategory } from '@/types'
+import type { LabFlag, LabCategory } from '@/types'
 
 export interface LabReference {
   name: string

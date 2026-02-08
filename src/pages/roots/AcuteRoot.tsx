@@ -2,12 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
-  Activity,
   Phone,
   Calculator,
-  Heart,
-  Thermometer,
-  Droplets,
   Brain,
   Timer,
   PhoneCall,

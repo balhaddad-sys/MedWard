@@ -1,4 +1,4 @@
-import { ArrowLeft, Edit, FileText, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Edit, AlertTriangle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'

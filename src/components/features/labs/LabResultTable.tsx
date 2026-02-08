@@ -84,8 +84,6 @@ export function LabResultTable({ data, variant = 'dark', compact = false }: LabR
               const isCritical = flagNorm === 'critical'
               const isHigh = flagNorm === 'high'
               const isLow = flagNorm === 'low'
-              const isAbnormal = isCritical || isHigh || isLow
-
               return (
                 <tr
                   key={`${row.test}-${i}`}

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { useClinicalMode } from '../context/ModeContext'
+import { useClinicalMode } from '../context/useClinicalMode'
 import type { ClinicalMode } from '../config/modes'
 import { triggerHaptic } from '../utils/haptics'
 import { SyncBadge } from '../components/SyncBadge'

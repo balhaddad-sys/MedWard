@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { FileText, X, Hash, Clock, ChevronRight } from 'lucide-react'
+import { FileText, Hash, Clock, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 import { smartTextService } from '@/services/SmartTextService'
 import type { SmartTextPhrase } from '@/services/SmartTextService'
@@ -22,7 +22,6 @@ export function SmartTextEditor({
 }: SmartTextEditorProps) {
   const [suggestions, setSuggestions] = useState<SmartTextPhrase[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [cursorWord, setCursorWord] = useState('')
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 })
   const [initialized, setInitialized] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -35,45 +34,7 @@ export function SmartTextEditor({
   // Get top phrases for QuickBar
   const topPhrases = initialized ? smartTextService.getTopPhrases(3) : []
 
-  const handleInput = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newValue = e.target.value
-      onChange(newValue)
-
-      if (!initialized) return
-
-      // Get word at cursor
-      const textarea = e.target
-      const cursorPos = textarea.selectionStart
-      const textBefore = newValue.slice(0, cursorPos)
-      const words = textBefore.split(/\s/)
-      const currentWord = words[words.length - 1] || ''
-
-      setCursorWord(currentWord)
-
-      const prefix = smartTextService.getTriggerPrefix()
-      if (currentWord.startsWith(prefix) && currentWord.length > prefix.length) {
-        const results = smartTextService.search(currentWord)
-        setSuggestions(results)
-        setShowSuggestions(results.length > 0)
-
-        // Calculate popover position
-        updatePopoverPosition(textarea, cursorPos)
-      } else if (currentWord === prefix) {
-        // Show all phrases on just "."
-        const results = smartTextService.search(currentWord)
-        setSuggestions(results)
-        setShowSuggestions(results.length > 0)
-        updatePopoverPosition(textarea, cursorPos)
-      } else {
-        setShowSuggestions(false)
-      }
-    },
-    [onChange, initialized]
-  )
-
-  const updatePopoverPosition = (textarea: HTMLTextAreaElement, cursorPos: number) => {
-    // Approximate position based on character count
+  const updatePopoverPosition = useCallback((textarea: HTMLTextAreaElement, cursorPos: number) => {
     const lineHeight = 20
     const charWidth = 8
     const textBefore = textarea.value.slice(0, cursorPos)
@@ -91,7 +52,41 @@ export function SmartTextEditor({
       ),
       left: Math.min(rect.width - 200, colInLine * charWidth),
     })
-  }
+  }, [])
+
+  const handleInput = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const newValue = e.target.value
+      onChange(newValue)
+
+      if (!initialized) return
+
+      // Get word at cursor
+      const textarea = e.target
+      const cursorPos = textarea.selectionStart
+      const textBefore = newValue.slice(0, cursorPos)
+      const words = textBefore.split(/\s/)
+      const currentWord = words[words.length - 1] || ''
+
+      const prefix = smartTextService.getTriggerPrefix()
+      if (currentWord.startsWith(prefix) && currentWord.length > prefix.length) {
+        const results = smartTextService.search(currentWord)
+        setSuggestions(results)
+        setShowSuggestions(results.length > 0)
+
+        updatePopoverPosition(textarea, cursorPos)
+      } else if (currentWord === prefix) {
+        // Show all phrases on just "."
+        const results = smartTextService.search(currentWord)
+        setSuggestions(results)
+        setShowSuggestions(results.length > 0)
+        updatePopoverPosition(textarea, cursorPos)
+      } else {
+        setShowSuggestions(false)
+      }
+    },
+    [onChange, initialized, updatePopoverPosition]
+  )
 
   const insertPhrase = useCallback(
     (phrase: SmartTextPhrase) => {

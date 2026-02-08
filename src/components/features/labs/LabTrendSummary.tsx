@@ -2,7 +2,6 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Sparkline } from '@/components/ui/Sparkline'
 import type { LabTrend } from '@/types'
-import { clsx } from 'clsx'
 
 interface LabTrendSummaryProps {
   trends: LabTrend[]

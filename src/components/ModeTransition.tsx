@@ -1,4 +1,4 @@
-import { useClinicalMode } from '@/context/ModeContext'
+import { useClinicalMode } from '@/context/useClinicalMode'
 import { clsx } from 'clsx'
 
 export function ModeTransition({ children }: { children: React.ReactNode }) {

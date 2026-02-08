@@ -6,7 +6,6 @@ import {
   TrendingUp,
   BookOpen,
   ChevronRight,
-  Clock,
   User,
   Plus,
   Search,

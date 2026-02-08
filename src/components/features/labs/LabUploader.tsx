@@ -18,7 +18,7 @@ interface UploadedImage {
   uploadedAt: Date
 }
 
-export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabUploaderProps) {
+export function LabUploader({ patientId: _patientId, onUploadComplete, onManualEntry }: LabUploaderProps) {
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)

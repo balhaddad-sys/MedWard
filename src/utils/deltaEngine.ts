@@ -1,4 +1,4 @@
-import type { LabPanel, LabValue, LabTrend } from '@/types'
+import type { LabPanel, LabTrend } from '@/types'
 
 export interface DeltaResult {
   labName: string

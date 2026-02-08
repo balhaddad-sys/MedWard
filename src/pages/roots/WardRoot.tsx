@@ -10,7 +10,6 @@ import {
   Clock,
   ArrowRightLeft,
   FlaskConical,
-  ClipboardCheck,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { usePatientStore } from '@/stores/patientStore'

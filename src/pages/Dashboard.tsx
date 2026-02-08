@@ -1,4 +1,4 @@
-import { useClinicalMode } from '@/context/ModeContext'
+import { useClinicalMode } from '@/context/useClinicalMode'
 import WardRoot from '@/pages/roots/WardRoot'
 import AcuteRoot from '@/pages/roots/AcuteRoot'
 import ClinicRoot from '@/pages/roots/ClinicRoot'

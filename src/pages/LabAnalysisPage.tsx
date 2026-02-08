@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { FlaskConical, Sparkles, Upload, Search } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
+
 import { Tabs } from '@/components/ui/Tabs'
 import { Badge } from '@/components/ui/Badge'
 import { LabPanelView } from '@/components/features/labs/LabPanelView'

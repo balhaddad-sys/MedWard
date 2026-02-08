@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bot, Send, Trash2, Sparkles, Stethoscope, Pill, FlaskConical, ClipboardList } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { callAI } from '@/services/ai/claude'
 import { clsx } from 'clsx'
@@ -57,7 +57,7 @@ export function AIAssistantPage() {
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, aiMsg])
-    } catch (error) {
+    } catch {
       const errorMsg: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',

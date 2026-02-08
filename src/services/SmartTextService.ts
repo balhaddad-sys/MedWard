@@ -173,7 +173,7 @@ class SmartTextServiceImpl {
 
   async addCustomPhrase(
     phrase: Omit<SmartTextPhrase, 'id' | 'usageCount' | 'isCustom'>,
-    userId: string
+    _userId: string
   ): Promise<SmartTextPhrase> {
     // Check for collision
     if (this.phrases.some((p) => p.abbreviation === phrase.abbreviation)) {

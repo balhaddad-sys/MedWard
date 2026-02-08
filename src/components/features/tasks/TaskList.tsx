@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Plus, Filter } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useTaskStore } from '@/stores/taskStore'
 import { useUIStore } from '@/stores/uiStore'
 import { TaskCard } from './TaskCard'

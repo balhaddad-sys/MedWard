@@ -1,19 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import ClinicalLayout from '@/layouts/ClinicalLayout'
 import { ModeProvider } from '@/context/ModeContext'
 import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
-import { PatientDetailPage } from '@/pages/PatientDetailPage'
-import { TasksPage } from '@/pages/TasksPage'
-import { HandoverPage } from '@/pages/HandoverPage'
-import { SettingsPage } from '@/pages/SettingsPage'
-import { AIAssistantPage } from '@/pages/AIAssistantPage'
-import { LabAnalysisPage } from '@/pages/LabAnalysisPage'
-import { DrugInfoPage } from '@/pages/DrugInfoPage'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { ModalController } from '@/components/layout/ModalController'
-import { ToastContainer } from '@/components/ui/Toast'
+
+const PatientDetailPage = lazy(() => import('@/pages/PatientDetailPage').then(m => ({ default: m.PatientDetailPage })))
+const TasksPage = lazy(() => import('@/pages/TasksPage').then(m => ({ default: m.TasksPage })))
+const HandoverPage = lazy(() => import('@/pages/HandoverPage').then(m => ({ default: m.HandoverPage })))
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
+const AIAssistantPage = lazy(() => import('@/pages/AIAssistantPage').then(m => ({ default: m.AIAssistantPage })))
+const LabAnalysisPage = lazy(() => import('@/pages/LabAnalysisPage').then(m => ({ default: m.LabAnalysisPage })))
+const DrugInfoPage = lazy(() => import('@/pages/DrugInfoPage').then(m => ({ default: m.DrugInfoPage })))
+
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { usePatientStore } from '@/stores/patientStore'
@@ -22,6 +22,14 @@ import { firebaseConfigMissing } from '@/config/firebase'
 import { onAuthChange, getUserProfile } from '@/services/firebase/auth'
 import { subscribeToAllPatients } from '@/services/firebase/patients'
 import { subscribeToTasks } from '@/services/firebase/tasks'
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin h-8 w-8 border-3 border-primary-600 border-t-transparent rounded-full" />
+    </div>
+  )
+}
 
 function FirebaseConfigError() {
   return (
@@ -141,13 +149,13 @@ export default function App() {
             >
               <Route path="/" element={<Dashboard />} />
               <Route path="/patients" element={<Dashboard />} />
-              <Route path="/patients/:id" element={<PatientDetailPage />} />
-              <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/handover" element={<HandoverPage />} />
-              <Route path="/ai" element={<AIAssistantPage />} />
-              <Route path="/labs" element={<LabAnalysisPage />} />
-              <Route path="/drugs" element={<DrugInfoPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/patients/:id" element={<Suspense fallback={<PageLoader />}><PatientDetailPage /></Suspense>} />
+              <Route path="/tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
+              <Route path="/handover" element={<Suspense fallback={<PageLoader />}><HandoverPage /></Suspense>} />
+              <Route path="/ai" element={<Suspense fallback={<PageLoader />}><AIAssistantPage /></Suspense>} />
+              <Route path="/labs" element={<Suspense fallback={<PageLoader />}><LabAnalysisPage /></Suspense>} />
+              <Route path="/drugs" element={<Suspense fallback={<PageLoader />}><DrugInfoPage /></Suspense>} />
+              <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

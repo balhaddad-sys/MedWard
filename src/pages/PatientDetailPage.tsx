@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit, AlertTriangle, Plus, Sparkles, Download, Bot, ClipboardList, CheckCircle, FlaskConical, Trash2, Camera, Upload } from 'lucide-react'
+import { ArrowLeft, Edit, AlertTriangle, Plus, Sparkles, Download, Bot, ClipboardList, CheckCircle, FlaskConical, Trash2, Camera } from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -17,13 +17,13 @@ import { useUIStore } from '@/stores/uiStore'
 import { getPatient } from '@/services/firebase/patients'
 import { getLabPanels } from '@/services/firebase/labs'
 import { createTask, updateTask, completeTask, deleteTask } from '@/services/firebase/tasks'
-import { exportPatientSummary, exportSBARReport } from '@/services/export/pdfExport'
+import { exportSBARReport } from '@/services/export/pdfExport'
 import { generateSBARReport, type SBARData } from '@/services/ai/sbarGenerator'
 import { analyzeLabPanel } from '@/services/ai/labAnalysis'
 import { ACUITY_LEVELS } from '@/config/constants'
 import { formatPatientName, formatAge, formatTimestamp, formatRelativeTime } from '@/utils/formatters'
 import type { Patient, LabPanel, LabAIAnalysis, Task, TaskFormData } from '@/types'
-import { theme } from '@/config/theme'
+
 import { clsx } from 'clsx'
 
 export function PatientDetailPage() {
@@ -137,7 +137,7 @@ export function PatientDetailPage() {
   const handleTaskSubmit = async (data: TaskFormData) => {
     if (!firebaseUser) return
     if (editingTask) {
-      const { dueAt, recurring, ...rest } = data
+      const { dueAt: _dueAt, recurring: _recurring, ...rest } = data
       await updateTask(editingTask.id, rest)
       taskStoreUpdate(editingTask.id, rest as unknown as Partial<Task>)
       addToast({ type: 'success', title: 'Task updated' })

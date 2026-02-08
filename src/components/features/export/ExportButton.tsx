@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, FileText, ClipboardList } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { clsx } from 'clsx'
 

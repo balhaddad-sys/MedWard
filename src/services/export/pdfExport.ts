@@ -4,7 +4,7 @@ import type { Patient, LabPanel, Task } from '@/types'
 import type { SBARData } from '@/services/ai/sbarGenerator'
 import { format } from 'date-fns'
 
-export const exportPatientSummary = (patient: Patient, labs: LabPanel[], tasks: Task[]): void => {
+export const exportPatientSummary = (patient: Patient, labs: LabPanel[], _tasks: Task[]): void => {
   const doc = new jsPDF()
   const now = format(new Date(), 'yyyy-MM-dd HH:mm')
 

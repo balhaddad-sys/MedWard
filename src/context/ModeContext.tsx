@@ -1,19 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { MODES } from '../config/modes'
 import type { ClinicalMode } from '../config/modes'
 import { triggerHaptic } from '../utils/haptics'
-
-interface ModeContextType {
-  mode: ClinicalMode
-  setMode: (mode: ClinicalMode) => void
-  config: (typeof MODES)[ClinicalMode]
-  isTransitioning: boolean
-  lastModeSwitch: Date | null
-  isModeLocked: boolean
-  setModeLocked: (locked: boolean) => void
-}
-
-const ModeContext = createContext<ModeContextType | null>(null)
+import { ModeContext } from './modeContextDef'
 
 export function ModeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ClinicalMode>(() => {
@@ -63,7 +52,7 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.body.className = MODES[mode].theme
-  }, [])
+  }, [mode])
 
   return (
     <ModeContext.Provider
@@ -82,10 +71,4 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export const useClinicalMode = () => {
-  const context = useContext(ModeContext)
-  if (!context) {
-    throw new Error('useClinicalMode must be used within ModeProvider')
-  }
-  return context
-}
+
