@@ -1,16 +1,19 @@
 import { useState, useRef } from 'react'
-import { Upload, Camera, Image, X, CheckCircle, AlertCircle, Sparkles, Loader2 } from 'lucide-react'
+import { Upload, Camera, Image, X, AlertCircle } from 'lucide-react'
+import imageCompression from 'browser-image-compression'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
-import { uploadLabImage } from '@/services/firebase/labs'
-import { addLabPanel } from '@/services/firebase/labs'
+import { uploadLabImage, addLabPanel } from '@/services/firebase/labs'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { httpsCallable } from 'firebase/functions'
 import { functions } from '@/config/firebase'
 import { serverTimestamp } from 'firebase/firestore'
 import { flagLabValue, LAB_REFERENCES } from '@/utils/labUtils'
+import { groupLabResults } from '@/utils/labGrouping'
+import { LabResultRow } from './LabResultRow'
+import { LabPanelSkeleton } from './LabResultSkeleton'
+import type { LabTestResult } from './LabResultRow'
 import type { LabValue } from '@/types'
 
 interface LabUploaderProps {
@@ -19,28 +22,20 @@ interface LabUploaderProps {
   onManualEntry?: () => void
 }
 
-interface UploadedImage {
-  url: string
-  name: string
-  uploadedAt: Date
-  analyzing: boolean
-  results?: ExtractedResult[]
-  error?: string
-}
+type UploadStatus = 'idle' | 'compressing' | 'uploading' | 'analyzing' | 'done' | 'error'
 
-interface ExtractedResult {
-  test: string
-  value: number | string
-  unit: string
-  flag: string
-  refRange: string
+interface UploadedResult {
+  imageUrl: string
+  imageName: string
+  status: UploadStatus
+  groups?: ReturnType<typeof groupLabResults>
+  error?: string
 }
 
 export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabUploaderProps) {
   const [dragActive, setDragActive] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([])
+  const [status, setStatus] = useState<UploadStatus>('idle')
+  const [results, setResults] = useState<UploadedResult[]>([])
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -50,56 +45,120 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result as string
-        // Strip the data:image/...;base64, prefix
-        resolve(result.split(',')[1])
-      }
+      reader.onload = () => resolve((reader.result as string).split(',')[1])
       reader.onerror = reject
       reader.readAsDataURL(file)
     })
   }
 
-  const analyzeImage = async (base64: string, mediaType: string, imageIndex: number) => {
+  const handleFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file (JPEG, PNG)')
+      return
+    }
+    if (!firebaseUser) {
+      setError('You must be logged in to upload')
+      return
+    }
+
+    setError(null)
+
+    // Add a pending result entry
+    const resultIndex = results.length
+    setResults((prev) => [...prev, {
+      imageUrl: '',
+      imageName: file.name,
+      status: 'compressing',
+    }])
+    setStatus('compressing')
+
     try {
+      // 1. Compress
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 0.2,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        fileType: 'image/jpeg',
+      })
+
+      // 2. Upload
+      setStatus('uploading')
+      setResults((prev) => prev.map((r, i) => i === resultIndex ? { ...r, status: 'uploading' } : r))
+      const downloadUrl = await uploadLabImage(firebaseUser.uid, compressed)
+
+      // 3. Analyze
+      setStatus('analyzing')
+      setResults((prev) => prev.map((r, i) => i === resultIndex ? { ...r, status: 'analyzing', imageUrl: downloadUrl } : r))
+
+      const base64 = await fileToBase64(compressed)
       const fn = httpsCallable<
         { imageBase64: string; mediaType: string },
         { content: string }
       >(functions, 'analyzeLabImage')
 
-      const result = await fn({ imageBase64: base64, mediaType })
-      const parsed = JSON.parse(result.data.content) as {
-        results: ExtractedResult[]
-        summary?: string
+      const aiResult = await fn({ imageBase64: base64, mediaType: 'image/jpeg' })
+      const parsed = JSON.parse(aiResult.data.content)
+
+      // 4. Parse results — handle both flat and time-series formats
+      const allTests: LabTestResult[] = []
+
+      if (parsed.results && Array.isArray(parsed.results)) {
+        // Flat format from existing function
+        for (const r of parsed.results) {
+          const numVal = typeof r.value === 'number' ? r.value : parseFloat(String(r.value))
+          allTests.push({
+            code: r.code || r.test || '',
+            name: r.name || r.test || '',
+            value: isNaN(numVal) ? 0 : numVal,
+            unit: r.unit || '',
+            refLow: r.refLow ?? r.referenceMin ?? 0,
+            refHigh: r.refHigh ?? r.referenceMax ?? 999,
+            flag: r.flag || 'Normal',
+            previousValue: r.previousValue,
+          })
+        }
+      } else if (typeof parsed === 'object') {
+        // Time-series format: keys are timestamps
+        const timestamps = Object.keys(parsed).filter((k) => k !== 'patientId').sort()
+        for (const ts of timestamps) {
+          const entry = parsed[ts]
+          const tests = entry.tests || entry.biochemistry || entry.results || (Array.isArray(entry) ? entry : [])
+          for (const r of tests) {
+            const numVal = typeof r.value === 'number' ? r.value : parseFloat(String(r.value))
+            allTests.push({
+              code: r.code || r.test || '',
+              name: r.name || r.test || '',
+              value: isNaN(numVal) ? 0 : numVal,
+              unit: r.unit || '',
+              refLow: r.refLow ?? 0,
+              refHigh: r.refHigh ?? 999,
+              flag: r.flag || 'Normal',
+            })
+          }
+        }
       }
 
-      setUploadedImages((prev) =>
-        prev.map((img, i) =>
-          i === imageIndex
-            ? { ...img, analyzing: false, results: parsed.results || [] }
-            : img
-        )
-      )
+      const groups = groupLabResults(allTests)
 
-      // Save extracted values as a lab panel if we have a patientId
-      if (patientId && parsed.results && parsed.results.length > 0) {
-        const values: LabValue[] = parsed.results.map((r) => {
-          const numVal = typeof r.value === 'number' ? r.value : parseFloat(String(r.value))
-          const isNumeric = !isNaN(numVal)
-          const ref = LAB_REFERENCES[r.test.toUpperCase()]
+      setResults((prev) => prev.map((r, i) =>
+        i === resultIndex ? { ...r, status: 'done', groups } : r
+      ))
+      setStatus('done')
 
-          let flag: string = r.flag?.toLowerCase() || 'normal'
-          if (isNumeric && ref) {
-            flag = flagLabValue(numVal, ref)
+      // 5. Save to Firestore
+      if (patientId && allTests.length > 0) {
+        const values: LabValue[] = allTests.map((t) => {
+          const ref = LAB_REFERENCES[(t.code || t.name).toUpperCase()]
+          let flag = t.flag?.toLowerCase() || 'normal'
+          if (ref && typeof t.value === 'number') {
+            flag = flagLabValue(t.value, ref)
           }
-          if (flag === 'critical') flag = 'critical_high'
-
           return {
-            name: r.test,
-            value: isNumeric ? numVal : r.value,
-            unit: r.unit || ref?.unit || '',
-            referenceMin: ref?.referenceMin ?? 0,
-            referenceMax: ref?.referenceMax ?? 999,
+            name: t.name,
+            value: t.value,
+            unit: t.unit || ref?.unit || '',
+            referenceMin: t.refLow ?? ref?.referenceMin ?? 0,
+            referenceMax: t.refHigh ?? ref?.referenceMax ?? 999,
             flag,
           } as LabValue
         })
@@ -118,72 +177,18 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
 
         addToast({
           type: 'success',
-          title: `${values.length} lab values extracted`,
-          message: parsed.summary || 'Values saved to patient record.',
+          title: `${allTests.length} lab values extracted`,
+          message: `Grouped into ${groups.length} panels and saved.`,
         })
         onUploadComplete?.('')
       }
     } catch (err) {
-      console.error('Lab image analysis failed:', err)
-      setUploadedImages((prev) =>
-        prev.map((img, i) =>
-          i === imageIndex
-            ? { ...img, analyzing: false, error: 'Analysis failed. You can enter values manually.' }
-            : img
-        )
-      )
-      addToast({ type: 'warning', title: 'Image analysis failed', message: 'You can enter values manually instead.' })
-    }
-  }
-
-  const handleFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file (JPEG, PNG, etc.)')
-      return
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10 MB')
-      return
-    }
-    if (!firebaseUser) {
-      setError('You must be logged in to upload')
-      return
-    }
-
-    setError(null)
-
-    // Show preview
-    const reader = new FileReader()
-    reader.onload = (e) => setPreview(e.target?.result as string)
-    reader.readAsDataURL(file)
-
-    setUploading(true)
-    try {
-      // Upload to Firebase Storage
-      const downloadUrl = await uploadLabImage(firebaseUser.uid, file)
-
-      const newImage: UploadedImage = {
-        url: downloadUrl,
-        name: file.name,
-        uploadedAt: new Date(),
-        analyzing: true,
-      }
-
-      setUploadedImages((prev) => {
-        const updated = [newImage, ...prev]
-        return updated
-      })
-      setPreview(null)
-
-      // Convert to base64 and analyze
-      const base64 = await fileToBase64(file)
-      analyzeImage(base64, file.type, 0)
-    } catch (err) {
-      console.error('Upload failed:', err)
-      setError('Upload failed. Please try again.')
-      addToast({ type: 'error', title: 'Upload failed', message: 'Please try again.' })
-    } finally {
-      setUploading(false)
+      console.error('Lab upload/analysis failed:', err)
+      setResults((prev) => prev.map((r, i) =>
+        i === resultIndex ? { ...r, status: 'error', error: 'Analysis failed. Enter values manually.' } : r
+      ))
+      setStatus('error')
+      addToast({ type: 'warning', title: 'Image analysis failed', message: 'You can enter values manually.' })
     }
   }
 
@@ -196,18 +201,23 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files) {
-      Array.from(files).forEach(handleFile)
-    }
+    if (files) Array.from(files).forEach(handleFile)
     e.target.value = ''
   }
 
-  const removeImage = (index: number) => {
-    setUploadedImages((prev) => prev.filter((_, i) => i !== index))
+  const removeResult = (index: number) => {
+    setResults((prev) => prev.filter((_, i) => i !== index))
   }
+
+  const isProcessing = status === 'compressing' || status === 'uploading' || status === 'analyzing'
+  const statusLabel = status === 'compressing' ? 'Compressing image...'
+    : status === 'uploading' ? 'Uploading...'
+    : status === 'analyzing' ? 'AI extracting lab values...'
+    : null
 
   return (
     <div className="space-y-4">
+      {/* Upload Zone */}
       <Card className="p-6">
         <div
           className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-colors ${
@@ -217,19 +227,19 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
           onDragLeave={() => setDragActive(false)}
           onDrop={handleDrop}
         >
-          {preview && uploading ? (
+          {isProcessing ? (
             <div className="space-y-3">
-              <img src={preview} alt="Uploading" className="max-h-48 mx-auto rounded-lg shadow-md" />
               <div className="flex items-center justify-center gap-2">
                 <div className="animate-spin h-5 w-5 border-2 border-primary-600 border-t-transparent rounded-full" />
-                <p className="text-sm text-ward-muted">Uploading...</p>
+                <p className="text-sm font-medium text-primary-600">{statusLabel}</p>
               </div>
+              <p className="text-xs text-ward-muted">Image compressed to ~200KB for fast processing</p>
             </div>
           ) : (
             <>
               <Upload className="h-10 w-10 text-ward-muted mx-auto mb-3" />
               <p className="text-sm font-medium text-ward-text">Drop lab result images here</p>
-              <p className="text-xs text-ward-muted mt-1">JPEG, PNG up to 10 MB — AI will extract values automatically</p>
+              <p className="text-xs text-ward-muted mt-1">AI extracts values, groups by system, and shows trends</p>
 
               {error && (
                 <div className="flex items-center justify-center gap-1.5 mt-3 text-red-600">
@@ -243,7 +253,6 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
                   variant="secondary"
                   size="sm"
                   icon={<Camera className="h-4 w-4" />}
-                  loading={uploading}
                   onClick={() => cameraInputRef.current?.click()}
                   className="min-h-[44px]"
                 >
@@ -253,19 +262,13 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
                   variant="secondary"
                   size="sm"
                   icon={<Image className="h-4 w-4" />}
-                  loading={uploading}
                   onClick={() => fileInputRef.current?.click()}
                   className="min-h-[44px]"
                 >
                   Browse Files
                 </Button>
                 {onManualEntry && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={onManualEntry}
-                    className="min-h-[44px]"
-                  >
+                  <Button variant="secondary" size="sm" onClick={onManualEntry} className="min-h-[44px]">
                     Manual Entry
                   </Button>
                 )}
@@ -273,104 +276,48 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
             </>
           )}
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
         </div>
       </Card>
 
-      {uploadedImages.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider">
-            Uploaded Images ({uploadedImages.length})
-          </h3>
-          {uploadedImages.map((img, index) => (
-            <Card key={`${img.url}-${index}`} className="p-3">
-              <div className="flex gap-3">
-                <a href={img.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-                  <img
-                    src={img.url}
-                    alt={img.name}
-                    className="w-20 h-20 object-cover rounded-lg border border-ward-border"
-                  />
-                </a>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-ward-text truncate">{img.name}</p>
-                    <button
-                      onClick={() => removeImage(index)}
-                      className="p-1 text-ward-muted hover:text-red-500 transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
+      {/* Skeleton while analyzing */}
+      {status === 'analyzing' && <LabPanelSkeleton rows={6} />}
 
-                  {img.analyzing && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary-600" />
-                      <span className="text-xs text-primary-600 font-medium">Extracting lab values with AI...</span>
-                    </div>
-                  )}
-
-                  {img.error && (
-                    <div className="flex items-center gap-1.5 mt-2 text-amber-600">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      <span className="text-xs">{img.error}</span>
-                    </div>
-                  )}
-
-                  {img.results && img.results.length > 0 && (
-                    <div className="mt-2">
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-primary-600" />
-                        <span className="text-xs font-medium text-primary-600">
-                          {img.results.length} values extracted
-                        </span>
-                        <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {img.results.slice(0, 6).map((r, i) => (
-                          <Badge
-                            key={i}
-                            variant={
-                              r.flag?.toLowerCase() === 'critical' ? 'danger'
-                              : r.flag?.toLowerCase() === 'high' || r.flag?.toLowerCase() === 'low' ? 'warning'
-                              : 'default'
-                            }
-                            size="sm"
-                          >
-                            {r.test}: {r.value} {r.unit}
-                          </Badge>
-                        ))}
-                        {img.results.length > 6 && (
-                          <Badge variant="default" size="sm">+{img.results.length - 6} more</Badge>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {img.results && img.results.length === 0 && !img.error && (
-                    <p className="text-xs text-ward-muted mt-2">No lab values detected in image.</p>
-                  )}
+      {/* Results */}
+      {results.map((result, idx) => (
+        <div key={idx} className="space-y-3">
+          {result.status === 'error' && (
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm">{result.error}</span>
                 </div>
+                <button onClick={() => removeResult(idx)} className="p-1 text-ward-muted hover:text-red-500">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             </Card>
+          )}
+
+          {result.status === 'done' && result.groups && result.groups.map((group) => (
+            <div key={group.name} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                <h3 className="font-semibold text-slate-800 text-sm">{group.name}</h3>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">
+                  {group.tests.length} tests
+                </span>
+              </div>
+              <div>
+                {group.tests.map((test, i) => (
+                  <LabResultRow key={`${test.code}-${i}`} test={test} />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
-      )}
+      ))}
     </div>
   )
 }
