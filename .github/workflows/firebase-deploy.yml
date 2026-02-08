@@ -1,11 +1,11 @@
-name: Deploy to Firebase Hosting
+name: Deploy to Firebase
 
 on:
   push:
     branches: [main]
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,13 +15,14 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
+      # ── Frontend ──────────────────────────────────
+      - name: Install frontend dependencies
         run: npm ci
 
       - name: Lint
         run: npm run lint
 
-      - name: Build
+      - name: Build frontend
         run: npm run build
         env:
           VITE_FIREBASE_API_KEY: AIzaSyAEXfSbm6pwt59Hm9MXqnQ0mhoStwLHKME
@@ -31,10 +32,33 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: "1033128540980"
           VITE_FIREBASE_APP_ID: "1:1033128540980:web:ef4f7ddfe6b07eaab54361"
 
-      - name: Deploy to Firebase Hosting
+      # ── Cloud Functions ───────────────────────────
+      - name: Install Cloud Functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Build Cloud Functions
+        run: npm run build
+        working-directory: functions
+
+      # ── Deploy Hosting ────────────────────────────
+      - name: Deploy Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           channelId: live
           projectId: medward-pro
+
+      # ── Deploy Functions + Rules + Indexes ────────
+      - name: Write service account key
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa-key.json"
+
+      - name: Deploy Cloud Functions, Firestore rules/indexes, Storage rules
+        run: |
+          npx firebase-tools deploy \
+            --only functions,firestore,storage \
+            --project medward-pro \
+            --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
