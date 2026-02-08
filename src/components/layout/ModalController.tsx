@@ -39,11 +39,14 @@ export function ModalController() {
     }
   }
 
+  const storeUpdatePatient = usePatientStore((s) => s.updatePatient)
+
   const handlePatientUpdate = async (data: PatientFormData) => {
     const patientId = modalData?.patientId as string | undefined
     if (!patientId) return
     try {
       await updatePatient(patientId, data)
+      storeUpdatePatient(patientId, data as unknown as Partial<import('@/types').Patient>)
       addToast({ type: 'success', title: 'Patient updated successfully' })
       closeModal()
     } catch {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search,
@@ -10,19 +10,25 @@ import {
   Clock,
   ArrowRightLeft,
   FlaskConical,
+  Edit,
+  Trash2,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useUIStore } from '@/stores/uiStore'
-import { triggerHaptic, hapticPatterns } from '@/utils/haptics'
+import { triggerHaptic } from '@/utils/haptics'
+import { deletePatient } from '@/services/firebase/patients'
+import { SwipeableRow } from '@/components/ui/SwipeableRow'
 import { ACUITY_LEVELS } from '@/config/constants'
 import type { Patient, Task } from '@/types'
 
 export default function WardRoot() {
   const patients = usePatientStore((s) => s.patients)
+  const removePatient = usePatientStore((s) => s.removePatient)
   const tasks = useTaskStore((s) => s.tasks)
   const openModal = useUIStore((s) => s.openModal)
+  const addToast = useUIStore((s) => s.addToast)
   const navigate = useNavigate()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -71,6 +77,49 @@ export default function WardRoot() {
       return completed >= today
     })
   }, [tasks])
+
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  const handleEditPatient = useCallback((patient: Patient) => {
+    triggerHaptic('tap')
+    openModal('patient-form', {
+      patientId: patient.id,
+      initialData: {
+        mrn: patient.mrn,
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        dateOfBirth: patient.dateOfBirth,
+        gender: patient.gender,
+        wardId: patient.wardId,
+        bedNumber: patient.bedNumber,
+        acuity: patient.acuity,
+        primaryDiagnosis: patient.primaryDiagnosis,
+        diagnoses: patient.diagnoses,
+        allergies: patient.allergies,
+        codeStatus: patient.codeStatus,
+        attendingPhysician: patient.attendingPhysician,
+        team: patient.team,
+      },
+    })
+  }, [openModal])
+
+  const handleDeletePatient = useCallback(async (patientId: string) => {
+    if (confirmDelete !== patientId) {
+      setConfirmDelete(patientId)
+      addToast({ type: 'warning', title: 'Swipe again to confirm deletion' })
+      setTimeout(() => setConfirmDelete(null), 3000)
+      return
+    }
+    try {
+      await deletePatient(patientId)
+      removePatient(patientId)
+      triggerHaptic('tap')
+      addToast({ type: 'success', title: 'Patient deleted' })
+    } catch {
+      addToast({ type: 'error', title: 'Failed to delete patient' })
+    }
+    setConfirmDelete(null)
+  }, [confirmDelete, removePatient, addToast])
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -188,8 +237,8 @@ export default function WardRoot() {
                     triggerHaptic('tap')
                     navigate(`/patients/${patient.id}`)
                   }}
-                  onFlag={() => hapticPatterns.criticalFlag()}
-                  onMarkSeen={() => hapticPatterns.taskComplete()}
+                  onEdit={() => handleEditPatient(patient)}
+                  onDelete={() => handleDeletePatient(patient.id)}
                 />
               ))
             )}
@@ -302,18 +351,15 @@ function WardPatientRow({
   patient,
   taskCount,
   onTap,
-  onFlag,
-  onMarkSeen,
+  onEdit,
+  onDelete,
 }: {
   patient: Patient
   taskCount: number
   onTap: () => void
-  onFlag: () => void
-  onMarkSeen: () => void
+  onEdit: () => void
+  onDelete: () => void
 }) {
-  const [swipeX, setSwipeX] = useState(0)
-  const [startX, setStartX] = useState(0)
-
   const acuityColor =
     patient.acuity <= 2
       ? 'bg-red-500'
@@ -321,42 +367,25 @@ function WardPatientRow({
         ? 'bg-yellow-500'
         : 'bg-green-500'
 
-  return (
-    <div
-      className="relative overflow-hidden rounded-lg"
-      onTouchStart={(e) => setStartX(e.touches[0].clientX)}
-      onTouchMove={(e) => {
-        const diff = e.touches[0].clientX - startX
-        if (Math.abs(diff) > 10) setSwipeX(diff)
-      }}
-      onTouchEnd={() => {
-        if (swipeX > 80) {
-          onMarkSeen()
-        } else if (swipeX < -80) {
-          onFlag()
-        }
-        setSwipeX(0)
-      }}
-    >
-      {/* Swipe background */}
-      {swipeX !== 0 && (
-        <div
-          className={clsx(
-            'absolute inset-0 flex items-center px-4',
-            swipeX > 0
-              ? 'bg-green-500 justify-start'
-              : 'bg-amber-500 justify-end'
-          )}
-        >
-          <span className="text-white text-xs font-semibold">
-            {swipeX > 0 ? 'Mark Seen' : 'Flag'}
-          </span>
-        </div>
-      )}
+  const rightActions = [
+    {
+      label: 'Edit',
+      icon: <Edit className="h-4 w-4" />,
+      color: 'bg-blue-500',
+      onClick: onEdit,
+    },
+    {
+      label: 'Delete',
+      icon: <Trash2 className="h-4 w-4" />,
+      color: 'bg-red-500',
+      onClick: onDelete,
+    },
+  ]
 
+  return (
+    <SwipeableRow rightActions={rightActions}>
       <button
         onClick={onTap}
-        style={{ transform: `translateX(${swipeX}px)` }}
         className="w-full flex items-center gap-3 p-3 bg-white border border-ward-border rounded-lg hover:bg-gray-50 transition-all text-left touch relative"
       >
         {/* Acuity dot */}
@@ -386,7 +415,7 @@ function WardPatientRow({
 
         <ChevronRight className="h-4 w-4 text-ward-muted flex-shrink-0" />
       </button>
-    </div>
+    </SwipeableRow>
   )
 }
 
