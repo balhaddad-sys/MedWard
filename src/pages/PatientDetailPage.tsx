@@ -37,6 +37,7 @@ export function PatientDetailPage() {
   const [labEntryMode, setLabEntryMode] = useState<'manual' | 'upload'>('manual')
   const [showTaskForm, setShowTaskForm] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const storePatients = usePatientStore((s) => s.patients)
   const criticalValues = usePatientStore((s) => s.criticalValues)
   const tasks = useTaskStore((s) => s.tasks)
   const firebaseUser = useAuthStore((s) => s.firebaseUser)
@@ -55,18 +56,35 @@ export function PatientDetailPage() {
 
   useEffect(() => {
     if (!id) return
+
+    // Try store first (already loaded by onSnapshot)
+    const storePatient = storePatients.find((p) => p.id === id)
+    if (storePatient) {
+      setPatient(storePatient)
+    }
+
     const load = async () => {
       setLoading(true)
-      try {
-        const [p, l] = await Promise.all([getPatient(id), getLabPanels(id)])
-        setPatient(p)
-        setLabs(l)
-      } finally {
-        setLoading(false)
+      if (!storePatient) {
+        try {
+          const p = await getPatient(id)
+          setPatient(p)
+        } catch (err) {
+          console.error('Failed to load patient:', err)
+          setPatient(null)
+        }
       }
+      try {
+        const l = await getLabPanels(id)
+        setLabs(l)
+      } catch (err) {
+        console.error('Failed to load labs:', err)
+        setLabs([])
+      }
+      setLoading(false)
     }
     load()
-  }, [id])
+  }, [id, storePatients])
 
   if (loading) {
     return (
