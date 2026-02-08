@@ -152,11 +152,20 @@ export default function WardRoot() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ward-muted" />
               <input
                 type="text"
-                placeholder="Search patients, MRN, bed..."
+                placeholder="Search by name, MRN, or bed number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="input-field pl-9 text-sm"
+                className="input-field pl-9 pr-8 text-sm"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-ward-muted hover:text-ward-text transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
             <button
               onClick={() => {
@@ -207,11 +216,67 @@ export default function WardRoot() {
             </div>
           )}
 
+          {/* Patient count + active filters */}
+          {filteredPatients.length > 0 && (
+            <div className="flex items-center justify-between text-xs text-ward-muted">
+              <span>
+                {filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'}
+                {(searchQuery || filterAcuity !== null) && ' matching filters'}
+              </span>
+              {(searchQuery || filterAcuity !== null) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    setFilterAcuity(null)
+                    setShowFilters(false)
+                  }}
+                  className="text-primary-600 font-medium hover:text-primary-700 transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Dense Patient Rows */}
           <div className="space-y-1">
             {filteredPatients.length === 0 ? (
               <div className="text-center py-12 text-ward-muted">
-                <p className="text-sm font-medium">No patients found</p>
+                {searchQuery || filterAcuity !== null ? (
+                  <>
+                    <Search className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm font-medium">No patients match your search</p>
+                    <p className="text-xs mt-1">
+                      {searchQuery && `No results for "${searchQuery}".`} Try adjusting your search or{' '}
+                      <button
+                        onClick={() => {
+                          setSearchQuery('')
+                          setFilterAcuity(null)
+                          setShowFilters(false)
+                        }}
+                        className="text-primary-600 font-medium hover:underline"
+                      >
+                        clear all filters
+                      </button>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm font-medium">No patients on the ward</p>
+                    <p className="text-xs mt-1 mb-3">Add your first patient to get started</p>
+                    <button
+                      onClick={() => {
+                        triggerHaptic('tap')
+                        openModal('patient-form')
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Patient
+                    </button>
+                  </>
+                )}
               </div>
             ) : (
               filteredPatients.map((patient) => (
@@ -264,8 +329,10 @@ export default function WardRoot() {
             </h3>
             <div className="space-y-1">
               {pendingTasks.length === 0 ? (
-                <div className="text-center py-8 text-ward-muted text-sm">
-                  No pending tasks
+                <div className="text-center py-8 text-ward-muted">
+                  <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm font-medium">All caught up</p>
+                  <p className="text-xs mt-1">No pending tasks. Create tasks from individual patient pages.</p>
                 </div>
               ) : (
                 pendingTasks.slice(0, 20).map((task) => (

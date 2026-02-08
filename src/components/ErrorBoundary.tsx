@@ -19,6 +19,14 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
+  handleReload = () => {
+    window.location.reload()
+  }
+
+  handleGoHome = () => {
+    window.location.href = '/'
+  }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -30,15 +38,31 @@ export class ErrorBoundary extends Component<Props, State> {
               </svg>
             </div>
             <h1 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h1>
-            <p className="text-sm text-gray-600 mb-4">
-              {this.state.error?.message || 'An unexpected error occurred.'}
+            <p className="text-sm text-gray-600 mb-2">
+              An unexpected error occurred. Your data is safe — this is just a display issue.
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
-            >
-              Reload page
-            </button>
+            {this.state.error?.message && (
+              <p className="text-xs text-gray-400 mb-4 font-mono bg-gray-50 rounded p-2 break-words">
+                {this.state.error.message}
+              </p>
+            )}
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <button
+                onClick={this.handleReload}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                Reload page
+              </button>
+              <button
+                onClick={this.handleGoHome}
+                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Go to dashboard
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-4">
+              If this keeps happening, try clearing your browser cache or contact your IT support team.
+            </p>
           </div>
         </div>
       )
