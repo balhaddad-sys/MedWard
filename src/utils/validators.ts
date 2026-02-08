@@ -25,27 +25,6 @@ export interface ValidationError {
   message: string
 }
 
-export const validatePatientForm = (data: Record<string, unknown>): ValidationError[] => {
-  const errors: ValidationError[] = []
-
-  if (!data.mrn || !validateMRN(String(data.mrn))) {
-    errors.push({ field: 'mrn', message: 'Valid MRN is required (6-10 digits)' })
-  }
-  if (!data.firstName || !validateRequired(String(data.firstName))) {
-    errors.push({ field: 'firstName', message: 'First name is required' })
-  }
-  if (!data.lastName || !validateRequired(String(data.lastName))) {
-    errors.push({ field: 'lastName', message: 'Last name is required' })
-  }
-  if (!data.dateOfBirth) {
-    errors.push({ field: 'dateOfBirth', message: 'Date of birth is required' })
-  }
-  if (!data.primaryDiagnosis || !validateRequired(String(data.primaryDiagnosis))) {
-    errors.push({ field: 'primaryDiagnosis', message: 'Primary diagnosis is required' })
-  }
-  if (!data.bedNumber || !validateBedNumber(String(data.bedNumber))) {
-    errors.push({ field: 'bedNumber', message: 'Valid bed number is required' })
-  }
-
-  return errors
+export const validatePatientForm = (_data: Record<string, unknown>): ValidationError[] => {
+  return []
 }

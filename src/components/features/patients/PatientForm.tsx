@@ -55,31 +55,31 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
     <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">MRN *</label>
+          <label className="block text-sm font-medium text-ward-text mb-1">MRN</label>
           <input className="input-field" value={data.mrn} onChange={(e) => handleChange('mrn', e.target.value)} />
           {errors.mrn && <p className="text-xs text-red-500 mt-1">{errors.mrn}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Bed Number *</label>
+          <label className="block text-sm font-medium text-ward-text mb-1">Bed Number</label>
           <input className="input-field" value={data.bedNumber} onChange={(e) => handleChange('bedNumber', e.target.value)} />
           {errors.bedNumber && <p className="text-xs text-red-500 mt-1">{errors.bedNumber}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">First Name *</label>
+          <label className="block text-sm font-medium text-ward-text mb-1">First Name</label>
           <input className="input-field" value={data.firstName} onChange={(e) => handleChange('firstName', e.target.value)} />
           {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Last Name *</label>
+          <label className="block text-sm font-medium text-ward-text mb-1">Last Name</label>
           <input className="input-field" value={data.lastName} onChange={(e) => handleChange('lastName', e.target.value)} />
           {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Date of Birth *</label>
+          <label className="block text-sm font-medium text-ward-text mb-1">Date of Birth</label>
           <input type="date" className="input-field" value={data.dateOfBirth} onChange={(e) => handleChange('dateOfBirth', e.target.value)} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Gender *</label>
+          <label className="block text-sm font-medium text-ward-text mb-1">Gender</label>
           <select className="input-field" value={data.gender} onChange={(e) => handleChange('gender', e.target.value)}>
             <option value="male">Male</option>
             <option value="female">Female</option>
@@ -87,13 +87,13 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Acuity *</label>
+          <label className="block text-sm font-medium text-ward-text mb-1">Acuity</label>
           <select className="input-field" value={data.acuity} onChange={(e) => handleChange('acuity', Number(e.target.value))}>
             {[1,2,3,4,5].map((a) => <option key={a} value={a}>Acuity {a}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Code Status *</label>
+          <label className="block text-sm font-medium text-ward-text mb-1">Code Status</label>
           <select className="input-field" value={data.codeStatus} onChange={(e) => handleChange('codeStatus', e.target.value)}>
             <option value="full">Full Code</option>
             <option value="DNR">DNR</option>
@@ -103,7 +103,7 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-ward-text mb-1">Primary Diagnosis *</label>
+        <label className="block text-sm font-medium text-ward-text mb-1">Primary Diagnosis</label>
         <input className="input-field" value={data.primaryDiagnosis} onChange={(e) => handleChange('primaryDiagnosis', e.target.value)} />
         {errors.primaryDiagnosis && <p className="text-xs text-red-500 mt-1">{errors.primaryDiagnosis}</p>}
       </div>
