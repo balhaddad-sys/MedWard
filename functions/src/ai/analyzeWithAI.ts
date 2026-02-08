@@ -5,7 +5,7 @@ import { logAuditEvent } from "../utils/auditLog";
 import { LAB_ANALYSIS_SYSTEM_PROMPT } from "../prompts/labAnalysis";
 
 export const analyzeWithAI = onCall(
-  { secrets: [anthropicApiKey], cors: true },
+  { secrets: [anthropicApiKey], cors: true, region: "europe-west1" },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");

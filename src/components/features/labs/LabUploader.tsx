@@ -63,32 +63,28 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
 
     setError(null)
 
-    // Add a pending result entry
+    // Show preview immediately for instant feedback
+    const previewUrl = URL.createObjectURL(file)
     const resultIndex = results.length
     setResults((prev) => [...prev, {
-      imageUrl: '',
+      imageUrl: previewUrl,
       imageName: file.name,
-      status: 'compressing',
+      status: 'analyzing',
     }])
-    setStatus('compressing')
+    setStatus('analyzing')
 
     try {
-      // 1. Compress
-      const compressed = await imageCompression(file, {
-        maxSizeMB: 0.2,
-        maxWidthOrHeight: 1200,
-        useWebWorker: true,
-        fileType: 'image/jpeg',
-      })
-
-      // 2. Upload
-      setStatus('uploading')
-      setResults((prev) => prev.map((r, i) => i === resultIndex ? { ...r, status: 'uploading' } : r))
-      const downloadUrl = await uploadLabImage(firebaseUser.uid, compressed)
-
-      // 3. Analyze
-      setStatus('analyzing')
-      setResults((prev) => prev.map((r, i) => i === resultIndex ? { ...r, status: 'analyzing', imageUrl: downloadUrl } : r))
+      // Compress and convert to base64 in parallel — skip storage upload for speed
+      const [compressed] = await Promise.all([
+        imageCompression(file, {
+          maxSizeMB: 0.2,
+          maxWidthOrHeight: 1200,
+          useWebWorker: true,
+          fileType: 'image/jpeg',
+        }),
+        // Upload to storage in background (non-blocking)
+        uploadLabImage(firebaseUser.uid, file).catch(() => null),
+      ])
 
       const base64 = await fileToBase64(compressed)
       const fn = httpsCallable<

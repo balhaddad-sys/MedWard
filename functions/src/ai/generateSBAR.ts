@@ -5,7 +5,7 @@ import { logAuditEvent } from "../utils/auditLog";
 import { SBAR_SYSTEM_PROMPT, SBAR_USER_PROMPT } from "../prompts/sbar";
 
 export const generateSBAR = onCall(
-  { secrets: [anthropicApiKey], cors: true },
+  { secrets: [anthropicApiKey], cors: true, region: "europe-west1" },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");

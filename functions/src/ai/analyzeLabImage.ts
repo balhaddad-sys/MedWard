@@ -1,11 +1,20 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getAnthropicClient, ANTHROPIC_MODEL, anthropicApiKey } from "../utils/anthropic";
+import { getAnthropicClient, anthropicApiKey } from "../utils/anthropic";
 import { checkRateLimit } from "../utils/rateLimiter";
 import { logAuditEvent } from "../utils/auditLog";
 import { LAB_IMAGE_EXTRACTION_PROMPT } from "../prompts/labAnalysis";
 
 export const analyzeLabImage = onCall(
-  { secrets: [anthropicApiKey], cors: true, maxInstances: 10 },
+  {
+    secrets: [anthropicApiKey],
+    cors: true,
+    maxInstances: 10,
+    minInstances: 1,
+    memory: "1GiB",
+    cpu: 2,
+    region: "europe-west1",
+    timeoutSeconds: 60,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");
@@ -26,8 +35,8 @@ export const analyzeLabImage = onCall(
       const client = getAnthropicClient();
 
       const response = await client.messages.create({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 2000,
+        model: "claude-haiku-4-20250514",
+        max_tokens: 1024,
         messages: [
           {
             role: "user",

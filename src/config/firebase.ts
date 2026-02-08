@@ -26,7 +26,7 @@ if (!firebaseConfigMissing) {
   auth = getAuth(app)
   db = getFirestore(app)
   storage = getStorage(app)
-  functions = getFunctions(app)
+  functions = getFunctions(app, 'europe-west1')
 
   // Connect to emulators only if explicitly enabled
   if (import.meta.env.VITE_USE_EMULATORS === 'true') {

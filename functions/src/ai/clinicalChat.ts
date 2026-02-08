@@ -6,7 +6,7 @@ import { logAuditEvent } from "../utils/auditLog";
 import { CLINICAL_CHAT_SYSTEM_PROMPT, CLINICAL_CHAT_WITH_CONTEXT } from "../prompts/clinicalChat";
 
 export const clinicalChat = onCall(
-  { secrets: [anthropicApiKey], cors: true },
+  { secrets: [anthropicApiKey], cors: true, region: "europe-west1" },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");

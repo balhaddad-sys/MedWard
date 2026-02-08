@@ -53,6 +53,7 @@ export function PatientDetailPage() {
   // Lab AI analysis
   const [labAnalysis, setLabAnalysis] = useState<LabAIAnalysis | null>(null)
   const [analyzingLab, setAnalyzingLab] = useState(false)
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -155,8 +156,6 @@ export function PatientDetailPage() {
       addToast({ type: 'error', title: 'Failed to complete task' })
     }
   }
-
-  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
 
   const handleDeleteTask = async (taskId: string) => {
     if (deletingTaskId !== taskId) {

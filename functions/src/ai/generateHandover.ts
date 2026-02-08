@@ -6,7 +6,7 @@ import { logAuditEvent } from "../utils/auditLog";
 import { HANDOVER_SYSTEM_PROMPT } from "../prompts/handover";
 
 export const generateHandover = onCall(
-  { secrets: [anthropicApiKey], cors: true },
+  { secrets: [anthropicApiKey], cors: true, region: "europe-west1" },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");
