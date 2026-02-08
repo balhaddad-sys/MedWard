@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { ACUITY_LEVELS } from '@/config/constants'
 import type { PatientFormData } from '@/types'
 import { validatePatientForm } from '@/utils/validators'
 
@@ -16,19 +17,36 @@ const defaultData: PatientFormData = {
   codeStatus: 'full', attendingPhysician: '', team: '',
 }
 
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <label className="block text-sm font-medium text-ward-text mb-1">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+  )
+}
+
+function FieldError({ error }: { error?: string }) {
+  if (!error) return null
+  return <p className="text-xs text-red-500 mt-1">{error}</p>
+}
+
 export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProps) {
   const [data, setData] = useState<PatientFormData>({ ...defaultData, ...initialData })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [allergyInput, setAllergyInput] = useState('')
+  const [submitAttempted, setSubmitAttempted] = useState(false)
 
   const handleChange = (field: keyof PatientFormData, value: unknown) => {
     setData((prev) => ({ ...prev, [field]: value }))
-    setErrors((prev) => ({ ...prev, [field]: '' }))
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: '' }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitAttempted(true)
     const validationErrors = validatePatientForm(data as unknown as Record<string, unknown>)
     if (validationErrors.length > 0) {
       const errMap: Record<string, string> = {}
@@ -45,41 +63,51 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
   }
 
   const addAllergy = () => {
-    if (allergyInput.trim()) {
-      handleChange('allergies', [...(data.allergies ?? []), allergyInput.trim()])
+    const trimmed = allergyInput.trim()
+    if (trimmed && !(data.allergies ?? []).includes(trimmed)) {
+      handleChange('allergies', [...(data.allergies ?? []), trimmed])
       setAllergyInput('')
     }
   }
 
+  const inputClass = (field: string) =>
+    `input-field ${errors[field] ? 'border-red-300 focus:ring-red-500' : ''}`
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4" noValidate>
+      {submitAttempted && Object.values(errors).some(Boolean) && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          Please fix the highlighted fields below before submitting.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">MRN</label>
-          <input className="input-field" value={data.mrn} onChange={(e) => handleChange('mrn', e.target.value)} />
-          {errors.mrn && <p className="text-xs text-red-500 mt-1">{errors.mrn}</p>}
+          <FieldLabel label="MRN" required />
+          <input className={inputClass('mrn')} value={data.mrn} onChange={(e) => handleChange('mrn', e.target.value)} placeholder="e.g. 123456" />
+          <FieldError error={errors.mrn} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Bed Number</label>
-          <input className="input-field" value={data.bedNumber} onChange={(e) => handleChange('bedNumber', e.target.value)} />
-          {errors.bedNumber && <p className="text-xs text-red-500 mt-1">{errors.bedNumber}</p>}
+          <FieldLabel label="Bed Number" required />
+          <input className={inputClass('bedNumber')} value={data.bedNumber} onChange={(e) => handleChange('bedNumber', e.target.value)} placeholder="e.g. A12, B3, 401" />
+          <FieldError error={errors.bedNumber} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">First Name</label>
-          <input className="input-field" value={data.firstName} onChange={(e) => handleChange('firstName', e.target.value)} />
-          {errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+          <FieldLabel label="First Name" required />
+          <input className={inputClass('firstName')} value={data.firstName} onChange={(e) => handleChange('firstName', e.target.value)} placeholder="Patient first name" />
+          <FieldError error={errors.firstName} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Last Name</label>
-          <input className="input-field" value={data.lastName} onChange={(e) => handleChange('lastName', e.target.value)} />
-          {errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
+          <FieldLabel label="Last Name" required />
+          <input className={inputClass('lastName')} value={data.lastName} onChange={(e) => handleChange('lastName', e.target.value)} placeholder="Patient last name" />
+          <FieldError error={errors.lastName} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Date of Birth</label>
+          <FieldLabel label="Date of Birth" />
           <input type="date" className="input-field" value={data.dateOfBirth} onChange={(e) => handleChange('dateOfBirth', e.target.value)} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Gender</label>
+          <FieldLabel label="Gender" />
           <select className="input-field" value={data.gender} onChange={(e) => handleChange('gender', e.target.value)}>
             <option value="male">Male</option>
             <option value="female">Female</option>
@@ -87,44 +115,51 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Acuity</label>
+          <FieldLabel label="Acuity" />
           <select className="input-field" value={data.acuity} onChange={(e) => handleChange('acuity', Number(e.target.value))}>
-            {[1,2,3,4,5].map((a) => <option key={a} value={a}>Acuity {a}</option>)}
+            {([1,2,3,4,5] as const).map((a) => (
+              <option key={a} value={a}>
+                {a} — {ACUITY_LEVELS[a].label} ({ACUITY_LEVELS[a].description})
+              </option>
+            ))}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-ward-text mb-1">Code Status</label>
+          <FieldLabel label="Code Status" />
           <select className="input-field" value={data.codeStatus} onChange={(e) => handleChange('codeStatus', e.target.value)}>
             <option value="full">Full Code</option>
-            <option value="DNR">DNR</option>
-            <option value="DNI">DNI</option>
-            <option value="comfort">Comfort</option>
+            <option value="DNR">DNR (Do Not Resuscitate)</option>
+            <option value="DNI">DNI (Do Not Intubate)</option>
+            <option value="comfort">Comfort Measures Only</option>
           </select>
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-ward-text mb-1">Primary Diagnosis</label>
-        <input className="input-field" value={data.primaryDiagnosis} onChange={(e) => handleChange('primaryDiagnosis', e.target.value)} />
-        {errors.primaryDiagnosis && <p className="text-xs text-red-500 mt-1">{errors.primaryDiagnosis}</p>}
+        <FieldLabel label="Primary Diagnosis" required />
+        <input className={inputClass('primaryDiagnosis')} value={data.primaryDiagnosis} onChange={(e) => handleChange('primaryDiagnosis', e.target.value)} placeholder="e.g. Community-acquired pneumonia" />
+        <FieldError error={errors.primaryDiagnosis} />
       </div>
       <div>
-        <label className="block text-sm font-medium text-ward-text mb-1">Attending Physician</label>
-        <input className="input-field" value={data.attendingPhysician} onChange={(e) => handleChange('attendingPhysician', e.target.value)} />
+        <FieldLabel label="Attending Physician" />
+        <input className="input-field" value={data.attendingPhysician} onChange={(e) => handleChange('attendingPhysician', e.target.value)} placeholder="e.g. Dr. Smith" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-ward-text mb-1">Team</label>
-        <input className="input-field" value={data.team} onChange={(e) => handleChange('team', e.target.value)} />
+        <FieldLabel label="Team" />
+        <input className="input-field" value={data.team} onChange={(e) => handleChange('team', e.target.value)} placeholder="e.g. General Medicine A" />
       </div>
       <div>
-        <label className="block text-sm font-medium text-ward-text mb-1">Allergies</label>
+        <FieldLabel label="Allergies" />
         <div className="flex gap-2">
-          <input className="input-field" value={allergyInput} onChange={(e) => setAllergyInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAllergy() }}} placeholder="Add allergy" />
+          <input className="input-field" value={allergyInput} onChange={(e) => setAllergyInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAllergy() }}} placeholder="Type allergy and press Enter or Add" />
           <Button type="button" variant="secondary" size="sm" onClick={addAllergy}>Add</Button>
         </div>
+        {(data.allergies ?? []).length === 0 && (
+          <p className="text-xs text-ward-muted mt-1">No allergies added (will display as NKDA)</p>
+        )}
         <div className="flex flex-wrap gap-1 mt-2">
           {(data.allergies ?? []).map((a, i) => (
-            <span key={i} className="badge bg-red-100 text-red-700 cursor-pointer" onClick={() => handleChange('allergies', (data.allergies ?? []).filter((_, idx) => idx !== i))}>
-              {a} ×
+            <span key={i} className="badge bg-red-100 text-red-700 cursor-pointer hover:bg-red-200 transition-colors" onClick={() => handleChange('allergies', (data.allergies ?? []).filter((_, idx) => idx !== i))}>
+              {a} &times;
             </span>
           ))}
         </div>

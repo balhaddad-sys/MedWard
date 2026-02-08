@@ -88,14 +88,28 @@ export function PatientDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
         <div className="animate-spin h-8 w-8 border-2 border-primary-600 border-t-transparent rounded-full" />
+        <p className="text-sm text-ward-muted">Loading patient record...</p>
       </div>
     )
   }
 
   if (!patient) {
-    return <div className="text-center py-20 text-ward-muted">Patient not found</div>
+    return (
+      <div className="text-center py-20 animate-fade-in">
+        <AlertTriangle className="h-10 w-10 text-ward-muted mx-auto mb-3 opacity-50" />
+        <p className="text-lg font-medium text-ward-text mb-1">Patient not found</p>
+        <p className="text-sm text-ward-muted mb-4">This patient may have been removed or the link may be incorrect.</p>
+        <button
+          onClick={() => navigate('/')}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Ward
+        </button>
+      </div>
+    )
   }
 
   const patientCriticals = criticalValues.filter((cv) => cv.patientId === id)
@@ -142,7 +156,13 @@ export function PatientDetailPage() {
     }
   }
 
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
+
   const handleDeleteTask = async (taskId: string) => {
+    if (deletingTaskId !== taskId) {
+      setDeletingTaskId(taskId)
+      return
+    }
     try {
       await deleteTask(taskId)
       taskStoreRemove(taskId)
@@ -150,7 +170,10 @@ export function PatientDetailPage() {
     } catch {
       addToast({ type: 'error', title: 'Failed to delete task' })
     }
+    setDeletingTaskId(null)
   }
+
+  const cancelDeleteTask = () => setDeletingTaskId(null)
 
   const handleTaskSubmit = async (data: TaskFormData) => {
     if (!firebaseUser) return
@@ -430,6 +453,8 @@ export function PatientDetailPage() {
                   onComplete={() => handleCompleteTask(task.id)}
                   onEdit={() => { setEditingTask(task); setShowTaskForm(true) }}
                   onDelete={() => handleDeleteTask(task.id)}
+                  isConfirmingDelete={deletingTaskId === task.id}
+                  onCancelDelete={cancelDeleteTask}
                 />
               ))}
             </div>
@@ -508,7 +533,7 @@ export function PatientDetailPage() {
   )
 }
 
-function PatientTaskCard({ task, onComplete, onEdit, onDelete }: { task: Task; onComplete?: () => void; onEdit?: () => void; onDelete?: () => void }) {
+function PatientTaskCard({ task, onComplete, onEdit, onDelete, isConfirmingDelete, onCancelDelete }: { task: Task; onComplete?: () => void; onEdit?: () => void; onDelete?: () => void; isConfirmingDelete?: boolean; onCancelDelete?: () => void }) {
   const isCompleted = (task.status ?? 'pending') === 'completed'
   const priority = task.priority ?? 'medium'
   const priorityColors: Record<string, string> = {
@@ -549,10 +574,20 @@ function PatientTaskCard({ task, onComplete, onEdit, onDelete }: { task: Task; o
                 <Edit className="h-4 w-4" />
               </button>
             )}
-            {onDelete && (
-              <button onClick={onDelete} className="p-1.5 rounded-lg text-ward-muted hover:text-red-600 hover:bg-red-50 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center">
+            {onDelete && !isConfirmingDelete && (
+              <button onClick={onDelete} className="p-1.5 rounded-lg text-ward-muted hover:text-red-600 hover:bg-red-50 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center" title="Delete task">
                 <Trash2 className="h-4 w-4" />
               </button>
+            )}
+            {isConfirmingDelete && (
+              <div className="flex items-center gap-1">
+                <button onClick={onCancelDelete} className="px-2 py-1 rounded text-xs font-medium text-ward-muted hover:bg-gray-100 transition-colors min-h-[36px]">
+                  Cancel
+                </button>
+                <button onClick={onDelete} className="px-2 py-1 rounded text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors min-h-[36px]">
+                  Confirm Delete
+                </button>
+              </div>
             )}
           </div>
         )}

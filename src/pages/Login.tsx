@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogIn, Shield } from 'lucide-react'
+import { LogIn, Shield, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { signIn, signInWithGoogle } from '@/services/firebase/auth'
@@ -18,9 +18,36 @@ function GoogleIcon({ className }: { className?: string }) {
   )
 }
 
+function getFriendlyErrorMessage(error: Error): string {
+  const msg = error.message.toLowerCase()
+  if (msg.includes('user-not-found') || msg.includes('auth/user-not-found')) {
+    return 'No account found with this email. Please check the address or contact your administrator.'
+  }
+  if (msg.includes('wrong-password') || msg.includes('auth/wrong-password') || msg.includes('invalid-credential') || msg.includes('auth/invalid-credential')) {
+    return 'Incorrect password. Please try again or use Google sign-in.'
+  }
+  if (msg.includes('invalid-email') || msg.includes('auth/invalid-email')) {
+    return 'Please enter a valid email address.'
+  }
+  if (msg.includes('too-many-requests') || msg.includes('auth/too-many-requests')) {
+    return 'Too many failed attempts. Please wait a few minutes before trying again.'
+  }
+  if (msg.includes('network-request-failed') || msg.includes('auth/network-request-failed')) {
+    return 'Network error. Please check your internet connection and try again.'
+  }
+  if (msg.includes('popup-closed') || msg.includes('auth/popup-closed-by-user')) {
+    return 'Sign-in popup was closed. Please try again when ready.'
+  }
+  if (msg.includes('account-exists') || msg.includes('auth/account-exists-with-different-credential')) {
+    return 'An account already exists with this email using a different sign-in method.'
+  }
+  return error.message
+}
+
 export function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
@@ -30,13 +57,15 @@ export function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (!email.trim()) { setError('Please enter your email address.'); return }
+    if (!password) { setError('Please enter your password.'); return }
     setLoading(true)
     try {
       const user = await signIn(email, password)
       setFirebaseUser(user)
       navigate('/')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in')
+      setError(err instanceof Error ? getFriendlyErrorMessage(err) : 'Failed to sign in. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -50,7 +79,7 @@ export function Login() {
       setFirebaseUser(user)
       navigate('/')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in with Google')
+      setError(err instanceof Error ? getFriendlyErrorMessage(err) : 'Failed to sign in with Google. Please try again.')
     } finally {
       setGoogleLoading(false)
     }
@@ -68,7 +97,7 @@ export function Login() {
         </div>
 
         {error && (
-          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 mb-4">
+          <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 mb-4" role="alert">
             {error}
           </div>
         )}
@@ -96,28 +125,38 @@ export function Login() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="block text-sm font-medium text-ward-text mb-1">Email</label>
             <input
               type="email"
               className="input-field"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setError('') }}
               placeholder="doctor@hospital.org"
-              required
+              autoComplete="email"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-ward-text mb-1">Password</label>
-            <input
-              type="password"
-              className="input-field"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="input-field pr-10"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError('') }}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-ward-muted hover:text-ward-text transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <Button type="submit" className="w-full" loading={loading} disabled={googleLoading} icon={<LogIn className="h-4 w-4" />}>
             Sign In

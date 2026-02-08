@@ -9,22 +9,22 @@ interface TaskFormProps {
   onCancel: () => void
 }
 
-const categories: { value: TaskCategory; label: string }[] = [
-  { value: 'medication', label: 'Medication' },
-  { value: 'lab', label: 'Lab' },
-  { value: 'imaging', label: 'Imaging' },
-  { value: 'consult', label: 'Consult' },
-  { value: 'procedure', label: 'Procedure' },
-  { value: 'nursing', label: 'Nursing' },
-  { value: 'discharge', label: 'Discharge' },
-  { value: 'other', label: 'Other' },
+const categories: { value: TaskCategory; label: string; hint: string }[] = [
+  { value: 'medication', label: 'Medication', hint: 'Drug orders, dose changes, IV meds' },
+  { value: 'lab', label: 'Lab', hint: 'Blood work, cultures, specimens' },
+  { value: 'imaging', label: 'Imaging', hint: 'X-ray, CT, MRI, ultrasound' },
+  { value: 'consult', label: 'Consult', hint: 'Specialty consults and referrals' },
+  { value: 'procedure', label: 'Procedure', hint: 'Bedside or scheduled procedures' },
+  { value: 'nursing', label: 'Nursing', hint: 'Nursing interventions and assessments' },
+  { value: 'discharge', label: 'Discharge', hint: 'Discharge planning tasks' },
+  { value: 'other', label: 'Other', hint: 'Miscellaneous tasks' },
 ]
 
-const priorities: { value: TaskPriority; label: string; color: string }[] = [
-  { value: 'critical', label: 'Critical', color: 'bg-red-500' },
-  { value: 'high', label: 'High', color: 'bg-orange-500' },
-  { value: 'medium', label: 'Medium', color: 'bg-yellow-500' },
-  { value: 'low', label: 'Low', color: 'bg-green-500' },
+const priorities: { value: TaskPriority; label: string; color: string; description: string }[] = [
+  { value: 'critical', label: 'Critical', color: 'bg-red-500', description: 'Do now' },
+  { value: 'high', label: 'High', color: 'bg-orange-500', description: 'Within 1hr' },
+  { value: 'medium', label: 'Medium', color: 'bg-yellow-500', description: 'Today' },
+  { value: 'low', label: 'Low', color: 'bg-green-500', description: 'When able' },
 ]
 
 export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFormProps) {
@@ -38,27 +38,40 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
     ...initialData,
   })
   const [loading, setLoading] = useState(false)
+  const [titleError, setTitleError] = useState('')
 
   const handleChange = (field: keyof TaskFormData, value: unknown) => {
     setData((prev) => ({ ...prev, [field]: value }))
+    if (field === 'title') setTitleError('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!data.title.trim()) return
+    if (!data.title.trim()) {
+      setTitleError('Task title is required')
+      return
+    }
     setLoading(true)
     try { await onSubmit(data) } finally { setLoading(false) }
   }
 
+  const selectedCategory = categories.find((c) => c.value === data.category)
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       <div>
-        <label className="block text-sm font-medium text-ward-text mb-1">Title *</label>
-        <input className="input-field" value={data.title} onChange={(e) => handleChange('title', e.target.value)} placeholder="Task description" />
+        <label className="block text-sm font-medium text-ward-text mb-1">Title <span className="text-red-500">*</span></label>
+        <input
+          className={`input-field ${titleError ? 'border-red-300 focus:ring-red-500' : ''}`}
+          value={data.title}
+          onChange={(e) => handleChange('title', e.target.value)}
+          placeholder="e.g. Check morning labs, Order chest X-ray"
+        />
+        {titleError && <p className="text-xs text-red-500 mt-1">{titleError}</p>}
       </div>
       <div>
         <label className="block text-sm font-medium text-ward-text mb-1">Description</label>
-        <textarea className="input-field" rows={3} value={data.description} onChange={(e) => handleChange('description', e.target.value)} />
+        <textarea className="input-field" rows={3} value={data.description} onChange={(e) => handleChange('description', e.target.value)} placeholder="Additional details or instructions (optional)" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -66,6 +79,9 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
           <select className="input-field" value={data.category} onChange={(e) => handleChange('category', e.target.value)}>
             {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
+          {selectedCategory && (
+            <p className="text-xs text-ward-muted mt-1">{selectedCategory.hint}</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-ward-text mb-1">Priority</label>
@@ -75,11 +91,15 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
                 key={p.value}
                 type="button"
                 onClick={() => handleChange('priority', p.value)}
+                title={p.description}
                 className={`flex-1 py-2 sm:py-1.5 rounded-lg text-xs font-medium transition-all min-h-[44px] sm:min-h-0 ${
                   data.priority === p.value ? `${p.color} text-white` : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {p.label}
+                <span className="block">{p.label}</span>
+                {data.priority === p.value && (
+                  <span className="block text-[10px] opacity-80 mt-0.5">{p.description}</span>
+                )}
               </button>
             ))}
           </div>
@@ -91,7 +111,7 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
       </div>
       <div>
         <label className="block text-sm font-medium text-ward-text mb-1">Notes</label>
-        <textarea className="input-field" rows={2} value={data.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} />
+        <textarea className="input-field" rows={2} value={data.notes || ''} onChange={(e) => handleChange('notes', e.target.value)} placeholder="Any additional notes for handover" />
       </div>
       <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-ward-border">
         <Button type="button" variant="secondary" onClick={onCancel} className="min-h-[44px]">Cancel</Button>
