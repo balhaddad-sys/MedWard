@@ -26,7 +26,6 @@ import type { Patient, Task } from '@/types'
 
 export default function WardRoot() {
   const patients = usePatientStore((s) => s.patients)
-  const removePatient = usePatientStore((s) => s.removePatient)
   const tasks = useTaskStore((s) => s.tasks)
   const openModal = useUIStore((s) => s.openModal)
   const addToast = useUIStore((s) => s.addToast)
@@ -105,13 +104,14 @@ export default function WardRoot() {
   const handleDeletePatient = useCallback(async (patientId: string) => {
     try {
       await deletePatient(patientId)
-      removePatient(patientId)
       triggerHaptic('tap')
       addToast({ type: 'success', title: 'Patient deleted' })
-    } catch {
-      addToast({ type: 'error', title: 'Failed to delete patient' })
+      // Store update handled by onSnapshot listener in DataSubscriptions
+    } catch (err) {
+      console.error('Delete patient failed:', err)
+      addToast({ type: 'error', title: 'Failed to delete patient', message: 'Check permissions or try again.' })
     }
-  }, [removePatient, addToast])
+  }, [addToast])
 
   return (
     <div className="space-y-4 animate-fade-in">

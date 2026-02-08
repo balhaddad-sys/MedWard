@@ -25,7 +25,7 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
-      allow delete: if hasRole('admin');
+      allow delete: if isAuthenticated();
 
       // Labs subcollection
       match /labs/{labId} {
