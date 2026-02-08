@@ -58,6 +58,40 @@ export interface LabUploadResult {
   warnings?: string[]
 }
 
+// --- AI Extraction Response Types (from Cloud Function) ---
+
+export interface ExtractedPatientInfo {
+  file_number: string
+  civil_id: string
+  age: string
+  sex: string
+  visit_number: string
+  visit_date: string
+}
+
+export interface ExtractedLabResult {
+  test_name: string
+  test_code: string
+  value: number | null
+  value_raw: string
+  unit: string
+  ref_low: number | null
+  ref_high: number | null
+  flag: LabFlag
+}
+
+export interface ExtractedLabPanel {
+  panel_name: string
+  order_id: string
+  collected_at: string
+  results: ExtractedLabResult[]
+}
+
+export interface ExtractionResponse {
+  patient: ExtractedPatientInfo
+  panels: ExtractedLabPanel[]
+}
+
 export interface CriticalValue {
   labName: string
   value: number | string

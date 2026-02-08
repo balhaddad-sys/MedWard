@@ -1,5 +1,6 @@
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react'
 import { clsx } from 'clsx'
+import type { LabFlag } from '@/types'
 
 export interface LabTestResult {
   code: string
@@ -8,7 +9,7 @@ export interface LabTestResult {
   unit: string
   refLow: number
   refHigh: number
-  flag: 'High' | 'Low' | 'Critical_High' | 'Critical_Low' | 'Normal' | string
+  flag: LabFlag | string
   previousValue?: number
 }
 
@@ -17,12 +18,10 @@ interface LabResultRowProps {
 }
 
 export function LabResultRow({ test }: LabResultRowProps) {
-  const isHigh = test.value > test.refHigh
-  const isLow = test.value < test.refLow
-  const isCritical =
-    test.flag?.startsWith('Critical') ||
-    test.value > test.refHigh * 1.5 ||
-    test.value < test.refLow * 0.5
+  const flag = (test.flag || 'normal').toLowerCase()
+  const isHigh = flag === 'high' || flag === 'critical_high'
+  const isLow = flag === 'low' || flag === 'critical_low'
+  const isCritical = flag === 'critical_high' || flag === 'critical_low'
 
   // Gauge position: 0-100 within ref range, can overflow
   const range = test.refHigh - test.refLow
@@ -59,7 +58,7 @@ export function LabResultRow({ test }: LabResultRowProps) {
 
   const flagBadge = isCritical ? (
     <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-rose-600 text-white rounded">
-      {test.flag?.replace('_', ' ') || 'CRIT'}
+      {flag === 'critical_high' ? 'CRIT H' : 'CRIT L'}
     </span>
   ) : (isHigh || isLow) ? (
     <span className="ml-2 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 rounded">

@@ -9,12 +9,10 @@ import { useUIStore } from '@/stores/uiStore'
 import { httpsCallable } from 'firebase/functions'
 import { functions } from '@/config/firebase'
 import { serverTimestamp } from 'firebase/firestore'
-import { flagLabValue, LAB_REFERENCES } from '@/utils/labUtils'
-import { groupLabResults } from '@/utils/labGrouping'
 import { LabResultRow } from './LabResultRow'
 import { LabPanelSkeleton } from './LabResultSkeleton'
 import type { LabTestResult } from './LabResultRow'
-import type { LabValue } from '@/types'
+import type { LabValue, ExtractionResponse } from '@/types'
 
 interface LabUploaderProps {
   patientId?: string
@@ -24,12 +22,45 @@ interface LabUploaderProps {
 
 type UploadStatus = 'idle' | 'compressing' | 'uploading' | 'analyzing' | 'done' | 'error'
 
+interface PanelGroup {
+  name: string
+  tests: LabTestResult[]
+}
+
 interface UploadedResult {
   imageUrl: string
   imageName: string
   status: UploadStatus
-  groups?: ReturnType<typeof groupLabResults>
+  groups?: PanelGroup[]
   error?: string
+}
+
+/** Convert the structured extraction response into panel groups for display */
+function extractionToGroups(data: ExtractionResponse): { groups: PanelGroup[]; allTests: LabTestResult[] } {
+  const allTests: LabTestResult[] = []
+  const groups: PanelGroup[] = []
+
+  for (const panel of data.panels) {
+    const tests: LabTestResult[] = panel.results.map((r) => {
+      const test: LabTestResult = {
+        code: r.test_code,
+        name: r.test_name,
+        value: r.value ?? 0,
+        unit: r.unit,
+        refLow: r.ref_low ?? 0,
+        refHigh: r.ref_high ?? 999,
+        flag: r.flag,
+      }
+      allTests.push(test)
+      return test
+    })
+
+    if (tests.length > 0) {
+      groups.push({ name: panel.panel_name || 'General', tests })
+    }
+  }
+
+  return { groups, allTests }
 }
 
 export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabUploaderProps) {
@@ -63,7 +94,6 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
 
     setError(null)
 
-    // Show preview immediately for instant feedback
     const previewUrl = URL.createObjectURL(file)
     const resultIndex = results.length
     setResults((prev) => [...prev, {
@@ -74,7 +104,6 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
     setStatus('analyzing')
 
     try {
-      // Compress and convert to base64 in parallel — skip storage upload for speed
       const [compressed] = await Promise.all([
         imageCompression(file, {
           maxSizeMB: 0.2,
@@ -82,82 +111,38 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
           useWebWorker: true,
           fileType: 'image/jpeg',
         }),
-        // Upload to storage in background (non-blocking)
         uploadLabImage(firebaseUser.uid, file).catch(() => null),
       ])
 
       const base64 = await fileToBase64(compressed)
       const fn = httpsCallable<
         { imageBase64: string; mediaType: string },
-        { content: string }
+        { content: string; structured?: ExtractionResponse }
       >(functions, 'analyzeLabImage')
 
       const aiResult = await fn({ imageBase64: base64, mediaType: 'image/jpeg' })
-      const parsed = JSON.parse(aiResult.data.content)
 
-      // 4. Parse results — handle both flat and time-series formats
-      const allTests: LabTestResult[] = []
+      // Use structured response if available, fall back to parsing content
+      const extraction: ExtractionResponse = aiResult.data.structured
+        ?? JSON.parse(aiResult.data.content)
 
-      if (parsed.results && Array.isArray(parsed.results)) {
-        // Flat format from existing function
-        for (const r of parsed.results) {
-          const numVal = typeof r.value === 'number' ? r.value : parseFloat(String(r.value))
-          allTests.push({
-            code: r.code || r.test || '',
-            name: r.name || r.test || '',
-            value: isNaN(numVal) ? 0 : numVal,
-            unit: r.unit || '',
-            refLow: r.refLow ?? r.referenceMin ?? 0,
-            refHigh: r.refHigh ?? r.referenceMax ?? 999,
-            flag: r.flag || 'Normal',
-            previousValue: r.previousValue,
-          })
-        }
-      } else if (typeof parsed === 'object') {
-        // Time-series format: keys are timestamps
-        const timestamps = Object.keys(parsed).filter((k) => k !== 'patientId').sort()
-        for (const ts of timestamps) {
-          const entry = parsed[ts]
-          const tests = entry.tests || entry.biochemistry || entry.results || (Array.isArray(entry) ? entry : [])
-          for (const r of tests) {
-            const numVal = typeof r.value === 'number' ? r.value : parseFloat(String(r.value))
-            allTests.push({
-              code: r.code || r.test || '',
-              name: r.name || r.test || '',
-              value: isNaN(numVal) ? 0 : numVal,
-              unit: r.unit || '',
-              refLow: r.refLow ?? 0,
-              refHigh: r.refHigh ?? 999,
-              flag: r.flag || 'Normal',
-            })
-          }
-        }
-      }
-
-      const groups = groupLabResults(allTests)
+      const { groups, allTests } = extractionToGroups(extraction)
 
       setResults((prev) => prev.map((r, i) =>
         i === resultIndex ? { ...r, status: 'done', groups } : r
       ))
       setStatus('done')
 
-      // 5. Save to Firestore
+      // Save to Firestore
       if (patientId && allTests.length > 0) {
-        const values: LabValue[] = allTests.map((t) => {
-          const ref = LAB_REFERENCES[(t.code || t.name).toUpperCase()]
-          let flag = t.flag?.toLowerCase() || 'normal'
-          if (ref && typeof t.value === 'number') {
-            flag = flagLabValue(t.value, ref)
-          }
-          return {
-            name: t.name,
-            value: t.value,
-            unit: t.unit || ref?.unit || '',
-            referenceMin: t.refLow ?? ref?.referenceMin ?? 0,
-            referenceMax: t.refHigh ?? ref?.referenceMax ?? 999,
-            flag,
-          } as LabValue
-        })
+        const values: LabValue[] = allTests.map((t) => ({
+          name: t.name,
+          value: t.value,
+          unit: t.unit,
+          referenceMin: t.refLow,
+          referenceMax: t.refHigh,
+          flag: t.flag,
+        } as LabValue))
 
         await addLabPanel(patientId, {
           patientId,
