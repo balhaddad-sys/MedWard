@@ -1,8 +1,13 @@
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '@/config/firebase'
 import type { AnalyzedLab, RawLabImage, LabTest } from '../models/Lab'
 
-export class LabAnalysisService {
-  private readonly API_ENDPOINT = 'https://api.anthropic.com/v1/messages'
+interface LabImageResponse {
+  content: string
+  usage: { inputTokens: number; outputTokens: number }
+}
 
+export class LabAnalysisService {
   async analyzeLabImage(image: RawLabImage): Promise<AnalyzedLab> {
     try {
       const ocrResult = await this.runOCR(image.base64Data)
@@ -36,59 +41,17 @@ export class LabAnalysisService {
       ? base64Image.split(',')[1]
       : base64Image
 
-    const response = await fetch(this.API_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY || '',
-        'content-type': 'application/json',
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: 'image/jpeg',
-                  data: imageData,
-                },
-              },
-              {
-                type: 'text',
-                text: `Extract ALL laboratory test results from this lab report image.
+    const fn = httpsCallable<
+      { imageBase64: string; mediaType: string },
+      LabImageResponse
+    >(functions, 'analyzeLabImage')
 
-Return in this EXACT pipe-delimited format, one test per line:
-Test Name | Value | Unit | Reference Range
-
-Example:
-WBC | 7.5 | 10^3/uL | 4.5-11.0
-Hemoglobin | 13.2 | g/dL | 12.0-16.0
-
-Rules:
-- Include every test visible in the image
-- Use "?" for any field you cannot read clearly
-- Preserve original units exactly as shown
-- Include the lab facility name and test date if visible, prefixed with META:
-  META: Lab Name | Test Date`,
-              },
-            ],
-          },
-        ],
-      }),
+    const result = await fn({
+      imageBase64: imageData,
+      mediaType: 'image/jpeg',
     })
 
-    if (!response.ok) {
-      throw new Error(`OCR request failed: ${response.status}`)
-    }
-
-    const data = await response.json()
-    const text = data.content?.[0]?.type === 'text' ? data.content[0].text : ''
-    return { text }
+    return { text: result.data.content }
   }
 
   parseTests(ocrText: string): LabTest[] {
