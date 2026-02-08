@@ -12,6 +12,7 @@ import {
   FlaskConical,
   Edit,
   Trash2,
+  X,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { usePatientStore } from '@/stores/patientStore'
@@ -78,8 +79,6 @@ export default function WardRoot() {
     })
   }, [tasks])
 
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-
   const handleEditPatient = useCallback((patient: Patient) => {
     triggerHaptic('tap')
     openModal('patient-form', {
@@ -104,12 +103,6 @@ export default function WardRoot() {
   }, [openModal])
 
   const handleDeletePatient = useCallback(async (patientId: string) => {
-    if (confirmDelete !== patientId) {
-      setConfirmDelete(patientId)
-      addToast({ type: 'warning', title: 'Swipe again to confirm deletion' })
-      setTimeout(() => setConfirmDelete(null), 3000)
-      return
-    }
     try {
       await deletePatient(patientId)
       removePatient(patientId)
@@ -118,8 +111,7 @@ export default function WardRoot() {
     } catch {
       addToast({ type: 'error', title: 'Failed to delete patient' })
     }
-    setConfirmDelete(null)
-  }, [confirmDelete, removePatient, addToast])
+  }, [removePatient, addToast])
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -360,6 +352,8 @@ function WardPatientRow({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const [confirming, setConfirming] = useState(false)
+
   const acuityColor =
     patient.acuity <= 2
       ? 'bg-red-500'
@@ -367,20 +361,38 @@ function WardPatientRow({
         ? 'bg-yellow-500'
         : 'bg-green-500'
 
-  const rightActions = [
-    {
-      label: 'Edit',
-      icon: <Edit className="h-4 w-4" />,
-      color: 'bg-blue-500',
-      onClick: onEdit,
-    },
-    {
-      label: 'Delete',
-      icon: <Trash2 className="h-4 w-4" />,
-      color: 'bg-red-500',
-      onClick: onDelete,
-    },
-  ]
+  const rightActions = confirming
+    ? [
+        {
+          label: 'Cancel',
+          icon: <X className="h-4 w-4" />,
+          color: 'bg-gray-500',
+          onClick: () => setConfirming(false),
+        },
+        {
+          label: 'Confirm',
+          icon: <Trash2 className="h-4 w-4" />,
+          color: 'bg-red-600',
+          onClick: () => {
+            onDelete()
+            setConfirming(false)
+          },
+        },
+      ]
+    : [
+        {
+          label: 'Edit',
+          icon: <Edit className="h-4 w-4" />,
+          color: 'bg-blue-500',
+          onClick: onEdit,
+        },
+        {
+          label: 'Delete',
+          icon: <Trash2 className="h-4 w-4" />,
+          color: 'bg-red-500',
+          onClick: () => setConfirming(true),
+        },
+      ]
 
   return (
     <SwipeableRow rightActions={rightActions}>
