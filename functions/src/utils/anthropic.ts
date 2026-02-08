@@ -23,15 +23,20 @@ export interface AIResponse {
 
 export const callClaude = async (
   systemPrompt: string,
-  userPrompt: string,
+  userPromptOrMessages: string | Array<{ role: "user" | "assistant"; content: string }>,
   maxTokens: number = 1024
 ): Promise<AIResponse> => {
   const client = getAnthropicClient();
+
+  const messages = typeof userPromptOrMessages === "string"
+    ? [{ role: "user" as const, content: userPromptOrMessages }]
+    : userPromptOrMessages;
+
   const response = await client.messages.create({
     model: ANTHROPIC_MODEL,
     max_tokens: maxTokens,
     system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
+    messages,
   });
 
   const textContent = response.content.find((c) => c.type === "text");

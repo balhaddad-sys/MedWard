@@ -1,3 +1,6 @@
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '@/config/firebase'
+
 export interface DrugInfo {
   name: string
   genericName: string
@@ -63,34 +66,6 @@ export interface PatientContext {
   conditions?: string[]
 }
 
-const SYSTEM_PROMPT = `You are a clinical decision support AI for licensed healthcare professionals.
-
-RULES:
-1. Respond with medically accurate, evidence-based information only.
-2. For drug queries, return structured JSON matching the DrugInfo interface.
-3. Always include confidence scores based on evidence quality.
-4. Flag patient-specific contraindications when PatientContext is provided.
-5. Include sources (UpToDate, FDA label, clinical guidelines).
-6. State "AI-generated — verify with primary sources" on every response.
-7. Never provide definitive diagnoses. Support differential thinking.
-
-When asked about a drug, respond ONLY with valid JSON matching this structure:
-{
-  "name": "Brand Name",
-  "genericName": "generic name",
-  "drugClass": "class",
-  "status": "brand" | "generic" | "both",
-  "warnings": [{"severity": "critical"|"warning"|"caution", "text": "...", "relevantTo": ["condition"]}],
-  "dosing": {"standard": {"adult": "...", "elderly": "...", "pediatric": "..."}, "renal": {...}, "hepatic": {...}, "maxDailyDose": "..."},
-  "interactions": [{"drugName": "...", "severity": "contraindicated"|"severe"|"moderate"|"minor", "mechanism": "...", "recommendation": "...", "evidence": "..."}],
-  "sideEffects": [{"name": "...", "frequency": "very common"|"common"|"uncommon"|"rare", "frequencyPercent": 0, "severity": "mild"|"moderate"|"severe", "management": "..."}],
-  "specialPopulations": [{"population": "pregnancy"|"lactation"|"pediatric"|"elderly"|"renal"|"hepatic", "category": "...", "risk": "safe"|"caution"|"contraindicated", "details": "..."}],
-  "mechanism": "...",
-  "confidence": 85,
-  "sources": ["source1", "source2"],
-  "lastUpdated": "2026-01-01"
-}`
-
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -100,42 +75,45 @@ export interface ChatMessage {
   isError?: boolean
 }
 
+interface ClinicalChatRequest {
+  message: string
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+  patientId?: string
+}
+
+interface ClinicalChatResponse {
+  content: string
+  usage: { inputTokens: number; outputTokens: number }
+}
+
 export class ClinicalAIService {
   private conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
+  private patientId?: string
+
+  setPatientContext(patientId: string): void {
+    this.patientId = patientId
+  }
 
   async sendMessage(
     userMessage: string,
-    patientContext?: PatientContext
+    _patientContext?: PatientContext
   ): Promise<{ text: string; drugInfo?: DrugInfo }> {
-    this.conversationHistory.push({ role: 'user', content: userMessage })
-
     try {
-      const systemPrompt = patientContext
-        ? `${SYSTEM_PROMPT}\n\nCurrent Patient Context:\n${JSON.stringify(patientContext, null, 2)}`
-        : SYSTEM_PROMPT
+      const fn = httpsCallable<ClinicalChatRequest, ClinicalChatResponse>(
+        functions,
+        'clinicalChat'
+      )
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY || '',
-          'content-type': 'application/json',
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 4096,
-          system: systemPrompt,
-          messages: this.conversationHistory,
-        }),
+      const result = await fn({
+        message: userMessage,
+        conversationHistory: this.conversationHistory,
+        patientId: this.patientId,
       })
 
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`)
-      }
+      const text = result.data.content
 
-      const data = await response.json()
-      const text = data.content?.[0]?.type === 'text' ? data.content[0].text : ''
-
+      // Update local conversation history for multi-turn
+      this.conversationHistory.push({ role: 'user', content: userMessage })
       this.conversationHistory.push({ role: 'assistant', content: text })
 
       // Try parsing as structured drug info

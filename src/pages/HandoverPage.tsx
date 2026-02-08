@@ -4,22 +4,23 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { usePatientStore } from '@/stores/patientStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { generateHandoverSummary } from '@/services/ai/claude'
 import { exportHandoverReport } from '@/services/export/pdfExport'
 import { ACUITY_LEVELS } from '@/config/constants'
 
 export function HandoverPage() {
   const patients = usePatientStore((s) => s.patients)
+  const defaultWard = useSettingsStore((s) => s.defaultWard)
   const [summary, setSummary] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
 
   const handleGenerate = async () => {
     setGenerating(true)
     try {
-      const patientData = patients
-        .map((p) => `${p.firstName} ${p.lastName} (Bed ${p.bedNumber}, Acuity ${p.acuity}): ${p.primaryDiagnosis}`)
-        .join('\n')
-      const result = await generateHandoverSummary(patientData)
+      // Cloud Function fetches full patient data + labs + tasks directly from Firestore
+      const wardId = patients[0]?.wardId || defaultWard || 'default'
+      const result = await generateHandoverSummary(wardId)
       setSummary(result)
     } catch {
       setSummary('Failed to generate handover summary. Please try again.')

@@ -1,0 +1,125 @@
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as admin from "firebase-admin";
+import { callClaude, anthropicApiKey } from "../utils/anthropic";
+import { checkRateLimit } from "../utils/rateLimiter";
+import { logAuditEvent } from "../utils/auditLog";
+import { HANDOVER_SYSTEM_PROMPT } from "../prompts/handover";
+
+export const generateHandover = onCall(
+  { secrets: [anthropicApiKey], cors: true },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const { wardId } = request.data;
+
+    if (!wardId || typeof wardId !== "string") {
+      throw new HttpsError("invalid-argument", "Ward ID is required");
+    }
+
+    const allowed = await checkRateLimit(request.auth.uid, "handover-generation");
+    if (!allowed) {
+      throw new HttpsError("resource-exhausted", "Rate limit exceeded. Please try again later.");
+    }
+
+    try {
+      const db = admin.firestore();
+
+      // Fetch all patients in the ward directly from Firestore
+      const patientsSnap = await db
+        .collection("patients")
+        .where("wardId", "==", wardId)
+        .orderBy("acuity")
+        .get();
+
+      if (patientsSnap.empty) {
+        return { content: "No patients found in this ward.", usage: { inputTokens: 0, outputTokens: 0 } };
+      }
+
+      // Build comprehensive patient summaries with labs and tasks
+      const patientSummaries: string[] = [];
+
+      for (const patientDoc of patientsSnap.docs) {
+        const patient = patientDoc.data();
+        const parts: string[] = [
+          `--- Patient: ${patient.firstName || ""} ${patient.lastName || ""} (Bed ${patient.bedNumber || "?"}) ---`,
+          `Acuity: ${patient.acuity || "N/A"} | Code Status: ${patient.codeStatus || "Unknown"}`,
+          `Primary Dx: ${patient.primaryDiagnosis || "Unknown"}`,
+          `Diagnoses: ${(patient.diagnoses || []).join(", ") || "None"}`,
+          `Allergies: ${(patient.allergies || []).join(", ") || "NKDA"}`,
+          `Attending: ${patient.attendingPhysician || "Unknown"}`,
+        ];
+
+        // Fetch recent labs for this patient
+        const labsSnap = await db
+          .collection("patients")
+          .doc(patientDoc.id)
+          .collection("labs")
+          .orderBy("collectedAt", "desc")
+          .limit(5)
+          .get();
+
+        if (!labsSnap.empty) {
+          const labLines = labsSnap.docs.map((doc) => {
+            const lab = doc.data();
+            const abnormal = (lab.values || [])
+              .filter((v: { flag?: string }) => v.flag && v.flag !== "normal")
+              .map((v: { name?: string; value?: string; unit?: string; flag?: string }) =>
+                `${v.name || ""}=${v.value || ""}${v.unit || ""}[${v.flag || ""}]`
+              )
+              .join(", ");
+            return `  ${lab.panelName || "Unknown"}: ${abnormal || "all normal"}`;
+          });
+          parts.push(`Recent Labs:\n${labLines.join("\n")}`);
+        }
+
+        // Fetch active tasks for this patient
+        const tasksSnap = await db
+          .collection("tasks")
+          .where("patientId", "==", patientDoc.id)
+          .where("status", "!=", "completed")
+          .limit(10)
+          .get();
+
+        if (!tasksSnap.empty) {
+          const taskLines = tasksSnap.docs.map((doc) => {
+            const task = doc.data();
+            return `  - [${task.priority || "medium"}] ${task.title || ""}`;
+          });
+          parts.push(`Active Tasks:\n${taskLines.join("\n")}`);
+        }
+
+        patientSummaries.push(parts.join("\n"));
+      }
+
+      const fullContext = patientSummaries.join("\n\n");
+      const userPrompt = `Generate a shift handover summary for the following ${patientsSnap.size} ward patients:\n\n${fullContext}`;
+
+      const response = await callClaude(
+        HANDOVER_SYSTEM_PROMPT,
+        userPrompt,
+        4096
+      );
+
+      await logAuditEvent(
+        "handover-generation",
+        request.auth.uid,
+        request.auth.token.email || "",
+        "ai",
+        "handover",
+        {
+          wardId,
+          patientCount: patientsSnap.size,
+          inputTokens: response.usage.inputTokens,
+          outputTokens: response.usage.outputTokens,
+        }
+      );
+
+      return response;
+    } catch (error) {
+      console.error("Handover generation error:", error);
+      throw new HttpsError("internal", "Failed to generate handover summary");
+    }
+  }
+);
