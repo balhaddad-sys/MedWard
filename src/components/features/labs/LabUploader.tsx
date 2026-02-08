@@ -1,10 +1,17 @@
 import { useState, useRef } from 'react'
-import { Upload, Camera, FileText, Image, X, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, Camera, Image, X, CheckCircle, AlertCircle, Sparkles, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
 import { uploadLabImage } from '@/services/firebase/labs'
+import { addLabPanel } from '@/services/firebase/labs'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '@/config/firebase'
+import { serverTimestamp } from 'firebase/firestore'
+import { flagLabValue, LAB_REFERENCES } from '@/utils/labUtils'
+import type { LabValue } from '@/types'
 
 interface LabUploaderProps {
   patientId?: string
@@ -16,9 +23,20 @@ interface UploadedImage {
   url: string
   name: string
   uploadedAt: Date
+  analyzing: boolean
+  results?: ExtractedResult[]
+  error?: string
 }
 
-export function LabUploader({ patientId: _patientId, onUploadComplete, onManualEntry }: LabUploaderProps) {
+interface ExtractedResult {
+  test: string
+  value: number | string
+  unit: string
+  flag: string
+  refRange: string
+}
+
+export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabUploaderProps) {
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
@@ -28,6 +46,95 @@ export function LabUploader({ patientId: _patientId, onUploadComplete, onManualE
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const firebaseUser = useAuthStore((s) => s.firebaseUser)
   const addToast = useUIStore((s) => s.addToast)
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        // Strip the data:image/...;base64, prefix
+        resolve(result.split(',')[1])
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const analyzeImage = async (base64: string, mediaType: string, imageIndex: number) => {
+    try {
+      const fn = httpsCallable<
+        { imageBase64: string; mediaType: string },
+        { content: string }
+      >(functions, 'analyzeLabImage')
+
+      const result = await fn({ imageBase64: base64, mediaType })
+      const parsed = JSON.parse(result.data.content) as {
+        results: ExtractedResult[]
+        summary?: string
+      }
+
+      setUploadedImages((prev) =>
+        prev.map((img, i) =>
+          i === imageIndex
+            ? { ...img, analyzing: false, results: parsed.results || [] }
+            : img
+        )
+      )
+
+      // Save extracted values as a lab panel if we have a patientId
+      if (patientId && parsed.results && parsed.results.length > 0) {
+        const values: LabValue[] = parsed.results.map((r) => {
+          const numVal = typeof r.value === 'number' ? r.value : parseFloat(String(r.value))
+          const isNumeric = !isNaN(numVal)
+          const ref = LAB_REFERENCES[r.test.toUpperCase()]
+
+          let flag: string = r.flag?.toLowerCase() || 'normal'
+          if (isNumeric && ref) {
+            flag = flagLabValue(numVal, ref)
+          }
+          if (flag === 'critical') flag = 'critical_high'
+
+          return {
+            name: r.test,
+            value: isNumeric ? numVal : r.value,
+            unit: r.unit || ref?.unit || '',
+            referenceMin: ref?.referenceMin ?? 0,
+            referenceMax: ref?.referenceMax ?? 999,
+            flag,
+          } as LabValue
+        })
+
+        await addLabPanel(patientId, {
+          patientId,
+          category: 'MISC',
+          panelName: 'Image Upload',
+          values,
+          collectedAt: serverTimestamp(),
+          resultedAt: serverTimestamp(),
+          orderedBy: firebaseUser?.displayName ?? firebaseUser?.email ?? 'Unknown',
+          status: 'resulted',
+          source: 'image',
+        } as never)
+
+        addToast({
+          type: 'success',
+          title: `${values.length} lab values extracted`,
+          message: parsed.summary || 'Values saved to patient record.',
+        })
+        onUploadComplete?.('')
+      }
+    } catch (err) {
+      console.error('Lab image analysis failed:', err)
+      setUploadedImages((prev) =>
+        prev.map((img, i) =>
+          i === imageIndex
+            ? { ...img, analyzing: false, error: 'Analysis failed. You can enter values manually.' }
+            : img
+        )
+      )
+      addToast({ type: 'warning', title: 'Image analysis failed', message: 'You can enter values manually instead.' })
+    }
+  }
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -50,19 +157,27 @@ export function LabUploader({ patientId: _patientId, onUploadComplete, onManualE
     reader.onload = (e) => setPreview(e.target?.result as string)
     reader.readAsDataURL(file)
 
-    // Upload to Firebase Storage
     setUploading(true)
     try {
+      // Upload to Firebase Storage
       const downloadUrl = await uploadLabImage(firebaseUser.uid, file)
-      const uploaded: UploadedImage = {
+
+      const newImage: UploadedImage = {
         url: downloadUrl,
         name: file.name,
         uploadedAt: new Date(),
+        analyzing: true,
       }
-      setUploadedImages((prev) => [uploaded, ...prev])
+
+      setUploadedImages((prev) => {
+        const updated = [newImage, ...prev]
+        return updated
+      })
       setPreview(null)
-      addToast({ type: 'success', title: 'Lab image uploaded', message: file.name })
-      onUploadComplete?.(downloadUrl)
+
+      // Convert to base64 and analyze
+      const base64 = await fileToBase64(file)
+      analyzeImage(base64, file.type, 0)
     } catch (err) {
       console.error('Upload failed:', err)
       setError('Upload failed. Please try again.')
@@ -107,14 +222,14 @@ export function LabUploader({ patientId: _patientId, onUploadComplete, onManualE
               <img src={preview} alt="Uploading" className="max-h-48 mx-auto rounded-lg shadow-md" />
               <div className="flex items-center justify-center gap-2">
                 <div className="animate-spin h-5 w-5 border-2 border-primary-600 border-t-transparent rounded-full" />
-                <p className="text-sm text-ward-muted">Uploading to cloud storage...</p>
+                <p className="text-sm text-ward-muted">Uploading...</p>
               </div>
             </div>
           ) : (
             <>
               <Upload className="h-10 w-10 text-ward-muted mx-auto mb-3" />
               <p className="text-sm font-medium text-ward-text">Drop lab result images here</p>
-              <p className="text-xs text-ward-muted mt-1">JPEG, PNG up to 10 MB</p>
+              <p className="text-xs text-ward-muted mt-1">JPEG, PNG up to 10 MB — AI will extract values automatically</p>
 
               {error && (
                 <div className="flex items-center justify-center gap-1.5 mt-3 text-red-600">
@@ -148,7 +263,6 @@ export function LabUploader({ patientId: _patientId, onUploadComplete, onManualE
                   <Button
                     variant="secondary"
                     size="sm"
-                    icon={<FileText className="h-4 w-4" />}
                     onClick={onManualEntry}
                     className="min-h-[44px]"
                   >
@@ -179,35 +293,82 @@ export function LabUploader({ patientId: _patientId, onUploadComplete, onManualE
       </Card>
 
       {uploadedImages.length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider mb-2">
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider">
             Uploaded Images ({uploadedImages.length})
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {uploadedImages.map((img, index) => (
-              <div key={img.url} className="relative group">
-                <a href={img.url} target="_blank" rel="noopener noreferrer">
+          {uploadedImages.map((img, index) => (
+            <Card key={`${img.url}-${index}`} className="p-3">
+              <div className="flex gap-3">
+                <a href={img.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                   <img
                     src={img.url}
                     alt={img.name}
-                    className="w-full h-32 sm:h-40 object-cover rounded-lg border border-ward-border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                    className="w-20 h-20 object-cover rounded-lg border border-ward-border"
                   />
                 </a>
-                <div className="absolute top-1.5 right-1.5 flex gap-1">
-                  <span className="bg-green-500 text-white rounded-full p-0.5">
-                    <CheckCircle className="h-3.5 w-3.5" />
-                  </span>
-                  <button
-                    onClick={() => removeImage(index)}
-                    className="bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-ward-text truncate">{img.name}</p>
+                    <button
+                      onClick={() => removeImage(index)}
+                      className="p-1 text-ward-muted hover:text-red-500 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {img.analyzing && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary-600" />
+                      <span className="text-xs text-primary-600 font-medium">Extracting lab values with AI...</span>
+                    </div>
+                  )}
+
+                  {img.error && (
+                    <div className="flex items-center gap-1.5 mt-2 text-amber-600">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <span className="text-xs">{img.error}</span>
+                    </div>
+                  )}
+
+                  {img.results && img.results.length > 0 && (
+                    <div className="mt-2">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-primary-600" />
+                        <span className="text-xs font-medium text-primary-600">
+                          {img.results.length} values extracted
+                        </span>
+                        <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {img.results.slice(0, 6).map((r, i) => (
+                          <Badge
+                            key={i}
+                            variant={
+                              r.flag?.toLowerCase() === 'critical' ? 'danger'
+                              : r.flag?.toLowerCase() === 'high' || r.flag?.toLowerCase() === 'low' ? 'warning'
+                              : 'default'
+                            }
+                            size="sm"
+                          >
+                            {r.test}: {r.value} {r.unit}
+                          </Badge>
+                        ))}
+                        {img.results.length > 6 && (
+                          <Badge variant="default" size="sm">+{img.results.length - 6} more</Badge>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {img.results && img.results.length === 0 && !img.error && (
+                    <p className="text-xs text-ward-muted mt-2">No lab values detected in image.</p>
+                  )}
                 </div>
-                <p className="text-[10px] text-ward-muted mt-1 truncate">{img.name}</p>
               </div>
-            ))}
-          </div>
+            </Card>
+          ))}
         </div>
       )}
     </div>
