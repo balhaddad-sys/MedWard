@@ -1,0 +1,128 @@
+{
+  "patient": {
+    "mrn": "TEST-001",
+    "name": "Test Patient",
+    "dob": "1990-01-15",
+    "gender": "M",
+    "location": "Ward 3B"
+  },
+  "panels": [
+    {
+      "panel_name": "Basic Metabolic Panel",
+      "results": [
+        {
+          "raw_name": "Sodium",
+          "raw_unit": "mmol/L",
+          "raw_range_text": "136 - 145",
+          "analyte_key": "sodium",
+          "display_name": "Sodium",
+          "unit": "mmol/L",
+          "observations": [
+            {
+              "date": "2024-03-15",
+              "value": 141.0,
+              "raw_value": "141",
+              "flag_extracted": "normal"
+            }
+          ]
+        },
+        {
+          "raw_name": "Potassium",
+          "raw_unit": "mmol/L",
+          "raw_range_text": "3.5 - 5.1",
+          "analyte_key": "potassium",
+          "display_name": "Potassium",
+          "unit": "mmol/L",
+          "observations": [
+            {
+              "date": "2024-03-15",
+              "value": 5.8,
+              "raw_value": "5.8",
+              "flag_extracted": "high"
+            }
+          ]
+        },
+        {
+          "raw_name": "Chloride",
+          "raw_unit": "mmol/L",
+          "raw_range_text": "98 - 106",
+          "analyte_key": "chloride",
+          "display_name": "Chloride",
+          "unit": "mmol/L",
+          "observations": [
+            {
+              "date": "2024-03-15",
+              "value": 102.0,
+              "raw_value": "102",
+              "flag_extracted": "normal"
+            }
+          ]
+        },
+        {
+          "raw_name": "CO2",
+          "raw_unit": "mmol/L",
+          "raw_range_text": "22 - 29",
+          "analyte_key": "bicarbonate",
+          "display_name": "Bicarbonate",
+          "unit": "mmol/L",
+          "observations": [
+            {
+              "date": "2024-03-15",
+              "value": 24.0,
+              "raw_value": "24",
+              "flag_extracted": "normal"
+            }
+          ]
+        },
+        {
+          "raw_name": "BUN",
+          "raw_unit": "mg/dL",
+          "raw_range_text": "7 - 20",
+          "analyte_key": "bun",
+          "display_name": "BUN",
+          "unit": "mg/dL",
+          "observations": [
+            {
+              "date": "2024-03-15",
+              "value": 45.0,
+              "raw_value": "45",
+              "flag_extracted": "high"
+            }
+          ]
+        },
+        {
+          "raw_name": "Creatinine",
+          "raw_unit": "mg/dL",
+          "raw_range_text": "0.7 - 1.3",
+          "analyte_key": "creatinine",
+          "display_name": "Creatinine",
+          "unit": "mg/dL",
+          "observations": [
+            {
+              "date": "2024-03-15",
+              "value": 2.8,
+              "raw_value": "2.8",
+              "flag_extracted": "high"
+            }
+          ]
+        },
+        {
+          "raw_name": "Glucose",
+          "raw_unit": "mg/dL",
+          "raw_range_text": "74 - 106",
+          "analyte_key": "glucose",
+          "display_name": "Glucose",
+          "unit": "mg/dL",
+          "observations": [
+            {
+              "date": "2024-03-15",
+              "value": 210.0,
+              "raw_value": "210",
+              "flag_extracted": "high"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
