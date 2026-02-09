@@ -1,0 +1,46 @@
+name: labx CI
+
+on:
+  push:
+    paths:
+      - "labx/**"
+      - "labx/tests/**"
+  pull_request:
+    paths:
+      - "labx/**"
+      - "labx/tests/**"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        working-directory: labx
+        run: |
+          pip install -e ".[dev]"
+
+      - name: Lint with ruff
+        working-directory: labx
+        run: |
+          ruff check .
+
+      - name: Type check with mypy
+        working-directory: labx
+        run: |
+          mypy labx --ignore-missing-imports
+
+      - name: Run tests
+        working-directory: labx
+        run: |
+          pytest tests/ -v --tb=short --co -q 2>/dev/null || pytest tests/ -v --tb=short
