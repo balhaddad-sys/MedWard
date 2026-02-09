@@ -109,7 +109,7 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
     setStatus('analyzing')
 
     try {
-      const [compressed] = await Promise.all([
+      const [compressed, storedImageUrl] = await Promise.all([
         imageCompression(file, {
           maxSizeMB: 0.5,
           maxWidthOrHeight: 2048,
@@ -159,6 +159,7 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
           orderedBy: firebaseUser?.displayName ?? firebaseUser?.email ?? 'Unknown',
           status: 'resulted',
           source: 'image',
+          ...(storedImageUrl ? { imageUrl: storedImageUrl } : {}),
         } as never)
 
         addToast({
