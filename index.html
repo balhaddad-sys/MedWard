@@ -2,17 +2,116 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+
+    <!-- PWA & App Metadata -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
+    <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#1e40af" />
-    <meta name="description" content="MedWard Pro - Clinical Ward Management" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MedWard Pro" />
+    <meta name="application-name" content="MedWard Pro" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- SEO -->
+    <meta name="description" content="MedWard Pro — Clinical Ward Management System. Manage patients, labs, tasks, handovers, and clinical AI assistance for healthcare professionals." />
+    <meta name="author" content="MedWard Pro" />
+    <meta name="robots" content="noindex, nofollow" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="MedWard Pro — Clinical Ward Management" />
+    <meta property="og:description" content="Manage patients, labs, tasks, handovers, and clinical AI assistance for healthcare professionals." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/icons/icon-512x512.svg" />
+
+    <!-- Security -->
     <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin-allow-popups" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
     <title>MedWard Pro</title>
+
+    <!-- Inline critical styles for splash screen -->
+    <style>
+      #splash-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%);
+        transition: opacity 0.3s ease-out;
+      }
+      #splash-screen.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #splash-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      #splash-icon svg {
+        width: 40px;
+        height: 40px;
+      }
+      #splash-title {
+        color: white;
+        font-family: Inter, system-ui, sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin-bottom: 4px;
+      }
+      #splash-subtitle {
+        color: rgba(255, 255, 255, 0.6);
+        font-family: Inter, system-ui, sans-serif;
+        font-size: 13px;
+        font-weight: 400;
+        margin-bottom: 32px;
+      }
+      #splash-spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body class="bg-ward-bg text-ward-text antialiased">
+    <!-- Splash screen shown while JS loads -->
+    <div id="splash-screen">
+      <div id="splash-icon">
+        <svg viewBox="0 0 40 40" fill="none">
+          <rect x="17" y="8" width="6" height="24" rx="2" fill="white"/>
+          <rect x="8" y="17" width="24" height="6" rx="2" fill="white"/>
+        </svg>
+      </div>
+      <div id="splash-title">MedWard Pro</div>
+      <div id="splash-subtitle">Clinical Ward Management</div>
+      <div id="splash-spinner"></div>
+    </div>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

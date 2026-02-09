@@ -15,7 +15,11 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ defa
 const AIAssistantPage = lazy(() => import('@/pages/AIAssistantPage').then(m => ({ default: m.AIAssistantPage })))
 const LabAnalysisPage = lazy(() => import('@/pages/LabAnalysisPage').then(m => ({ default: m.LabAnalysisPage })))
 const DrugInfoPage = lazy(() => import('@/pages/DrugInfoPage').then(m => ({ default: m.DrugInfoPage })))
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })))
+const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })))
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 
+import { HIPAADisclaimer } from '@/components/HIPAADisclaimer'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { usePatientStore } from '@/stores/patientStore'
@@ -159,10 +163,13 @@ export default function App() {
               <Route path="/drugs" element={<Suspense fallback={<PageLoader />}><DrugInfoPage /></Suspense>} />
               <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense>} />
+            <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsPage /></Suspense>} />
+            <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFoundPage /></Suspense>} />
           </Routes>
           <ModalController />
           <ToastContainer />
+          <HIPAADisclaimer />
         </BrowserRouter>
       </ModeProvider>
     </ErrorBoundary>

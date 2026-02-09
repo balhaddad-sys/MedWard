@@ -1,85 +1,67 @@
 import { MODES } from '../config/modes'
 import type { ClinicalMode } from '../config/modes'
+import { subscribeToAllPatients } from './firebase/patients'
+import { subscribeToLabs } from './firebase/labs'
+import type { Unsubscribe } from 'firebase/firestore'
 
 interface Subscription {
   unsubscribe: () => void
 }
 
-let activeSubscription: Subscription | null = null
+let activeSubscriptions: Subscription[] = []
 let pollingInterval: ReturnType<typeof setInterval> | null = null
 
 export async function updateDataSubscriptions(
   mode: ClinicalMode,
   patientId?: string
 ): Promise<void> {
-  // Tear down previous subscription
-  if (activeSubscription) {
-    activeSubscription.unsubscribe()
-    activeSubscription = null
-  }
-  if (pollingInterval) {
-    clearInterval(pollingInterval)
-    pollingInterval = null
-  }
-
-  const config = MODES[mode]
+  // Tear down previous subscriptions
+  teardownSubscriptions()
 
   switch (mode) {
     case 'ward':
-      activeSubscription = subscribeToPatientList(config.refreshRate)
+      activeSubscriptions.push(subscribeToPatientList())
       break
 
     case 'acute':
       if (patientId) {
-        activeSubscription = subscribeToVitals(patientId, config.refreshRate)
+        activeSubscriptions.push(subscribeToVitals(patientId, MODES[mode].refreshRate))
       }
       break
 
     case 'clinic':
       if (patientId) {
-        await loadFullPatientHistory(patientId)
+        activeSubscriptions.push(subscribeToPatientHistory(patientId))
       }
       break
   }
 }
 
-function subscribeToPatientList(refreshRate: number): Subscription {
-  // TODO: Replace with Firestore onSnapshot or polling
-  // For now, set up polling placeholder
-  console.log(`[DATA] Subscribed to patient list (refresh: ${refreshRate}ms)`)
+function subscribeToPatientList(): Subscription {
+  // Real-time Firestore subscription for ward patient list
+  const unsubscribe: Unsubscribe = subscribeToAllPatients(() => {
+    // Patient data flows through App.tsx DataSubscriptions -> Zustand store
+  })
 
-  if (refreshRate > 0) {
-    pollingInterval = setInterval(() => {
-      // TODO: Re-fetch patient list
-      console.log('[DATA] Polling patient list...')
-    }, refreshRate)
-  }
-
-  return {
-    unsubscribe: () => {
-      console.log('[DATA] Unsubscribed from patient list')
-      if (pollingInterval) {
-        clearInterval(pollingInterval)
-        pollingInterval = null
-      }
-    },
-  }
+  return { unsubscribe }
 }
 
 function subscribeToVitals(patientId: string, refreshRate: number): Subscription {
-  // TODO: Implement real-time vitals subscription with Firestore
-  console.log(`[DATA] Subscribed to vitals for ${patientId} (refresh: ${refreshRate}ms)`)
+  // Subscribe to patient labs as the closest vitals proxy available
+  const unsubscribe: Unsubscribe = subscribeToLabs(patientId, () => {
+    // Lab data flows through Zustand store
+  })
 
+  // Keep a polling interval for future real-time vitals integration
   if (refreshRate > 0) {
     pollingInterval = setInterval(() => {
-      // TODO: Re-fetch vitals for patient
-      console.log(`[DATA] Polling vitals for ${patientId}...`)
+      // Firestore onSnapshot handles real-time updates; polling reserved for future APIs
     }, refreshRate)
   }
 
   return {
     unsubscribe: () => {
-      console.log('[DATA] Unsubscribed from vitals')
+      unsubscribe()
       if (pollingInterval) {
         clearInterval(pollingInterval)
         pollingInterval = null
@@ -88,16 +70,20 @@ function subscribeToVitals(patientId: string, refreshRate: number): Subscription
   }
 }
 
-async function loadFullPatientHistory(patientId: string): Promise<void> {
-  // TODO: One-time fetch of full patient history from Firestore
-  console.log(`[DATA] Loaded full history for ${patientId}`)
+function subscribeToPatientHistory(patientId: string): Subscription {
+  // Subscribe to full lab history for clinic trend view
+  const unsubscribe: Unsubscribe = subscribeToLabs(patientId, () => {
+    // Lab data flows through Zustand store
+  })
+
+  return { unsubscribe }
 }
 
 export function teardownSubscriptions(): void {
-  if (activeSubscription) {
-    activeSubscription.unsubscribe()
-    activeSubscription = null
+  for (const sub of activeSubscriptions) {
+    sub.unsubscribe()
   }
+  activeSubscriptions = []
   if (pollingInterval) {
     clearInterval(pollingInterval)
     pollingInterval = null
