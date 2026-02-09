@@ -12,7 +12,7 @@ import { serverTimestamp } from 'firebase/firestore'
 import { LabResultRow } from './LabResultRow'
 import { LabPanelSkeleton } from './LabResultSkeleton'
 import type { LabTestResult } from './LabResultRow'
-import type { LabValue, ExtractionResponse } from '@/types'
+import type { LabValue, ExtractionResponse, ExtractedTrend } from '@/types'
 
 interface LabUploaderProps {
   patientId?: string
@@ -32,18 +32,23 @@ interface UploadedResult {
   imageName: string
   status: UploadStatus
   groups?: PanelGroup[]
+  criticalFlags?: ExtractedTrend[]
   error?: string
 }
 
 /** Convert the structured extraction response into panel groups for display */
-function extractionToGroups(data: ExtractionResponse): { groups: PanelGroup[]; allTests: LabTestResult[] } {
+function extractionToGroups(data: ExtractionResponse): {
+  groups: PanelGroup[]
+  allTests: LabTestResult[]
+  criticalFlags: ExtractedTrend[]
+} {
   const allTests: LabTestResult[] = []
   const groups: PanelGroup[] = []
 
   for (const panel of data.panels) {
     const tests: LabTestResult[] = panel.results.map((r) => {
       const test: LabTestResult = {
-        code: r.test_code,
+        code: r.test_code || r.analyte_key,
         name: r.test_name,
         value: r.value ?? 0,
         unit: r.unit,
@@ -60,7 +65,7 @@ function extractionToGroups(data: ExtractionResponse): { groups: PanelGroup[]; a
     }
   }
 
-  return { groups, allTests }
+  return { groups, allTests, criticalFlags: data.critical_flags || [] }
 }
 
 export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabUploaderProps) {
@@ -126,10 +131,10 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
       const extraction: ExtractionResponse = aiResult.data.structured
         ?? JSON.parse(aiResult.data.content)
 
-      const { groups, allTests } = extractionToGroups(extraction)
+      const { groups, allTests, criticalFlags } = extractionToGroups(extraction)
 
       setResults((prev) => prev.map((r, i) =>
-        i === resultIndex ? { ...r, status: 'done', groups } : r
+        i === resultIndex ? { ...r, status: 'done', groups, criticalFlags } : r
       ))
       setStatus('done')
 
@@ -280,6 +285,29 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
                 </button>
               </div>
             </Card>
+          )}
+
+          {result.status === 'done' && result.criticalFlags && result.criticalFlags.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <h4 className="text-sm font-bold text-red-800 mb-2">
+                Critical Values ({result.criticalFlags.length})
+              </h4>
+              <div className="space-y-1">
+                {result.criticalFlags.map((crit) => (
+                  <div key={crit.analyte_key} className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-red-700">{crit.display_name}</span>
+                    <span className="text-red-900 font-mono">
+                      {crit.latest_value} — {crit.latest_flag === 'critical_high' ? 'CRIT H' : 'CRIT L'}
+                      {crit.direction !== 'stable' && (
+                        <span className="ml-1 text-xs">
+                          ({crit.direction}, {crit.pct_change > 0 ? '+' : ''}{crit.pct_change}%)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {result.status === 'done' && result.groups && result.groups.map((group) => (

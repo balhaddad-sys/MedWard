@@ -7,15 +7,19 @@ import { LAB_IMAGE_EXTRACTION_PROMPT } from "../prompts/labAnalysis";
 // Flag enum matching the Python extraction engine
 type Flag = "normal" | "high" | "low" | "critical_high" | "critical_low";
 
+type TrendDirection = "improving" | "worsening" | "stable" | "fluctuating";
+
 interface LabResult {
   test_name: string;
   test_code: string;
+  analyte_key: string;
   value: number | null;
   value_raw: string;
   unit: string;
   ref_low: number | null;
   ref_high: number | null;
   flag: Flag;
+  flag_extracted?: Flag;
 }
 
 interface LabPanel {
@@ -34,36 +38,206 @@ interface PatientInfo {
   visit_date: string;
 }
 
+interface LabTrendResult {
+  analyte_key: string;
+  display_name: string;
+  direction: TrendDirection;
+  pct_change: number;
+  latest_value: number | null;
+  latest_flag: Flag;
+  severity_score: number;
+}
+
 interface ExtractionResponse {
   patient: PatientInfo;
   panels: LabPanel[];
+  trends: LabTrendResult[];
+  critical_flags: LabTrendResult[];
+}
+
+// ── Per-analyte critical multipliers (ported from labx) ──────────
+// Multiplier: how far beyond the reference range counts as "critical"
+// e.g. 0.20 means 20% beyond range boundary = critical
+const CRITICAL_MULTIPLIERS: Record<string, number> = {
+  potassium: 0.20,
+  sodium: 0.10,
+  glucose: 0.50,
+  calcium: 0.25,
+  magnesium: 0.30,
+  phosphate: 0.30,
+  troponin_i: 0.0,   // any elevation is critical
+  troponin_t: 0.0,
+  hs_troponin_i: 0.0,
+  hs_troponin_t: 0.0,
+  inr: 0.50,
+};
+const DEFAULT_CRITICAL_MULTIPLIER = 0.50;
+
+// ── Analyte name normalisation map (ported from labx) ────────────
+const ANALYTE_ALIASES: Record<string, string> = {
+  // Electrolytes
+  na: "sodium", "na+": "sodium", sod: "sodium", "sod.": "sodium", sodium: "sodium",
+  k: "potassium", "k+": "potassium", pot: "potassium", potassium: "potassium",
+  cl: "chloride", "cl-": "chloride", chloride: "chloride",
+  co2: "bicarbonate", hco3: "bicarbonate", "hco3-": "bicarbonate",
+  tco2: "bicarbonate", bicarbonate: "bicarbonate", bicarb: "bicarbonate",
+  ca: "calcium", "ca++": "calcium", calcium: "calcium", "ca total": "calcium",
+  mg: "magnesium", "mg++": "magnesium", magnesium: "magnesium",
+  phos: "phosphate", po4: "phosphate", phosphorus: "phosphate", phosphate: "phosphate",
+  // Renal
+  bun: "bun", urea: "bun", "urea nitrogen": "bun",
+  cr: "creatinine", crea: "creatinine", creat: "creatinine", creatinine: "creatinine",
+  egfr: "egfr", gfr: "egfr",
+  // Glucose
+  glu: "glucose", glucose: "glucose", gluc: "glucose", "blood sugar": "glucose", bs: "glucose",
+  // CBC
+  wbc: "white_blood_cells", "white blood cells": "white_blood_cells",
+  rbc: "red_blood_cells", "red blood cells": "red_blood_cells",
+  hgb: "hemoglobin", hb: "hemoglobin", hemoglobin: "hemoglobin", haemoglobin: "hemoglobin",
+  hct: "hematocrit", hematocrit: "hematocrit", haematocrit: "hematocrit",
+  plt: "platelets", platelets: "platelets", "platelet count": "platelets",
+  mcv: "mcv", mch: "mch", mchc: "mchc", rdw: "rdw", mpv: "mpv",
+  // Diff
+  neut: "neutrophils", neutrophils: "neutrophils", neutrophil: "neutrophils",
+  lymph: "lymphocytes", lymphocytes: "lymphocytes",
+  mono: "monocytes", monocytes: "monocytes",
+  eos: "eosinophils", eosinophils: "eosinophils",
+  baso: "basophils", basophils: "basophils",
+  // LFT
+  alt: "alt", sgpt: "alt", ast: "ast", sgot: "ast",
+  alp: "alp", "alkaline phosphatase": "alp", "alk phos": "alp",
+  ggt: "ggt", "gamma gt": "ggt",
+  tbil: "total_bilirubin", "total bilirubin": "total_bilirubin",
+  "t. bilirubin": "total_bilirubin", "bilirubin total": "total_bilirubin",
+  dbil: "direct_bilirubin", "direct bilirubin": "direct_bilirubin",
+  albumin: "albumin", alb: "albumin",
+  "total protein": "total_protein", tp: "total_protein",
+  // Coag
+  pt: "pt", "prothrombin time": "pt",
+  inr: "inr", aptt: "aptt", ptt: "aptt",
+  // Cardiac
+  "troponin i": "troponin_i", tni: "troponin_i", "hs-tni": "hs_troponin_i",
+  "troponin t": "troponin_t", tnt: "troponin_t", "hs-tnt": "hs_troponin_t",
+  bnp: "bnp", "nt-probnp": "nt_probnp", "pro-bnp": "nt_probnp",
+  ck: "ck", cpk: "ck", "ck-mb": "ck_mb", ldh: "ldh",
+  // Thyroid
+  tsh: "tsh", ft4: "free_t4", "free t4": "free_t4",
+  ft3: "free_t3", "free t3": "free_t3",
+  // Iron
+  iron: "iron", fe: "iron", ferritin: "ferritin", tibc: "tibc",
+  // Inflammatory
+  crp: "crp", "c-reactive protein": "crp",
+  esr: "esr", "sed rate": "esr",
+  procalcitonin: "procalcitonin",
+  // HbA1c
+  hba1c: "hba1c", a1c: "hba1c",
+  // Lipid
+  "total cholesterol": "total_cholesterol", chol: "total_cholesterol",
+  ldl: "ldl", "ldl-c": "ldl", hdl: "hdl", "hdl-c": "hdl",
+  triglycerides: "triglycerides", trig: "triglycerides", tg: "triglycerides",
+  // ABG
+  ph: "ph", pco2: "pco2", po2: "po2", pao2: "po2",
+  sao2: "sao2", lactate: "lactate",
+};
+
+/**
+ * Normalise an analyte name to a canonical snake_case key.
+ */
+function normalizeAnalyteKey(rawName: string): string {
+  const cleaned = rawName.replace(/[^\w\s.+\-]/g, "").toLowerCase().trim();
+  if (ANALYTE_ALIASES[cleaned]) return ANALYTE_ALIASES[cleaned];
+  const stripped = cleaned.replace(/[.\s]+$/, "");
+  if (ANALYTE_ALIASES[stripped]) return ANALYTE_ALIASES[stripped];
+  return cleaned.replace(/\s+/g, "_");
 }
 
 /**
  * Recompute flag from numeric value and reference range.
- * 50% beyond range boundary -> critical. HH/LL in raw string -> critical.
+ * Uses per-analyte critical multipliers from the labx engine.
  */
 function computeFlag(
   value: number | null,
   refLow: number | null,
   refHigh: number | null,
+  analyteKey: string = "",
   raw: string = ""
 ): Flag {
   const rawUp = raw.toUpperCase().trim();
   if (rawUp.includes("HH")) return "critical_high";
   if (rawUp.includes("LL")) return "critical_low";
 
-  if (value === null || refLow === null || refHigh === null) {
-    return "normal";
+  if (value === null) return "normal";
+  if (refLow === null && refHigh === null) return "normal";
+
+  const multiplier = CRITICAL_MULTIPLIERS[analyteKey] ?? DEFAULT_CRITICAL_MULTIPLIER;
+  const span = (refHigh ?? refLow ?? 0) - (refLow ?? 0);
+
+  // High side
+  if (refHigh !== null && value > refHigh) {
+    const critThreshold = span > 0 ? refHigh + span * multiplier : refHigh;
+    return value > critThreshold ? "critical_high" : "high";
   }
 
-  const margin = (refHigh - refLow) * 0.5;
+  // Low side
+  if (refLow !== null && value < refLow) {
+    const critThreshold = span > 0 ? refLow - span * multiplier : refLow;
+    return value < critThreshold ? "critical_low" : "low";
+  }
 
-  if (value > refHigh + margin) return "critical_high";
-  if (value < refLow - margin) return "critical_low";
-  if (value > refHigh) return "high";
-  if (value < refLow) return "low";
   return "normal";
+}
+
+/**
+ * Compute severity score for a trend (higher = more urgent).
+ */
+function computeSeverity(flag: Flag, direction: TrendDirection, pctChange: number): number {
+  const flagWeight: Record<Flag, number> = {
+    critical_high: 100, critical_low: 100,
+    high: 50, low: 50,
+    normal: 0,
+  };
+  const dirWeight: Record<TrendDirection, number> = {
+    worsening: 30, fluctuating: 15, stable: 0, improving: -10,
+  };
+  const magWeight = Math.min(Math.abs(pctChange), 200) * 0.1;
+  return Math.round((flagWeight[flag] + dirWeight[direction] + magWeight) * 100) / 100;
+}
+
+/**
+ * Compute trend direction using towards-normal logic from labx.
+ */
+function computeTrendDirection(
+  values: number[],
+  latestFlag: Flag
+): TrendDirection {
+  if (values.length < 2) return "stable";
+
+  // Check for fluctuation (direction reverses ≥ 2 times)
+  let reversals = 0;
+  let prevSign = 0;
+  for (let i = 1; i < values.length; i++) {
+    const d = values[i] - values[i - 1];
+    const sign = d > 0 ? 1 : d < 0 ? -1 : 0;
+    if (sign !== 0 && prevSign !== 0 && sign !== prevSign) reversals++;
+    if (sign !== 0) prevSign = sign;
+  }
+  if (reversals >= 2) return "fluctuating";
+
+  // Slope direction
+  const diffs = values.slice(1).map((v, i) => v - values[i]);
+  const positive = diffs.filter((d) => d > 0).length;
+  const negative = diffs.filter((d) => d < 0).length;
+  const slope = positive > negative ? 1 : negative > positive ? -1 : 0;
+
+  // Towards-normal logic
+  if (latestFlag === "high" || latestFlag === "critical_high") {
+    return slope < 0 ? "improving" : slope > 0 ? "worsening" : "stable";
+  }
+  if (latestFlag === "low" || latestFlag === "critical_low") {
+    return slope > 0 ? "improving" : slope < 0 ? "worsening" : "stable";
+  }
+
+  return "stable";
 }
 
 function safeFloat(v: unknown): number | null {
@@ -94,6 +268,9 @@ function parseExtractionResponse(raw: string): ExtractionResponse {
     visit_date: data.patient?.visit_date || "",
   };
 
+  // Collect all results for trend computation
+  const analyteValues: Record<string, { values: number[]; flag: Flag; name: string }> = {};
+
   const panels: LabPanel[] = (data.panels || []).map(
     (panel: Record<string, unknown>) => {
       const results: LabResult[] = (
@@ -104,18 +281,40 @@ function parseExtractionResponse(raw: string): ExtractionResponse {
         const refHigh = safeFloat(r.ref_high);
         const valueRaw = String(r.value_raw || r.value || "");
 
-        // Recompute flag — don't fully trust the AI's flag assignment
-        const flag = computeFlag(value, refLow, refHigh, valueRaw);
+        // Normalise analyte key
+        const aiKey = String(r.analyte_key || "");
+        const analyteKey = aiKey
+          ? normalizeAnalyteKey(aiKey)
+          : normalizeAnalyteKey(String(r.test_name || ""));
+
+        // Recompute flag with per-analyte critical thresholds
+        const flagExtracted = String(r.flag || "normal") as Flag;
+        const flag = computeFlag(value, refLow, refHigh, analyteKey, valueRaw);
+
+        // Accumulate for trends
+        if (value !== null) {
+          if (!analyteValues[analyteKey]) {
+            analyteValues[analyteKey] = {
+              values: [],
+              flag: "normal",
+              name: String(r.test_name || analyteKey),
+            };
+          }
+          analyteValues[analyteKey].values.push(value);
+          analyteValues[analyteKey].flag = flag;
+        }
 
         return {
           test_name: String(r.test_name || ""),
           test_code: String(r.test_code || ""),
+          analyte_key: analyteKey,
           value,
           value_raw: valueRaw,
           unit: String(r.unit || ""),
           ref_low: refLow,
           ref_high: refHigh,
           flag,
+          flag_extracted: flagExtracted !== flag ? flagExtracted : undefined,
         };
       });
 
@@ -128,7 +327,40 @@ function parseExtractionResponse(raw: string): ExtractionResponse {
     }
   );
 
-  return { patient, panels };
+  // Compute trends for analytes with multiple values (cumulative reports)
+  const trends: LabTrendResult[] = [];
+  const criticalFlags: LabTrendResult[] = [];
+
+  for (const [key, data] of Object.entries(analyteValues)) {
+    const vals = data.values;
+    const latestVal = vals[vals.length - 1];
+    const direction = computeTrendDirection(vals, data.flag);
+    const pctChange = vals.length >= 2 && vals[0] !== 0
+      ? Math.round(((latestVal - vals[0]) / Math.abs(vals[0])) * 10000) / 100
+      : 0;
+    const severity = computeSeverity(data.flag, direction, pctChange);
+
+    const trend: LabTrendResult = {
+      analyte_key: key,
+      display_name: data.name,
+      direction,
+      pct_change: pctChange,
+      latest_value: latestVal,
+      latest_flag: data.flag,
+      severity_score: severity,
+    };
+
+    trends.push(trend);
+    if (data.flag === "critical_high" || data.flag === "critical_low") {
+      criticalFlags.push(trend);
+    }
+  }
+
+  // Sort by severity (critical first)
+  trends.sort((a, b) => b.severity_score - a.severity_score);
+  criticalFlags.sort((a, b) => b.severity_score - a.severity_score);
+
+  return { patient, panels, trends, critical_flags: criticalFlags };
 }
 
 export const analyzeLabImage = onCall(
@@ -204,7 +436,7 @@ export const analyzeLabImage = onCall(
         }
       );
 
-      // Parse and post-process with flag recomputation
+      // Parse and post-process with flag recomputation + trends
       const extracted = parseExtractionResponse(rawContent);
 
       return {

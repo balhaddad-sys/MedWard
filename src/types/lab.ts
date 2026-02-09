@@ -60,6 +60,8 @@ export interface LabUploadResult {
 
 // --- AI Extraction Response Types (from Cloud Function) ---
 
+export type ExtractedTrendDirection = 'improving' | 'worsening' | 'stable' | 'fluctuating'
+
 export interface ExtractedPatientInfo {
   file_number: string
   civil_id: string
@@ -72,12 +74,14 @@ export interface ExtractedPatientInfo {
 export interface ExtractedLabResult {
   test_name: string
   test_code: string
+  analyte_key: string
   value: number | null
   value_raw: string
   unit: string
   ref_low: number | null
   ref_high: number | null
   flag: LabFlag
+  flag_extracted?: LabFlag
 }
 
 export interface ExtractedLabPanel {
@@ -87,9 +91,21 @@ export interface ExtractedLabPanel {
   results: ExtractedLabResult[]
 }
 
+export interface ExtractedTrend {
+  analyte_key: string
+  display_name: string
+  direction: ExtractedTrendDirection
+  pct_change: number
+  latest_value: number | null
+  latest_flag: LabFlag
+  severity_score: number
+}
+
 export interface ExtractionResponse {
   patient: ExtractedPatientInfo
   panels: ExtractedLabPanel[]
+  trends: ExtractedTrend[]
+  critical_flags: ExtractedTrend[]
 }
 
 export interface CriticalValue {
