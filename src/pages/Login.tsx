@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogIn, Shield, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -54,6 +54,15 @@ export function Login() {
   const navigate = useNavigate()
   const setFirebaseUser = useAuthStore((s) => s.setFirebaseUser)
   const setUser = useAuthStore((s) => s.setUser)
+  const authUser = useAuthStore((s) => s.user)
+  const authFirebaseUser = useAuthStore((s) => s.firebaseUser)
+
+  // Auto-redirect when already authenticated (handles race conditions & redirect flow)
+  useEffect(() => {
+    if (authUser && authFirebaseUser) {
+      navigate('/', { replace: true })
+    }
+  }, [authUser, authFirebaseUser, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
