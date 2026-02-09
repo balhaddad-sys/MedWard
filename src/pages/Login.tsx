@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LogIn, Shield, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { signIn, signInWithGoogle } from '@/services/firebase/auth'
+import { signIn, signInWithGoogle, getUserProfile } from '@/services/firebase/auth'
 import { useAuthStore } from '@/stores/authStore'
 import { APP_NAME } from '@/config/constants'
 
@@ -53,6 +53,7 @@ export function Login() {
   const [error, setError] = useState('')
   const navigate = useNavigate()
   const setFirebaseUser = useAuthStore((s) => s.setFirebaseUser)
+  const setUser = useAuthStore((s) => s.setUser)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -63,6 +64,8 @@ export function Login() {
     try {
       const user = await signIn(email, password)
       setFirebaseUser(user)
+      const profile = await getUserProfile(user.uid)
+      setUser(profile)
       navigate('/')
     } catch (err: unknown) {
       setError(err instanceof Error ? getFriendlyErrorMessage(err) : 'Failed to sign in. Please try again.')
@@ -77,6 +80,8 @@ export function Login() {
     try {
       const user = await signInWithGoogle()
       setFirebaseUser(user)
+      const profile = await getUserProfile(user.uid)
+      setUser(profile)
       navigate('/')
     } catch (err: unknown) {
       setError(err instanceof Error ? getFriendlyErrorMessage(err) : 'Failed to sign in with Google. Please try again.')
