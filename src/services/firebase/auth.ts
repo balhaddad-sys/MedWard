@@ -14,32 +14,40 @@ import type { User } from '@/types'
 
 const googleProvider = new GoogleAuthProvider()
 
-// Handle redirect result on page load (for mobile / popup-blocked scenarios)
-getRedirectResult(auth).then(async (result) => {
-  if (result) {
-    const user = result.user
-    const docSnap = await getDoc(doc(db, 'users', user.uid))
-    if (!docSnap.exists()) {
-      await setDoc(doc(db, 'users', user.uid), {
-        email: user.email,
-        displayName: user.displayName || user.email?.split('@')[0] || 'User',
-        role: 'physician',
-        department: '',
-        wardIds: [],
-        preferences: {
-          defaultWard: '',
-          defaultMode: 'clinical',
-          notificationSettings: { criticalLabs: true, taskReminders: true, handoverAlerts: true },
-          displaySettings: { compactView: false, showAISuggestions: true, labTrendDays: 7 },
-        },
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-      })
-    } else {
-      await setDoc(doc(db, 'users', user.uid), { lastLoginAt: serverTimestamp() }, { merge: true })
-    }
+/**
+ * Get an existing user profile or create a default one for new users.
+ * This is the single source of truth for profile creation to avoid race
+ * conditions between onAuthStateChanged and getRedirectResult.
+ */
+export const getOrCreateProfile = async (firebaseUser: FirebaseUser): Promise<User> => {
+  const ref = doc(db, 'users', firebaseUser.uid)
+  const docSnap = await getDoc(ref)
+  if (docSnap.exists()) {
+    await setDoc(ref, { lastLoginAt: serverTimestamp() }, { merge: true })
+    return { id: docSnap.id, ...docSnap.data() } as User
   }
-}).catch(() => { /* no pending redirect */ })
+  const newProfile = {
+    email: firebaseUser.email,
+    displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+    role: 'physician' as const,
+    department: '',
+    wardIds: [] as string[],
+    preferences: {
+      defaultWard: '',
+      defaultMode: 'clinical' as const,
+      notificationSettings: { criticalLabs: true, taskReminders: true, handoverAlerts: true },
+      displaySettings: { compactView: false, showAISuggestions: true, labTrendDays: 7 },
+    },
+    createdAt: serverTimestamp(),
+    lastLoginAt: serverTimestamp(),
+  }
+  await setDoc(ref, newProfile)
+  const created = await getDoc(ref)
+  return { id: created.id, ...created.data() } as User
+}
+
+// Handle redirect result on page load (for mobile / popup-blocked scenarios)
+getRedirectResult(auth).catch(() => { /* no pending redirect */ })
 
 export const signIn = async (email: string, password: string): Promise<FirebaseUser> => {
   const credential = await signInWithEmailAndPassword(auth, email, password)
@@ -58,35 +66,15 @@ export const signInWithGoogle = async (): Promise<FirebaseUser> => {
   } catch (err: unknown) {
     const code = (err as { code?: string }).code
     // Fall back to redirect for popup-blocked or cross-origin issues
-    if (code === 'auth/popup-blocked' || code === 'auth/popup-closed-by-user' || code === 'auth/unauthorized-domain') {
+    if (code === 'auth/popup-blocked' || code === 'auth/unauthorized-domain') {
       await signInWithRedirect(auth, googleProvider)
       // Page will reload — return never resolves
       return new Promise(() => {})
     }
     throw err
   }
-  const user = result.user
-  const docSnap = await getDoc(doc(db, 'users', user.uid))
-  if (!docSnap.exists()) {
-    await setDoc(doc(db, 'users', user.uid), {
-      email: user.email,
-      displayName: user.displayName || user.email?.split('@')[0] || 'User',
-      role: 'physician',
-      department: '',
-      wardIds: [],
-      preferences: {
-        defaultWard: '',
-        defaultMode: 'clinical',
-        notificationSettings: { criticalLabs: true, taskReminders: true, handoverAlerts: true },
-        displaySettings: { compactView: false, showAISuggestions: true, labTrendDays: 7 },
-      },
-      createdAt: serverTimestamp(),
-      lastLoginAt: serverTimestamp(),
-    })
-  } else {
-    await setDoc(doc(db, 'users', user.uid), { lastLoginAt: serverTimestamp() }, { merge: true })
-  }
-  return user
+  await getOrCreateProfile(result.user)
+  return result.user
 }
 
 export const signOut = async (): Promise<void> => {
