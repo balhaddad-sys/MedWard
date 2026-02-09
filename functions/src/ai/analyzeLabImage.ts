@@ -70,6 +70,15 @@ const CRITICAL_MULTIPLIERS: Record<string, number> = {
   hs_troponin_i: 0.0,
   hs_troponin_t: 0.0,
   inr: 0.50,
+  urate: 0.30,
+  osmolality: 0.05,        // tight range, small deviation matters
+  adjusted_calcium: 0.25,
+  albumin: 0.40,
+  total_protein: 0.40,
+  creatinine: 0.40,
+  bun: 0.50,
+  bicarbonate: 0.30,
+  chloride: 0.15,
 };
 const DEFAULT_CRITICAL_MULTIPLIER = 0.50;
 
@@ -77,19 +86,35 @@ const DEFAULT_CRITICAL_MULTIPLIER = 0.50;
 const ANALYTE_ALIASES: Record<string, string> = {
   // Electrolytes
   na: "sodium", "na+": "sodium", sod: "sodium", "sod.": "sodium", sodium: "sodium",
+  "na *": "sodium",
   k: "potassium", "k+": "potassium", pot: "potassium", potassium: "potassium",
-  cl: "chloride", "cl-": "chloride", chloride: "chloride",
+  "k *": "potassium",
+  cl: "chloride", "cl-": "chloride", chloride: "chloride", "cl *": "chloride",
   co2: "bicarbonate", hco3: "bicarbonate", "hco3-": "bicarbonate",
   tco2: "bicarbonate", bicarbonate: "bicarbonate", bicarb: "bicarbonate",
+  "co2 *": "bicarbonate",
   ca: "calcium", "ca++": "calcium", calcium: "calcium", "ca total": "calcium",
-  mg: "magnesium", "mg++": "magnesium", magnesium: "magnesium",
+  "ca *": "calcium",
+  mg: "magnesium", "mg++": "magnesium", magnesium: "magnesium", "mg *": "magnesium",
   phos: "phosphate", po4: "phosphate", phosphorus: "phosphate", phosphate: "phosphate",
+  "phos *": "phosphate",
+  // Calculated electrolyte/mineral values
+  "adjusted calcium": "adjusted_calcium", "adj ca": "adjusted_calcium",
+  "adj. calcium": "adjusted_calcium", "corrected calcium": "adjusted_calcium",
+  "adjusted ca": "adjusted_calcium", "adj calcium": "adjusted_calcium",
+  "cal. osmolality": "osmolality", "cal osmolality": "osmolality",
+  "calculated osmolality": "osmolality", osmolality: "osmolality",
+  "serum osmolality": "osmolality", "osm": "osmolality",
+  "cal. osmolality *": "osmolality",
+  "anion gap": "anion_gap", "anion gap *": "anion_gap", ag: "anion_gap",
   // Renal
-  bun: "bun", urea: "bun", "urea nitrogen": "bun",
+  bun: "bun", urea: "bun", "urea nitrogen": "bun", "urea *": "bun",
   cr: "creatinine", crea: "creatinine", creat: "creatinine", creatinine: "creatinine",
-  egfr: "egfr", gfr: "egfr",
+  "creat *": "creatinine",
+  egfr: "egfr", gfr: "egfr", "egfr *": "egfr",
   // Glucose
-  glu: "glucose", glucose: "glucose", gluc: "glucose", "blood sugar": "glucose", bs: "glucose",
+  glu: "glucose", glucose: "glucose", gluc: "glucose", "blood sugar": "glucose",
+  bs: "glucose", "gluc *": "glucose", fbg: "glucose", fbs: "glucose",
   // CBC
   wbc: "white_blood_cells", "white blood cells": "white_blood_cells",
   rbc: "red_blood_cells", "red blood cells": "red_blood_cells",
@@ -104,14 +129,20 @@ const ANALYTE_ALIASES: Record<string, string> = {
   eos: "eosinophils", eosinophils: "eosinophils",
   baso: "basophils", basophils: "basophils",
   // LFT
-  alt: "alt", sgpt: "alt", ast: "ast", sgot: "ast",
+  alt: "alt", sgpt: "alt", "alt *": "alt",
+  ast: "ast", sgot: "ast", "ast *": "ast",
   alp: "alp", "alkaline phosphatase": "alp", "alk phos": "alp",
-  ggt: "ggt", "gamma gt": "ggt",
+  "alk. phos": "alp", "alk. phos *": "alp",
+  ggt: "ggt", "gamma gt": "ggt", "ggt *": "ggt",
   tbil: "total_bilirubin", "total bilirubin": "total_bilirubin",
   "t. bilirubin": "total_bilirubin", "bilirubin total": "total_bilirubin",
+  "t. bil": "total_bilirubin", "t. bil *": "total_bilirubin",
+  "t bil": "total_bilirubin", "tbili": "total_bilirubin",
   dbil: "direct_bilirubin", "direct bilirubin": "direct_bilirubin",
-  albumin: "albumin", alb: "albumin",
+  albumin: "albumin", alb: "albumin", "albumin *": "albumin",
   "total protein": "total_protein", tp: "total_protein",
+  "t. protein": "total_protein", "t. protein *": "total_protein",
+  "t protein": "total_protein",
   // Coag
   pt: "pt", "prothrombin time": "pt",
   inr: "inr", aptt: "aptt", ptt: "aptt",
@@ -122,7 +153,8 @@ const ANALYTE_ALIASES: Record<string, string> = {
   ck: "ck", cpk: "ck", "ck-mb": "ck_mb", ldh: "ldh",
   // Thyroid
   tsh: "tsh", ft4: "free_t4", "free t4": "free_t4",
-  ft3: "free_t3", "free t3": "free_t3",
+  freet4: "free_t4", "free t4 *": "free_t4",
+  ft3: "free_t3", "free t3": "free_t3", freet3: "free_t3",
   // Iron
   iron: "iron", fe: "iron", ferritin: "ferritin", tibc: "tibc",
   // Inflammatory
@@ -133,8 +165,21 @@ const ANALYTE_ALIASES: Record<string, string> = {
   hba1c: "hba1c", a1c: "hba1c",
   // Lipid
   "total cholesterol": "total_cholesterol", chol: "total_cholesterol",
-  ldl: "ldl", "ldl-c": "ldl", hdl: "hdl", "hdl-c": "hdl",
+  "t chol": "total_cholesterol", "t chol *": "total_cholesterol",
+  "t. chol": "total_cholesterol", "t. chol *": "total_cholesterol",
+  "total chol": "total_cholesterol",
+  ldl: "ldl", "ldl-c": "ldl", "ldl.chol": "ldl", "ldl.chol *": "ldl",
+  "ldl chol": "ldl", "ldl cholesterol": "ldl",
+  hdl: "hdl", "hdl-c": "hdl", "hdl.chol": "hdl", "hdl.chol *": "hdl",
+  "hdl chol": "hdl", "hdl cholesterol": "hdl",
   triglycerides: "triglycerides", trig: "triglycerides", tg: "triglycerides",
+  "tg *": "triglycerides",
+  "non hdl": "non_hdl_cholesterol", "non hdl.chol": "non_hdl_cholesterol",
+  "non hdl chol": "non_hdl_cholesterol", "non hdl.chol *": "non_hdl_cholesterol",
+  "non-hdl": "non_hdl_cholesterol", "non-hdl cholesterol": "non_hdl_cholesterol",
+  // Uric acid / Urate
+  urate: "urate", "uric acid": "urate", "urate *": "urate",
+  ua: "urate",
   // ABG
   ph: "ph", pco2: "pco2", po2: "po2", pao2: "po2",
   sao2: "sao2", lactate: "lactate",
@@ -144,10 +189,26 @@ const ANALYTE_ALIASES: Record<string, string> = {
  * Normalise an analyte name to a canonical snake_case key.
  */
 function normalizeAnalyteKey(rawName: string): string {
-  const cleaned = rawName.replace(/[^\w\s.+\-]/g, "").toLowerCase().trim();
+  // Remove asterisks used as markers, trim whitespace
+  let cleaned = rawName.replace(/[^\w\s.+\-]/g, "").toLowerCase().trim();
   if (ANALYTE_ALIASES[cleaned]) return ANALYTE_ALIASES[cleaned];
-  const stripped = cleaned.replace(/[.\s]+$/, "");
+
+  // Try with trailing dots/spaces stripped (e.g. "creat *" -> "creat")
+  const stripped = cleaned.replace(/[.\s*]+$/, "").trim();
   if (ANALYTE_ALIASES[stripped]) return ANALYTE_ALIASES[stripped];
+
+  // Try removing all dots (e.g. "t. bil" -> "t bil", "alk. phos" -> "alk phos")
+  const noDots = cleaned.replace(/\./g, "").replace(/\s+/g, " ").trim();
+  if (ANALYTE_ALIASES[noDots]) return ANALYTE_ALIASES[noDots];
+
+  // Try removing asterisks and trailing markers (e.g. "gluc *" -> "gluc")
+  const noMarkers = cleaned.replace(/\s*\*\s*/g, "").trim();
+  if (ANALYTE_ALIASES[noMarkers]) return ANALYTE_ALIASES[noMarkers];
+
+  // Try dots removed + markers removed
+  const noDotsNoMarkers = noDots.replace(/\s*\*\s*/g, "").trim();
+  if (ANALYTE_ALIASES[noDotsNoMarkers]) return ANALYTE_ALIASES[noDotsNoMarkers];
+
   return cleaned.replace(/\s+/g, "_");
 }
 
@@ -398,7 +459,7 @@ export const analyzeLabImage = onCall(
 
       const response = await client.messages.create({
         model: "claude-haiku-4.5-20251001",
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: LAB_IMAGE_EXTRACTION_PROMPT,
         messages: [
           {
