@@ -1,3 +1,8 @@
+import { createTask } from '@/services/firebase/tasks'
+import { createPatient, updatePatient } from '@/services/firebase/patients'
+import { addLabPanel } from '@/services/firebase/labs'
+import type { PatientFormData, TaskFormData, LabPanel } from '@/types'
+
 interface QueuedAction {
   id: string
   action: string
@@ -21,7 +26,6 @@ class OfflineQueueService {
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!('indexedDB' in window)) {
-        console.warn('[OFFLINE] IndexedDB not available')
         resolve()
         return
       }
@@ -44,7 +48,6 @@ class OfflineQueueService {
       }
 
       request.onerror = () => {
-        console.error('[OFFLINE] Failed to open IndexedDB')
         reject(request.error)
       }
     })
@@ -121,22 +124,47 @@ class OfflineQueueService {
   }
 
   private async executeAction(item: QueuedAction): Promise<void> {
-    // Exponential backoff delay
+    // Exponential backoff delay on retries
     if (item.retryCount > 0) {
       const delay = Math.min(1000 * Math.pow(2, item.retryCount), 30000)
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
 
-    // TODO: Route to appropriate Firestore write based on action type
-    // For now, log and succeed
-    console.log(`[OFFLINE] Executing queued action: ${item.action}`, item.payload)
+    const { action, payload } = item
 
-    // Example routing:
-    // switch (item.action) {
-    //   case 'CREATE_TASK': await createTask(item.payload); break;
-    //   case 'UPDATE_PATIENT': await updatePatient(item.payload.id, item.payload); break;
-    //   case 'ADD_LAB': await addLabPanel(item.payload.patientId, item.payload); break;
-    // }
+    switch (action) {
+      case 'CREATE_PATIENT':
+        await createPatient(
+          payload.data as PatientFormData,
+          payload.userId as string
+        )
+        break
+
+      case 'UPDATE_PATIENT':
+        await updatePatient(
+          payload.id as string,
+          payload.data as Partial<PatientFormData>
+        )
+        break
+
+      case 'CREATE_TASK':
+        await createTask(
+          payload.data as TaskFormData,
+          payload.userId as string,
+          payload.userName as string
+        )
+        break
+
+      case 'ADD_LAB':
+        await addLabPanel(
+          payload.patientId as string,
+          payload.panel as Omit<LabPanel, 'id' | 'createdAt'>
+        )
+        break
+
+      default:
+        throw new Error(`Unknown offline action: ${action}`)
+    }
   }
 
   async getStatus(): Promise<OfflineStatus> {
