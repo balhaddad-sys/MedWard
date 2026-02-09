@@ -31,7 +31,8 @@ export interface LabPanel {
   reviewedBy?: string
   reviewedAt?: Timestamp
   aiAnalysis?: LabAIAnalysis
-  source: 'manual' | 'ocr' | 'hl7'
+  source: 'manual' | 'ocr' | 'hl7' | 'image'
+  imageUrl?: string
   createdAt: Timestamp
 }
 
