@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LogIn, Shield, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { signIn, signInWithGoogle, getUserProfile } from '@/services/firebase/auth'
+import { signIn, signInWithGoogle, getOrCreateProfile, getUserProfile } from '@/services/firebase/auth'
 import { useAuthStore } from '@/stores/authStore'
 import { APP_NAME } from '@/config/constants'
 
@@ -89,7 +89,7 @@ export function Login() {
     try {
       const user = await signInWithGoogle()
       setFirebaseUser(user)
-      const profile = await getUserProfile(user.uid)
+      const profile = await getOrCreateProfile(user)
       setUser(profile)
       navigate('/')
     } catch (err: unknown) {

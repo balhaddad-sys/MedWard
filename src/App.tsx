@@ -21,7 +21,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { firebaseConfigMissing } from '@/config/firebase'
-import { onAuthChange, getUserProfile } from '@/services/firebase/auth'
+import { onAuthChange, getOrCreateProfile } from '@/services/firebase/auth'
 import { subscribeToAllPatients } from '@/services/firebase/patients'
 import { subscribeToTasks } from '@/services/firebase/tasks'
 
@@ -118,7 +118,7 @@ export default function App() {
       setFirebaseUser(firebaseUser)
       if (firebaseUser) {
         try {
-          const profile = await getUserProfile(firebaseUser.uid)
+          const profile = await getOrCreateProfile(firebaseUser)
           setUser(profile)
         } catch {
           setUser(null)
