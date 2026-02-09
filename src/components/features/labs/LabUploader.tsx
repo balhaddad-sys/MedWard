@@ -111,8 +111,8 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
     try {
       const [compressed] = await Promise.all([
         imageCompression(file, {
-          maxSizeMB: 0.2,
-          maxWidthOrHeight: 1200,
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 2048,
           useWebWorker: true,
           fileType: 'image/jpeg',
         }),
@@ -219,7 +219,7 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
                 <div className="animate-spin h-5 w-5 border-2 border-primary-600 border-t-transparent rounded-full" />
                 <p className="text-sm font-medium text-primary-600">{statusLabel}</p>
               </div>
-              <p className="text-xs text-ward-muted">Image compressed to ~200KB for fast processing</p>
+              <p className="text-xs text-ward-muted">Image optimised for accurate extraction</p>
             </div>
           ) : (
             <>

@@ -34,8 +34,20 @@ export const LAB_REFERENCES: Record<string, LabReference> = {
   PTT: { name: 'PTT', unit: 'sec', referenceMin: 25, referenceMax: 35, criticalMax: 100, category: 'COAG' },
   TROP: { name: 'Troponin I', unit: 'ng/mL', referenceMin: 0, referenceMax: 0.04, criticalMax: 0.4, category: 'CARDIAC' },
   BNP: { name: 'BNP', unit: 'pg/mL', referenceMin: 0, referenceMax: 100, category: 'CARDIAC' },
-  TSH: { name: 'TSH', unit: 'mIU/L', referenceMin: 0.4, referenceMax: 4.0, category: 'THYROID' },
+  TSH: { name: 'TSH', unit: 'mIU/L', referenceMin: 0.27, referenceMax: 5.33, category: 'THYROID' },
+  FT4: { name: 'Free T4', unit: 'pmol/L', referenceMin: 7.8, referenceMax: 16, category: 'THYROID' },
   LACT: { name: 'Lactate', unit: 'mmol/L', referenceMin: 0.5, referenceMax: 2.2, criticalMax: 4.0, category: 'MISC' },
+  MG: { name: 'Magnesium', unit: 'mmol/L', referenceMin: 0.73, referenceMax: 1.06, criticalMin: 0.4, criticalMax: 1.5, category: 'BMP' },
+  PO4: { name: 'Phosphate', unit: 'mmol/L', referenceMin: 0.81, referenceMax: 1.45, category: 'BMP' },
+  URATE: { name: 'Urate', unit: 'umol/L', referenceMin: 208, referenceMax: 428, category: 'MISC' },
+  OSM: { name: 'Osmolality', unit: 'mmol/kg', referenceMin: 275, referenceMax: 300, criticalMin: 260, criticalMax: 320, category: 'BMP' },
+  ADJCA: { name: 'Adjusted Calcium', unit: 'mmol/L', referenceMin: 2.2, referenceMax: 2.6, criticalMin: 1.8, criticalMax: 3.0, category: 'CMP' },
+  AG: { name: 'Anion Gap', unit: 'mmol/L', referenceMin: 8, referenceMax: 16, category: 'BMP' },
+  GGT: { name: 'GGT', unit: 'IU/L', referenceMin: 3, referenceMax: 50, category: 'LFT' },
+  CHOL: { name: 'Total Cholesterol', unit: 'mmol/L', referenceMin: 0, referenceMax: 5.2, category: 'MISC' },
+  LDL: { name: 'LDL Cholesterol', unit: 'mmol/L', referenceMin: 0, referenceMax: 3.4, category: 'MISC' },
+  HDL: { name: 'HDL Cholesterol', unit: 'mmol/L', referenceMin: 1.03, referenceMax: 1.55, category: 'MISC' },
+  TG: { name: 'Triglycerides', unit: 'mmol/L', referenceMin: 0, referenceMax: 1.7, category: 'MISC' },
 }
 
 export const flagLabValue = (value: number, ref: LabReference): LabFlag => {
