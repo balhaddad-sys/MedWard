@@ -25,11 +25,13 @@ RULES:
    date column. Each panel.collected_at = that column's date+time in ISO format.
 3. Map the printed test code (e.g. "Gluc") AND a standardised full name \
    (e.g. "Glucose (Fasting)").
-4. Parse the numeric value. If marked "H" -> flag="high", "L" -> flag="low", \
+4. For analyte_key, use lowercase snake_case normalised names \
+   (e.g. "sodium", "potassium", "white_blood_cells", "hemoglobin", "creatinine").
+5. Parse the numeric value. If marked "H" -> flag="high", "L" -> flag="low", \
    "HH" -> flag="critical_high", "LL" -> flag="critical_low", else "normal".
-5. Parse reference ranges into ref_low / ref_high floats.
-6. Extract patient demographics from the header if visible.
-7. Return ONLY valid JSON matching the schema below – no markdown, no commentary.
+6. Parse reference ranges into ref_low / ref_high floats.
+7. Extract patient demographics from the header if visible.
+8. Return ONLY valid JSON matching the schema below – no markdown, no commentary.
 
 OUTPUT SCHEMA:
 {
@@ -46,6 +48,7 @@ OUTPUT SCHEMA:
         {
           "test_name": "Full Name",
           "test_code": "Printed Code",
+          "analyte_key": "normalised_snake_case",
           "value": 5.0,
           "value_raw": "5.0",
           "unit": "mmol/L",

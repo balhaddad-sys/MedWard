@@ -1,5 +1,5 @@
 export type { Patient, PatientFormData, PatientSummary } from './patient'
-export type { LabPanel, LabValue, LabFlag, LabCategory, LabAIAnalysis, LabTrend, LabUploadResult, CriticalValue, ExtractedPatientInfo, ExtractedLabResult, ExtractedLabPanel, ExtractionResponse } from './lab'
+export type { LabPanel, LabValue, LabFlag, LabCategory, LabAIAnalysis, LabTrend, LabUploadResult, CriticalValue, ExtractedPatientInfo, ExtractedLabResult, ExtractedLabPanel, ExtractionResponse, ExtractedTrend, ExtractedTrendDirection } from './lab'
 export type { Task, TaskFormData, TaskPriority, TaskStatus, TaskCategory } from './task'
 export type { User, UserRole, UserPreferences, AuthState } from './user'
 

@@ -2,8 +2,11 @@ import { httpsCallable } from 'firebase/functions'
 import { functions } from '@/config/firebase'
 import type { AnalyzedLab, RawLabImage, LabTest } from '../models/Lab'
 
+import type { ExtractionResponse } from '@/types/lab'
+
 interface LabImageResponse {
   content: string
+  structured?: ExtractionResponse
   usage: { inputTokens: number; outputTokens: number }
 }
 
@@ -36,7 +39,7 @@ export class LabAnalysisService {
     }
   }
 
-  private async runOCR(base64Image: string): Promise<{ text: string }> {
+  private async runOCR(base64Image: string): Promise<{ text: string; structured?: ExtractionResponse }> {
     const imageData = base64Image.includes(',')
       ? base64Image.split(',')[1]
       : base64Image
@@ -51,7 +54,10 @@ export class LabAnalysisService {
       mediaType: 'image/jpeg',
     })
 
-    return { text: result.data.content }
+    return {
+      text: result.data.content,
+      structured: result.data.structured,
+    }
   }
 
   parseTests(ocrText: string): LabTest[] {

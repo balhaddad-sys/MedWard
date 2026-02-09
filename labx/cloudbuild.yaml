@@ -1,0 +1,56 @@
+# Google Cloud Build config for deploying labx to Cloud Run
+# Usage: gcloud builds submit --config cloudbuild.yaml .
+# Or trigger from GitHub push to labx/ directory
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/labx:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/labx:latest'
+      - '-f'
+      - 'docker/Dockerfile'
+      - '.'
+
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/labx:$COMMIT_SHA']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/labx:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'labx'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/labx:$COMMIT_SHA'
+      - '--region'
+      - 'europe-west1'
+      - '--platform'
+      - 'managed'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '2'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+      - '--timeout'
+      - '120'
+      - '--set-env-vars'
+      - 'ANTHROPIC_API_KEY=$$ANTHROPIC_API_KEY'
+      - '--allow-unauthenticated'
+
+images:
+  - 'gcr.io/$PROJECT_ID/labx:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/labx:latest'
+
+timeout: '600s'
