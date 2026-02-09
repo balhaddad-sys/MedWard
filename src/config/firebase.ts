@@ -39,10 +39,6 @@ if (!firebaseConfigMissing) {
       // Emulators already connected
     }
   }
-} else {
-  console.error(
-    'Firebase configuration is missing. Create a .env file with VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID, and other required variables. See .env.example for reference.'
-  )
 }
 
 export { app, auth, db, storage, functions }

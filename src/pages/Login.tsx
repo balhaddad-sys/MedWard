@@ -177,9 +177,14 @@ export function Login() {
           </Button>
         </form>
 
-        <p className="text-xs text-center text-ward-muted mt-6">
-          Protected health information. Authorized users only.
-        </p>
+        <div className="text-xs text-center text-ward-muted mt-6 space-y-1">
+          <p>Protected health information. Authorized users only.</p>
+          <p>
+            <button onClick={() => navigate('/privacy')} className="underline hover:text-ward-text transition-colors">Privacy Policy</button>
+            {' · '}
+            <button onClick={() => navigate('/terms')} className="underline hover:text-ward-text transition-colors">Terms of Service</button>
+          </p>
+        </div>
       </Card>
     </div>
   )

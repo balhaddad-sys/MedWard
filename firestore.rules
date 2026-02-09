@@ -14,49 +14,98 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
     }
 
+    function isAdminOrClinician() {
+      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return userRole == 'admin' || userRole == 'clinician';
+    }
+
+    // Validate string field length
+    function isValidString(field, maxLen) {
+      return field is string && field.size() <= maxLen;
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+      allow create: if isOwner(userId)
+                    && request.resource.data.keys().hasAll(['email', 'displayName', 'role'])
+                    && isValidString(request.resource.data.email, 254)
+                    && isValidString(request.resource.data.displayName, 100)
+                    && request.resource.data.role in ['admin', 'clinician', 'nurse'];
+      allow update: if isOwner(userId)
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
     }
 
     // Patients collection
     match /patients/{patientId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && request.resource.data.keys().hasAll(['name', 'acuity'])
+                    && isValidString(request.resource.data.name, 200)
+                    && request.resource.data.acuity is int
+                    && request.resource.data.acuity >= 1
+                    && request.resource.data.acuity <= 5;
+      allow update: if isAuthenticated()
+                    && request.resource.data.name is string
+                    && request.resource.data.acuity is int
+                    && request.resource.data.acuity >= 1
+                    && request.resource.data.acuity <= 5;
+      allow delete: if isAdminOrClinician();
 
       // Labs subcollection
       match /labs/{labId} {
         allow read: if isAuthenticated();
-        allow write: if isAuthenticated();
+        allow create: if isAuthenticated()
+                      && request.resource.data.keys().hasAll(['testName', 'value'])
+                      && isValidString(request.resource.data.testName, 200);
+        allow update: if isAuthenticated();
+        allow delete: if isAdminOrClinician();
       }
 
       // Notes subcollection
       match /notes/{noteId} {
         allow read: if isAuthenticated();
-        allow write: if isAuthenticated();
+        allow create: if isAuthenticated()
+                      && request.resource.data.keys().hasAll(['content'])
+                      && isValidString(request.resource.data.content, 10000);
+        allow update: if isAuthenticated()
+                      && request.resource.data.content is string
+                      && request.resource.data.content.size() <= 10000;
+        allow delete: if isAdminOrClinician();
       }
     }
 
     // Tasks collection
     match /tasks/{taskId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && request.resource.data.keys().hasAll(['title', 'priority', 'status'])
+                    && isValidString(request.resource.data.title, 500)
+                    && request.resource.data.priority in ['critical', 'high', 'medium', 'low']
+                    && request.resource.data.status in ['pending', 'in_progress', 'completed', 'cancelled'];
+      allow update: if isAuthenticated()
+                    && request.resource.data.status in ['pending', 'in_progress', 'completed', 'cancelled'];
+      allow delete: if isAdminOrClinician();
     }
 
-    // Audit log - append only
+    // Audit log - append only (immutable records)
     match /auditLog/{logId} {
       allow read: if hasRole('admin');
-      allow create: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && request.resource.data.keys().hasAll(['action', 'userId', 'timestamp'])
+                    && isValidString(request.resource.data.action, 200);
       allow update, delete: if false;
     }
 
-    // Settings
+    // Settings - admin-managed
     match /settings/{settingId} {
       allow read: if isAuthenticated();
       allow write: if hasRole('admin');
+    }
+
+    // Deny access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
