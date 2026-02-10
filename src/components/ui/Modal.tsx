@@ -40,6 +40,9 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
   return (
     <div
       ref={overlayRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-fade-in"
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose()
@@ -56,9 +59,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', className
         )}
       >
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-ward-border flex-shrink-0">
-          <h2 className="text-base sm:text-lg font-semibold text-ward-text">{title}</h2>
+          <h2 id="modal-title" className="text-base sm:text-lg font-semibold text-ward-text">{title}</h2>
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-2 -mr-1 rounded-lg text-ward-muted hover:bg-ward-border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           >
             <X className="h-5 w-5" />

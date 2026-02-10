@@ -35,7 +35,7 @@ export function BottomNav() {
           >
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-semibold text-ward-text">More</span>
-              <button onClick={() => setShowMore(false)} className="p-1 rounded-lg hover:bg-gray-100">
+              <button onClick={() => setShowMore(false)} aria-label="Close menu" className="p-1 rounded-lg hover:bg-gray-100">
                 <X className="h-4 w-4 text-ward-muted" />
               </button>
             </div>
@@ -65,7 +65,7 @@ export function BottomNav() {
       )}
 
       {/* Bottom nav bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-ward-border safe-bottom">
+      <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-ward-border safe-bottom">
         <div className="flex items-center justify-around py-1">
           {primaryNav.map((item) => {
             const isActive = location.pathname === item.path

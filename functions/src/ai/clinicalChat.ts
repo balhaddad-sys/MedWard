@@ -18,6 +18,10 @@ export const clinicalChat = onCall(
       throw new HttpsError("invalid-argument", "Message is required");
     }
 
+    if (message.length > 10000) {
+      throw new HttpsError("invalid-argument", "Message exceeds maximum length of 10,000 characters");
+    }
+
     const allowed = await checkRateLimit(request.auth.uid, "clinical-chat");
     if (!allowed) {
       throw new HttpsError("resource-exhausted", "Rate limit exceeded. Please try again later.");
@@ -87,18 +91,25 @@ export const clinicalChat = onCall(
         }
       }
 
-      // Build messages array for multi-turn conversation
+      // Build messages array for multi-turn conversation (bounded to prevent abuse)
+      const MAX_HISTORY_MESSAGES = 20;
+      const MAX_TOTAL_CHARS = 50000;
       const messages: Array<{ role: "user" | "assistant"; content: string }> = [];
 
       if (Array.isArray(conversationHistory)) {
-        for (const msg of conversationHistory) {
+        const recent = conversationHistory.slice(-MAX_HISTORY_MESSAGES);
+        let totalChars = 0;
+        for (const msg of recent) {
           if (
             msg &&
             typeof msg.role === "string" &&
             typeof msg.content === "string" &&
             (msg.role === "user" || msg.role === "assistant")
           ) {
-            messages.push({ role: msg.role, content: msg.content });
+            const content = msg.content.slice(0, 5000);
+            totalChars += content.length;
+            if (totalChars > MAX_TOTAL_CHARS) break;
+            messages.push({ role: msg.role, content });
           }
         }
       }
