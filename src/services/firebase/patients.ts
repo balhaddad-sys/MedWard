@@ -16,7 +16,7 @@ import {
 import { db } from '@/config/firebase'
 import type { Patient, PatientFormData } from '@/types'
 
-const patientsRef = collection(db, 'patients')
+const getPatientsRef = () => collection(db, 'patients')
 
 const safePatient = (id: string, data: Record<string, unknown>): Patient => ({
   mrn: '',
@@ -40,14 +40,14 @@ const safePatient = (id: string, data: Record<string, unknown>): Patient => ({
 
 export const getPatients = async (wardId?: string): Promise<Patient[]> => {
   const q = wardId
-    ? query(patientsRef, where('wardId', '==', wardId))
-    : patientsRef
+    ? query(getPatientsRef(), where('wardId', '==', wardId))
+    : getPatientsRef()
   const snapshot = await getDocs(q)
   return snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
 }
 
 export const getAllPatients = async (): Promise<Patient[]> => {
-  const snapshot = await getDocs(patientsRef)
+  const snapshot = await getDocs(getPatientsRef())
   return snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
 }
 
@@ -58,7 +58,7 @@ export const getPatient = async (id: string): Promise<Patient | null> => {
 }
 
 export const createPatient = async (data: PatientFormData, userId: string): Promise<string> => {
-  const docRef = await addDoc(patientsRef, {
+  const docRef = await addDoc(getPatientsRef(), {
     ...data,
     createdBy: userId,
     createdAt: serverTimestamp(),
@@ -82,7 +82,7 @@ export const subscribeToPatients = (
   wardId: string,
   callback: (patients: Patient[]) => void
 ): Unsubscribe => {
-  const q = query(patientsRef, where('wardId', '==', wardId), orderBy('bedNumber'))
+  const q = query(getPatientsRef(), where('wardId', '==', wardId), orderBy('bedNumber'))
   return onSnapshot(q, (snapshot) => {
     const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
@@ -95,7 +95,7 @@ export const subscribeToPatients = (
 export const subscribeToAllPatients = (
   callback: (patients: Patient[]) => void
 ): Unsubscribe => {
-  return onSnapshot(patientsRef, (snapshot) => {
+  return onSnapshot(getPatientsRef(), (snapshot) => {
     const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
   }, (error) => {
