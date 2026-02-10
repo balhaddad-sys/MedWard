@@ -14,7 +14,7 @@ export const getAnthropicClient = (): Anthropic => {
   return clientInstance;
 };
 
-export const ANTHROPIC_MODEL = "claude-haiku-4.5-20251001";
+export const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 export interface AIResponse {
   content: string;

@@ -54,13 +54,21 @@ export const getOrCreateProfile = async (firebaseUser: FirebaseUser): Promise<Us
   return Promise.race([profilePromise, timeout])
 }
 
-// Handle redirect result on page load (for mobile / popup-blocked scenarios)
-if (auth) {
-  getRedirectResult(auth).then(async (result) => {
+/**
+ * Handle redirect result on page load (for mobile / popup-blocked scenarios).
+ * Must be called after Firebase is initialized — on the hosting auto-config
+ * path, `auth` is not available at module load time.
+ */
+export const handleRedirectResult = async (): Promise<void> => {
+  if (!auth) return
+  try {
+    const result = await getRedirectResult(auth)
     if (result?.user) {
       await getOrCreateProfile(result.user)
     }
-  }).catch(() => { /* no pending redirect */ })
+  } catch {
+    // no pending redirect
+  }
 }
 
 export const signIn = async (email: string, password: string): Promise<FirebaseUser> => {
