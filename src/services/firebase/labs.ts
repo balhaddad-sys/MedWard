@@ -77,6 +77,9 @@ export const subscribeToLabs = (
   return onSnapshot(q, (snapshot) => {
     const labs = snapshot.docs.map((doc) => safeLabPanel(doc.id, doc.data()))
     callback(labs)
+  }, (error) => {
+    console.error('Lab subscription error:', error)
+    callback([])
   })
 }
 
