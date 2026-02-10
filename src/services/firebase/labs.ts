@@ -85,9 +85,11 @@ export const subscribeToLabs = (
 
 export const uploadLabImage = async (
   userId: string,
-  file: File
+  file: Blob,
+  originalName?: string
 ): Promise<string> => {
-  const storageRef = ref(storage, `lab-images/${userId}/${Date.now()}-${file.name}`)
+  const name = originalName ?? (file instanceof File ? file.name : 'lab.jpg')
+  const storageRef = ref(storage, `lab-images/${userId}/${Date.now()}-${name}`)
   await uploadBytes(storageRef, file)
   return getDownloadURL(storageRef)
 }
