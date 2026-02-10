@@ -15,7 +15,7 @@ import {
 import { db } from '@/config/firebase'
 import type { Task, TaskFormData } from '@/types'
 
-const tasksRef = collection(db, 'tasks')
+const getTasksRef = () => collection(db, 'tasks')
 
 const safeTask = (id: string, data: Record<string, unknown>): Task => ({
   status: 'pending',
@@ -36,20 +36,20 @@ const safeTask = (id: string, data: Record<string, unknown>): Task => ({
 
 export const getTasks = async (wardId?: string): Promise<Task[]> => {
   const q = wardId
-    ? query(tasksRef, where('wardId', '==', wardId))
-    : tasksRef
+    ? query(getTasksRef(), where('wardId', '==', wardId))
+    : getTasksRef()
   const snapshot = await getDocs(q)
   return snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
 }
 
 export const getTasksByPatient = async (patientId: string): Promise<Task[]> => {
-  const q = query(tasksRef, where('patientId', '==', patientId), orderBy('dueAt'))
+  const q = query(getTasksRef(), where('patientId', '==', patientId), orderBy('dueAt'))
   const snapshot = await getDocs(q)
   return snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
 }
 
 export const createTask = async (data: TaskFormData, userId: string, userName: string): Promise<string> => {
-  const docRef = await addDoc(tasksRef, {
+  const docRef = await addDoc(getTasksRef(), {
     ...data,
     status: 'pending',
     createdBy: userId,
@@ -81,7 +81,7 @@ export const deleteTask = async (id: string): Promise<void> => {
 }
 
 export const subscribeToTasks = (callback: (tasks: Task[]) => void): Unsubscribe => {
-  return onSnapshot(tasksRef, (snapshot) => {
+  return onSnapshot(getTasksRef(), (snapshot) => {
     const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
     callback(tasks)
   }, (error) => {
