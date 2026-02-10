@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LogIn, Shield, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { signIn, signInWithGoogle, getOrCreateProfile } from '@/services/firebase/auth'
+import { signIn, signInWithGoogle } from '@/services/firebase/auth'
 import { useAuthStore } from '@/stores/authStore'
 import { APP_NAME } from '@/config/constants'
 
@@ -52,8 +52,6 @@ export function Login() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
-  const setFirebaseUser = useAuthStore((s) => s.setFirebaseUser)
-  const setUser = useAuthStore((s) => s.setUser)
   const authUser = useAuthStore((s) => s.user)
   const authFirebaseUser = useAuthStore((s) => s.firebaseUser)
 
@@ -71,14 +69,11 @@ export function Login() {
     if (!password) { setError('Please enter your password.'); return }
     setLoading(true)
     try {
-      const user = await signIn(email, password)
-      setFirebaseUser(user)
-      const profile = await getOrCreateProfile(user)
-      setUser(profile)
-      navigate('/')
+      await signIn(email, password)
+      // onAuthStateChanged in App.tsx will update the store,
+      // and the useEffect auto-redirect above will navigate to /
     } catch (err: unknown) {
       setError(err instanceof Error ? getFriendlyErrorMessage(err) : 'Failed to sign in. Please try again.')
-    } finally {
       setLoading(false)
     }
   }
@@ -87,14 +82,11 @@ export function Login() {
     setError('')
     setGoogleLoading(true)
     try {
-      const user = await signInWithGoogle()
-      setFirebaseUser(user)
-      const profile = await getOrCreateProfile(user)
-      setUser(profile)
-      navigate('/')
+      await signInWithGoogle()
+      // onAuthStateChanged in App.tsx will update the store,
+      // and the useEffect auto-redirect above will navigate to /
     } catch (err: unknown) {
       setError(err instanceof Error ? getFriendlyErrorMessage(err) : 'Failed to sign in with Google. Please try again.')
-    } finally {
       setGoogleLoading(false)
     }
   }
