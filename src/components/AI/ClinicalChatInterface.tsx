@@ -17,6 +17,7 @@ import { clinicalAIService } from '@/services/ClinicalAIService'
 import type { ChatMessage } from '@/services/ClinicalAIService'
 import { DrugInformationCard } from './DrugInformationCard'
 import { triggerHaptic, hapticPatterns } from '@/utils/haptics'
+import { Markdown } from '@/components/ui/Markdown'
 import type { PatientContext } from '@/services/ClinicalAIService'
 
 interface ClinicalChatInterfaceProps {
@@ -229,18 +230,16 @@ export function ClinicalChatInterface({ patientContext, patientName }: ClinicalC
                     </div>
                   )}
                   {!msg.drugInfo && (
-                    <p
-                      className={clsx(
-                        'text-sm whitespace-pre-wrap',
-                        msg.role === 'user'
-                          ? 'text-white'
-                          : msg.isError
-                            ? 'text-red-700'
-                            : 'text-ward-text'
-                      )}
-                    >
-                      {msg.content}
-                    </p>
+                    msg.role === 'user' ? (
+                      <p className="text-sm whitespace-pre-wrap text-white">
+                        {msg.content}
+                      </p>
+                    ) : (
+                      <Markdown
+                        content={msg.content}
+                        className={msg.isError ? 'text-red-700' : 'text-ward-text'}
+                      />
+                    )
                   )}
                   <p
                     className={clsx(
