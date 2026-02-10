@@ -58,7 +58,9 @@ service cloud.firestore {
         allow create: if isAuthenticated()
                       && request.resource.data.keys().hasAll(['testName', 'value'])
                       && isValidString(request.resource.data.testName, 200);
-        allow update: if isAuthenticated();
+        allow update: if isAuthenticated()
+                      && request.resource.data.testName is string
+                      && request.resource.data.testName.size() <= 200;
         allow delete: if isAdminOrClinician();
       }
 
@@ -84,6 +86,9 @@ service cloud.firestore {
                     && request.resource.data.priority in ['critical', 'high', 'medium', 'low']
                     && request.resource.data.status in ['pending', 'in_progress', 'completed', 'cancelled'];
       allow update: if isAuthenticated()
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() <= 500
+                    && request.resource.data.priority in ['critical', 'high', 'medium', 'low']
                     && request.resource.data.status in ['pending', 'in_progress', 'completed', 'cancelled'];
       allow delete: if isAdminOrClinician();
     }
@@ -93,7 +98,8 @@ service cloud.firestore {
       allow read: if hasRole('admin');
       allow create: if isAuthenticated()
                     && request.resource.data.keys().hasAll(['action', 'userId', 'timestamp'])
-                    && isValidString(request.resource.data.action, 200);
+                    && isValidString(request.resource.data.action, 200)
+                    && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
 

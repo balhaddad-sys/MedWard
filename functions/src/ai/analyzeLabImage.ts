@@ -190,7 +190,7 @@ const ANALYTE_ALIASES: Record<string, string> = {
  */
 function normalizeAnalyteKey(rawName: string): string {
   // Remove asterisks used as markers, trim whitespace
-  let cleaned = rawName.replace(/[^\w\s.+\-]/g, "").toLowerCase().trim();
+  const cleaned = rawName.replace(/[^\w\s.+-]/g, "").toLowerCase().trim();
   if (ANALYTE_ALIASES[cleaned]) return ANALYTE_ALIASES[cleaned];
 
   // Try with trailing dots/spaces stripped (e.g. "creat *" -> "creat")
@@ -446,6 +446,16 @@ export const analyzeLabImage = onCall(
       throw new HttpsError("invalid-argument", "Image data is required");
     }
 
+    const ALLOWED_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const validatedMediaType = ALLOWED_MEDIA_TYPES.includes(mediaType)
+      ? mediaType
+      : "image/jpeg";
+
+    // Reject excessively large base64 payloads (>10MB decoded)
+    if (imageBase64.length > 14_000_000) {
+      throw new HttpsError("invalid-argument", "Image exceeds maximum size of 10MB");
+    }
+
     const allowed = await checkRateLimit(request.auth.uid, "lab-image-analysis");
     if (!allowed) {
       throw new HttpsError(
@@ -469,7 +479,7 @@ export const analyzeLabImage = onCall(
                 type: "image",
                 source: {
                   type: "base64",
-                  media_type: mediaType || "image/jpeg",
+                  media_type: validatedMediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
                   data: imageBase64,
                 },
               },

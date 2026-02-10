@@ -1,4 +1,8 @@
-const CACHE_NAME = 'medward-pro-v1';
+// Cache name includes a timestamp that changes on each deployment.
+// The build pipeline or deploy script should update this value.
+// Alternatively, use 'vite-plugin-pwa' for automatic precache manifests.
+const CACHE_VERSION = '20260210';
+const CACHE_NAME = `medward-pro-v${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   '/',
   '/favicon.svg',
