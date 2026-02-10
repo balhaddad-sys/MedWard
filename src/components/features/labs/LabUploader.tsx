@@ -8,11 +8,11 @@ import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { httpsCallable } from 'firebase/functions'
 import { functions } from '@/config/firebase'
-import { serverTimestamp } from 'firebase/firestore'
+import { serverTimestamp, Timestamp } from 'firebase/firestore'
 import { LabResultRow } from './LabResultRow'
 import { LabPanelSkeleton } from './LabResultSkeleton'
 import type { LabTestResult } from './LabResultRow'
-import type { LabValue, ExtractionResponse, ExtractedTrend } from '@/types'
+import type { LabValue, LabCategory, ExtractionResponse, ExtractedTrend } from '@/types'
 
 interface LabUploaderProps {
   patientId?: string
@@ -36,36 +36,54 @@ interface UploadedResult {
   error?: string
 }
 
+/** Map an extracted panel_name to the closest LabCategory enum value. */
+function panelNameToCategory(panelName: string): LabCategory {
+  const lower = panelName.toLowerCase()
+  if (/\bcbc\b|complete blood|hematology|blood count/.test(lower)) return 'CBC'
+  if (/\bbmp\b|basic metabolic/.test(lower)) return 'BMP'
+  if (/\bcmp\b|comprehensive metabolic|chemistry/.test(lower)) return 'CMP'
+  if (/\blft\b|liver|hepatic/.test(lower)) return 'LFT'
+  if (/\bcoag|prothrombin|inr\b|aptt/.test(lower)) return 'COAG'
+  if (/cardiac|troponin|bnp|ck-mb/.test(lower)) return 'CARDIAC'
+  if (/thyroid|tsh|t3|t4/.test(lower)) return 'THYROID'
+  if (/urine|urinalysis/.test(lower)) return 'UA'
+  if (/abg|arterial|blood gas/.test(lower)) return 'ABG'
+  if (/lipid|cholesterol/.test(lower)) return 'CMP'
+  return 'MISC'
+}
+
+/** Try to parse an ISO date string into a Firestore Timestamp, falling back to serverTimestamp. */
+function parseCollectedAt(dateStr?: string): Timestamp | ReturnType<typeof serverTimestamp> {
+  if (!dateStr) return serverTimestamp()
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return serverTimestamp()
+  return Timestamp.fromDate(d)
+}
+
 /** Convert the structured extraction response into panel groups for display */
 function extractionToGroups(data: ExtractionResponse): {
   groups: PanelGroup[]
-  allTests: LabTestResult[]
   criticalFlags: ExtractedTrend[]
 } {
-  const allTests: LabTestResult[] = []
   const groups: PanelGroup[] = []
 
   for (const panel of data.panels) {
-    const tests: LabTestResult[] = panel.results.map((r) => {
-      const test: LabTestResult = {
-        code: r.test_code || r.analyte_key,
-        name: r.test_name,
-        value: r.value ?? 0,
-        unit: r.unit,
-        refLow: r.ref_low ?? 0,
-        refHigh: r.ref_high ?? 999,
-        flag: r.flag,
-      }
-      allTests.push(test)
-      return test
-    })
+    const tests: LabTestResult[] = panel.results.map((r) => ({
+      code: r.test_code || r.analyte_key,
+      name: r.test_name,
+      value: r.value ?? 0,
+      unit: r.unit,
+      refLow: r.ref_low ?? 0,
+      refHigh: r.ref_high ?? 999,
+      flag: r.flag,
+    }))
 
     if (tests.length > 0) {
       groups.push({ name: panel.panel_name || 'General', tests })
     }
   }
 
-  return { groups, allTests, criticalFlags: data.critical_flags || [] }
+  return { groups, criticalFlags: data.critical_flags || [] }
 }
 
 export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabUploaderProps) {
@@ -78,7 +96,7 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
   const firebaseUser = useAuthStore((s) => s.firebaseUser)
   const addToast = useUIStore((s) => s.addToast)
 
-  const fileToBase64 = (file: File): Promise<string> => {
+  const fileToBase64 = (file: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve((reader.result as string).split(',')[1])
@@ -104,26 +122,40 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
     setResults((prev) => [...prev, {
       imageUrl: previewUrl,
       imageName: file.name,
-      status: 'analyzing',
+      status: 'compressing',
     }])
-    setStatus('analyzing')
+    setStatus('compressing')
 
     try {
-      const [compressed, storedImageUrl] = await Promise.all([
-        imageCompression(file, {
-          maxSizeMB: 0.5,
-          maxWidthOrHeight: 2048,
-          useWebWorker: true,
-          fileType: 'image/jpeg',
-        }),
-        uploadLabImage(firebaseUser.uid, file).catch(() => null),
+      // Step 1: Compress the image.
+      // Lab images are often >15 MB photos. We compress to 4 MB max at 4096 px
+      // to preserve text readability while staying under the 10 MB callable
+      // limit after base64 inflation (~33%  →  ~5.3 MB base64).
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 4,
+        maxWidthOrHeight: 4096,
+        useWebWorker: true,
+        fileType: 'image/jpeg',
+        initialQuality: 0.85,
+      })
+
+      setResults((prev) => prev.map((r, i) =>
+        i === resultIndex ? { ...r, status: 'analyzing' } : r
+      ))
+      setStatus('analyzing')
+
+      // Step 2: Upload the compressed image to Storage and convert to base64
+      // for the Cloud Function in parallel. We upload the compressed file —
+      // not the original — so it stays under storage rules.
+      const [storedImageUrl, base64] = await Promise.all([
+        uploadLabImage(firebaseUser.uid, compressed, file.name).catch(() => null),
+        fileToBase64(compressed),
       ])
 
-      const base64 = await fileToBase64(compressed)
       const fn = httpsCallable<
         { imageBase64: string; mediaType: string },
         { content: string; structured?: ExtractionResponse }
-      >(functions, 'analyzeLabImage')
+      >(functions, 'analyzeLabImage', { timeout: 120_000 })
 
       const aiResult = await fn({ imageBase64: base64, mediaType: 'image/jpeg' })
 
@@ -131,51 +163,63 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
       const extraction: ExtractionResponse = aiResult.data.structured
         ?? JSON.parse(aiResult.data.content)
 
-      const { groups, allTests, criticalFlags } = extractionToGroups(extraction)
+      const { groups, criticalFlags } = extractionToGroups(extraction)
 
       setResults((prev) => prev.map((r, i) =>
         i === resultIndex ? { ...r, status: 'done', groups, criticalFlags } : r
       ))
       setStatus('done')
 
-      // Save to Firestore
-      if (patientId && allTests.length > 0) {
-        const values: LabValue[] = allTests.map((t) => ({
-          name: t.name,
-          value: t.value,
-          unit: t.unit,
-          referenceMin: t.refLow,
-          referenceMax: t.refHigh,
-          flag: t.flag,
-        } as LabValue))
+      // Save each extracted panel to Firestore individually, preserving
+      // the panel name, category, and collection date from the extraction.
+      if (patientId && extraction.panels.length > 0) {
+        let totalValues = 0
 
-        await addLabPanel(patientId, {
-          patientId,
-          category: 'MISC',
-          panelName: 'Image Upload',
-          values,
-          collectedAt: serverTimestamp(),
-          resultedAt: serverTimestamp(),
-          orderedBy: firebaseUser?.displayName ?? firebaseUser?.email ?? 'Unknown',
-          status: 'resulted',
-          source: 'image',
-          ...(storedImageUrl ? { imageUrl: storedImageUrl } : {}),
-        } as never)
+        for (const panel of extraction.panels) {
+          if (panel.results.length === 0) continue
+
+          const values: LabValue[] = panel.results.map((r) => ({
+            name: r.test_name,
+            value: r.value ?? 0,
+            unit: r.unit,
+            referenceMin: r.ref_low ?? undefined,
+            referenceMax: r.ref_high ?? undefined,
+            flag: r.flag,
+          } as LabValue))
+
+          totalValues += values.length
+
+          await addLabPanel(patientId, {
+            patientId,
+            category: panelNameToCategory(panel.panel_name),
+            panelName: panel.panel_name || 'General',
+            values,
+            collectedAt: parseCollectedAt(panel.collected_at),
+            resultedAt: serverTimestamp(),
+            orderedBy: firebaseUser?.displayName ?? firebaseUser?.email ?? 'Unknown',
+            status: 'resulted',
+            source: 'image',
+            ...(storedImageUrl ? { imageUrl: storedImageUrl } : {}),
+          } as never)
+        }
 
         addToast({
           type: 'success',
-          title: `${allTests.length} lab values extracted`,
-          message: `Grouped into ${groups.length} panels and saved.`,
+          title: `${totalValues} lab values extracted`,
+          message: `Grouped into ${extraction.panels.length} panel${extraction.panels.length > 1 ? 's' : ''} and saved.`,
         })
         onUploadComplete?.('')
       }
     } catch (err) {
       console.error('Lab upload/analysis failed:', err)
+      const message = err instanceof Error && err.message.includes('exceeds maximum')
+        ? 'Image is too large even after compression. Try a smaller image or crop.'
+        : 'Analysis failed. Enter values manually.'
       setResults((prev) => prev.map((r, i) =>
-        i === resultIndex ? { ...r, status: 'error', error: 'Analysis failed. Enter values manually.' } : r
+        i === resultIndex ? { ...r, status: 'error', error: message } : r
       ))
       setStatus('error')
-      addToast({ type: 'warning', title: 'Image analysis failed', message: 'You can enter values manually.' })
+      addToast({ type: 'warning', title: 'Image analysis failed', message })
     }
   }
 

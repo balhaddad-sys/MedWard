@@ -433,7 +433,7 @@ export const analyzeLabImage = onCall(
     memory: "1GiB",
     cpu: 2,
     region: "europe-west1",
-    timeoutSeconds: 60,
+    timeoutSeconds: 120,
   },
   async (request) => {
     if (!request.auth) {
