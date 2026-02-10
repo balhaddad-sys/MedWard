@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import ClinicalLayout from '@/layouts/ClinicalLayout'
 import { ModeProvider } from '@/context/ModeContext'
 import { Login } from '@/pages/Login'
@@ -24,7 +24,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { firebaseConfigMissing } from '@/config/firebase'
+import { firebaseReady } from '@/config/firebase'
 import { onAuthChange, getOrCreateProfile } from '@/services/firebase/auth'
 import { subscribeToAllPatients } from '@/services/firebase/patients'
 import { subscribeToTasks } from '@/services/firebase/tasks'
@@ -128,11 +128,15 @@ export default function App() {
   const setUser = useAuthStore((s) => s.setUser)
   const setLoading = useAuthStore((s) => s.setLoading)
 
+  // null = still resolving, true = ready, false = missing config
+  const [firebaseOk, setFirebaseOk] = useState<boolean | null>(null)
+
   useEffect(() => {
-    if (firebaseConfigMissing) {
-      setLoading(false)
-      return
-    }
+    firebaseReady.then(setFirebaseOk)
+  }, [])
+
+  useEffect(() => {
+    if (firebaseOk !== true) return
 
     // Safety timeout: if auth never responds, stop loading so the user
     // sees the login screen instead of an infinite spinner.
@@ -161,9 +165,20 @@ export default function App() {
       clearTimeout(timeout)
       unsubscribe()
     }
-  }, [setFirebaseUser, setUser, setLoading])
+  }, [firebaseOk, setFirebaseUser, setUser, setLoading])
 
-  if (firebaseConfigMissing) {
+  if (firebaseOk === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-ward-bg">
+        <div className="text-center">
+          <div className="animate-spin h-10 w-10 border-3 border-primary-600 border-t-transparent rounded-full mx-auto" />
+          <p className="text-sm text-ward-muted mt-4">Loading MedWard Pro...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (firebaseOk === false) {
     return <FirebaseConfigError />
   }
 
