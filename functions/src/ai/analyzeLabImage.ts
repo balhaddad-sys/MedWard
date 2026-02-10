@@ -1,5 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getAnthropicClient, anthropicApiKey } from "../utils/anthropic";
+import { getAnthropicClient, anthropicApiKey, ANTHROPIC_MODEL } from "../utils/anthropic";
 import { checkRateLimit } from "../utils/rateLimiter";
 import { logAuditEvent } from "../utils/auditLog";
 import { LAB_IMAGE_EXTRACTION_PROMPT } from "../prompts/labAnalysis";
@@ -468,7 +468,7 @@ export const analyzeLabImage = onCall(
       const client = getAnthropicClient();
 
       const response = await client.messages.create({
-        model: "claude-haiku-4.5-20251001",
+        model: ANTHROPIC_MODEL,
         max_tokens: 8192,
         system: LAB_IMAGE_EXTRACTION_PROMPT,
         messages: [
