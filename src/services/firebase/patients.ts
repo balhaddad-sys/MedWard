@@ -86,6 +86,9 @@ export const subscribeToPatients = (
   return onSnapshot(q, (snapshot) => {
     const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
+  }, (error) => {
+    console.error('Patient subscription error:', error)
+    callback([])
   })
 }
 
@@ -95,5 +98,8 @@ export const subscribeToAllPatients = (
   return onSnapshot(patientsRef, (snapshot) => {
     const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
+  }, (error) => {
+    console.error('All patients subscription error:', error)
+    callback([])
   })
 }

@@ -118,7 +118,14 @@ export default function App() {
       return
     }
 
+    // Safety timeout: if auth never responds, stop loading so the user
+    // sees the login screen instead of an infinite spinner.
+    const timeout = setTimeout(() => {
+      setLoading(false)
+    }, 10_000)
+
     const unsubscribe = onAuthChange(async (firebaseUser) => {
+      clearTimeout(timeout)
       setFirebaseUser(firebaseUser)
       if (firebaseUser) {
         localStorage.setItem('user_id', firebaseUser.uid)
@@ -134,7 +141,10 @@ export default function App() {
       }
       setLoading(false)
     })
-    return unsubscribe
+    return () => {
+      clearTimeout(timeout)
+      unsubscribe()
+    }
   }, [setFirebaseUser, setUser, setLoading])
 
   if (firebaseConfigMissing) {

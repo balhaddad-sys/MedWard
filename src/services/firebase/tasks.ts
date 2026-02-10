@@ -84,5 +84,8 @@ export const subscribeToTasks = (callback: (tasks: Task[]) => void): Unsubscribe
   return onSnapshot(tasksRef, (snapshot) => {
     const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
     callback(tasks)
+  }, (error) => {
+    console.error('Task subscription error:', error)
+    callback([])
   })
 }
