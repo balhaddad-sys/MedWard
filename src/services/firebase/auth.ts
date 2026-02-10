@@ -55,7 +55,6 @@ getRedirectResult(auth).then(async (result) => {
 
 export const signIn = async (email: string, password: string): Promise<FirebaseUser> => {
   const credential = await signInWithEmailAndPassword(auth, email, password)
-  await getOrCreateProfile(credential.user)
   return credential.user
 }
 
@@ -73,7 +72,6 @@ export const signInWithGoogle = async (): Promise<FirebaseUser> => {
     }
     throw err
   }
-  await getOrCreateProfile(result.user)
   return result.user
 }
 
