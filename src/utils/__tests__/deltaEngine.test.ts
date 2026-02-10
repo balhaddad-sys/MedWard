@@ -4,14 +4,20 @@ import type { LabPanel } from '@/types'
 
 const makePanel = (values: Array<{ name: string; value: number }>): LabPanel => ({
   id: '1',
+  patientId: 'p1',
+  category: 'BMP',
   panelName: 'Test',
   collectedAt: {} as LabPanel['collectedAt'],
+  resultedAt: {} as LabPanel['resultedAt'],
+  orderedBy: 'Dr. Test',
+  status: 'resulted',
+  source: 'manual',
+  createdAt: {} as LabPanel['createdAt'],
   values: values.map((v) => ({
     name: v.name,
     value: v.value,
     unit: 'mg/dL',
     flag: 'normal' as const,
-    referenceRange: '',
   })),
 })
 
