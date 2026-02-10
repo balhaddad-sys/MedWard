@@ -1,6 +1,7 @@
 import { Sparkles, Download, ClipboardList } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Markdown } from '@/components/ui/Markdown'
 import type { SBARData } from '@/services/ai/sbarGenerator'
 
 interface SBARTabProps {
@@ -42,7 +43,7 @@ export function SBARTab({ sbar, generatingSbar, handleGenerateSBAR, handleExport
             <Card key={section.key} className={`border-l-4 ${section.color}`}>
               <CardContent>
                 <h4 className="text-xs font-bold text-ward-muted uppercase tracking-wider mb-1">{section.title}</h4>
-                <p className="text-sm text-ward-text whitespace-pre-wrap">{section.content || '—'}</p>
+                <Markdown content={section.content || '—'} className="text-ward-text" />
               </CardContent>
             </Card>
           ))}

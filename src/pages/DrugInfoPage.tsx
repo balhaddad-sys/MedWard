@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { Tabs } from '@/components/ui/Tabs'
 import { Badge } from '@/components/ui/Badge'
 import { callAI } from '@/services/ai/claude'
+import { Markdown } from '@/components/ui/Markdown'
 import { clsx } from 'clsx'
 
 interface DrugResult {
@@ -229,7 +230,7 @@ Be concise and ward-relevant.`
           </CardHeader>
           <CardContent>
             <div className="prose prose-sm max-w-none">
-              <p className="text-sm text-ward-text whitespace-pre-wrap">{result.content}</p>
+              <Markdown content={result.content} className="text-ward-text" />
             </div>
             <div className="flex items-start gap-2 mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
               <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />

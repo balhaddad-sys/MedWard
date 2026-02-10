@@ -3,6 +3,7 @@ import { Bot, Send, Trash2, Sparkles, Stethoscope, Pill, FlaskConical, Clipboard
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { callAI } from '@/services/ai/claude'
+import { Markdown } from '@/components/ui/Markdown'
 import { clsx } from 'clsx'
 
 interface Message {
@@ -154,12 +155,13 @@ export function AIAssistantPage() {
                     <span className="text-xs font-medium text-primary-600">AI Assistant</span>
                   </div>
                 )}
-                <p className={clsx(
-                  'text-sm whitespace-pre-wrap',
-                  msg.role === 'user' ? 'text-white' : 'text-ward-text'
-                )}>
-                  {msg.content}
-                </p>
+                {msg.role === 'user' ? (
+                  <p className="text-sm whitespace-pre-wrap text-white">
+                    {msg.content}
+                  </p>
+                ) : (
+                  <Markdown content={msg.content} className="text-ward-text" />
+                )}
                 <p className={clsx(
                   'text-[10px] mt-1.5',
                   msg.role === 'user' ? 'text-white/70' : 'text-ward-muted'

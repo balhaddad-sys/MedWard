@@ -7,6 +7,7 @@ import { usePatientStore } from '@/stores/patientStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { generateHandoverSummary } from '@/services/ai/claude'
 import { exportHandoverReport } from '@/services/export/pdfExport'
+import { Markdown } from '@/components/ui/Markdown'
 import { ACUITY_LEVELS } from '@/config/constants'
 
 export function HandoverPage() {
@@ -66,7 +67,7 @@ export function HandoverPage() {
           <CardHeader><CardTitle>AI-Generated Handover Summary</CardTitle></CardHeader>
           <CardContent>
             <div className="prose prose-sm max-w-none">
-              <p className="whitespace-pre-wrap text-sm text-ward-text">{summary}</p>
+              <Markdown content={summary} className="text-ward-text" />
             </div>
             <p className="text-xs text-ward-muted mt-4 italic">
               AI-generated content - verify all information with primary sources.
