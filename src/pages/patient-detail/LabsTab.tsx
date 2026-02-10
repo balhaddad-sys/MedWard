@@ -18,7 +18,7 @@ interface LabsTabProps {
   analyzingLab: boolean
   labAnalysis: LabAIAnalysis | null
   refreshLabs: () => Promise<void>
-  addToast: (toast: { type: string; title: string; message?: string }) => void
+  addToast: (toast: { type: 'success' | 'error' | 'warning' | 'info'; title: string; message?: string }) => void
 }
 
 export function LabsTab({
