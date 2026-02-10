@@ -11,7 +11,7 @@ interface TasksTabProps {
   setShowTaskForm: (show: boolean) => void
   editingTask: Task | null
   setEditingTask: (task: Task | null) => void
-  handleTaskSubmit: (data: TaskFormData) => void
+  handleTaskSubmit: (data: TaskFormData) => Promise<void>
   handleCompleteTask: (taskId: string) => void
   handleDeleteTask: (taskId: string) => void
   deletingTaskId: string | null
