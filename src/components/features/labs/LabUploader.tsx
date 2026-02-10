@@ -178,14 +178,17 @@ export function LabUploader({ patientId, onUploadComplete, onManualEntry }: LabU
         for (const panel of extraction.panels) {
           if (panel.results.length === 0) continue
 
-          const values: LabValue[] = panel.results.map((r) => ({
-            name: r.test_name,
-            value: r.value ?? 0,
-            unit: r.unit,
-            referenceMin: r.ref_low ?? undefined,
-            referenceMax: r.ref_high ?? undefined,
-            flag: r.flag,
-          } as LabValue))
+          const values: LabValue[] = panel.results.map((r) => {
+            const v: LabValue = {
+              name: r.test_name,
+              value: r.value ?? 0,
+              unit: r.unit,
+              flag: r.flag,
+            }
+            if (r.ref_low != null) v.referenceMin = r.ref_low
+            if (r.ref_high != null) v.referenceMax = r.ref_high
+            return v
+          })
 
           totalValues += values.length
 

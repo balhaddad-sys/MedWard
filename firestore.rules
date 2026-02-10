@@ -56,11 +56,15 @@ service cloud.firestore {
       match /labs/{labId} {
         allow read: if isAuthenticated();
         allow create: if isAuthenticated()
-                      && request.resource.data.keys().hasAll(['testName', 'value'])
-                      && isValidString(request.resource.data.testName, 200);
+                      && request.resource.data.keys().hasAll(['patientId', 'category', 'panelName', 'values', 'status', 'source'])
+                      && isValidString(request.resource.data.patientId, 200)
+                      && isValidString(request.resource.data.panelName, 200)
+                      && request.resource.data.category in ['CBC', 'BMP', 'CMP', 'LFT', 'COAG', 'CARDIAC', 'THYROID', 'UA', 'ABG', 'MISC']
+                      && request.resource.data.status in ['pending', 'resulted', 'reviewed']
+                      && request.resource.data.source in ['manual', 'ocr', 'hl7', 'image']
+                      && request.resource.data.values is list;
         allow update: if isAuthenticated()
-                      && request.resource.data.testName is string
-                      && request.resource.data.testName.size() <= 200;
+                      && request.resource.data.status in ['pending', 'resulted', 'reviewed'];
         allow delete: if isAdminOrClinician();
       }
 
