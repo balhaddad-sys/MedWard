@@ -55,8 +55,12 @@ function bootstrap(config: FirebaseConfig) {
   storage = getStorage(app)
   functions = getFunctions(app, 'europe-west1')
 
-  // Connect to emulators only if explicitly enabled
-  if (import.meta.env.VITE_USE_EMULATORS === 'true') {
+  // Connect to emulators only when explicitly enabled AND running locally.
+  // The hostname guard prevents emulator connections on production if the
+  // env var accidentally leaks into a deployed build.
+  const isLocal = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  if (import.meta.env.VITE_USE_EMULATORS === 'true' && isLocal) {
     try {
       connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true })
       connectFirestoreEmulator(db, 'localhost', 8080)
