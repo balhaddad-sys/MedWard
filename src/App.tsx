@@ -25,7 +25,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { firebaseReady } from '@/config/firebase'
-import { onAuthChange, getOrCreateProfile } from '@/services/firebase/auth'
+import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/services/firebase/auth'
 import { subscribeToAllPatients } from '@/services/firebase/patients'
 import { subscribeToTasks } from '@/services/firebase/tasks'
 
@@ -137,6 +137,9 @@ export default function App() {
 
   useEffect(() => {
     if (firebaseOk !== true) return
+
+    // Process any pending redirect sign-in result (mobile / popup-blocked)
+    handleRedirectResult()
 
     // Safety timeout: if auth never responds, stop loading so the user
     // sees the login screen instead of an infinite spinner.
