@@ -47,15 +47,15 @@ export const getOrCreateProfile = async (firebaseUser: FirebaseUser): Promise<Us
 }
 
 // Handle redirect result on page load (for mobile / popup-blocked scenarios)
-getRedirectResult(auth).catch(() => { /* no pending redirect */ })
+getRedirectResult(auth).then(async (result) => {
+  if (result?.user) {
+    await getOrCreateProfile(result.user)
+  }
+}).catch(() => { /* no pending redirect */ })
 
 export const signIn = async (email: string, password: string): Promise<FirebaseUser> => {
   const credential = await signInWithEmailAndPassword(auth, email, password)
-  await setDoc(
-    doc(db, 'users', credential.user.uid),
-    { lastLoginAt: serverTimestamp() },
-    { merge: true }
-  )
+  await getOrCreateProfile(credential.user)
   return credential.user
 }
 

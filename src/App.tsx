@@ -121,6 +121,7 @@ export default function App() {
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       setFirebaseUser(firebaseUser)
       if (firebaseUser) {
+        localStorage.setItem('user_id', firebaseUser.uid)
         try {
           const profile = await getOrCreateProfile(firebaseUser)
           setUser(profile)
@@ -128,6 +129,7 @@ export default function App() {
           setUser(null)
         }
       } else {
+        localStorage.removeItem('user_id')
         setUser(null)
       }
       setLoading(false)
