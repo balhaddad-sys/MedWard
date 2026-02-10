@@ -40,16 +40,32 @@ function PageLoader() {
 function FirebaseConfigError() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-yellow-200 p-8 text-center">
-        <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
-          <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
+      <div className="max-w-lg w-full bg-white rounded-xl shadow-lg border border-yellow-200 p-8">
+        <div className="text-center">
+          <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Firebase not configured</h1>
+          <p className="text-sm text-gray-600 mb-4">
+            Missing Firebase environment variables. Run the following to get started:
+          </p>
         </div>
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Firebase not configured</h1>
-        <p className="text-sm text-gray-600 mb-4">
-          Missing Firebase environment variables. Create a <code className="bg-gray-100 px-1 rounded">.env</code> file
-          in the project root with your Firebase config. See <code className="bg-gray-100 px-1 rounded">.env.example</code> for the required variables.
+        <div className="bg-gray-900 rounded-lg p-4 mb-4">
+          <code className="text-sm text-green-400 block">
+            <span className="text-gray-500"># Copy the example env file</span><br />
+            cp .env.example .env<br /><br />
+            <span className="text-gray-500"># Or use the setup script</span><br />
+            npm run setup<br /><br />
+            <span className="text-gray-500"># Start emulators + dev server</span><br />
+            npm run firebase:emulators &amp; npm run dev
+          </code>
+        </div>
+        <p className="text-xs text-gray-500 text-center">
+          The default <code className="bg-gray-100 px-1 rounded">.env.example</code> is
+          pre-configured for local Firebase emulators. For production, replace with
+          your real Firebase credentials.
         </p>
       </div>
     </div>

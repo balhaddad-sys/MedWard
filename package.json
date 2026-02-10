@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "setup": "cp -n .env.example .env 2>/dev/null; echo '.env file ready — edit it if you need to change Firebase config.'",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
