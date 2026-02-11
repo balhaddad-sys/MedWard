@@ -103,3 +103,17 @@ export const subscribeToAllPatients = (
     callback([])
   })
 }
+
+export const subscribeToUserPatients = (
+  userId: string,
+  callback: (patients: Patient[]) => void
+): Unsubscribe => {
+  const q = query(getPatientsRef(), where('createdBy', '==', userId), orderBy('bedNumber'))
+  return onSnapshot(q, (snapshot) => {
+    const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
+    callback(patients)
+  }, (error) => {
+    console.error('User patients subscription error:', error)
+    callback([])
+  })
+}
