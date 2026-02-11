@@ -13,23 +13,27 @@ import {
   Stethoscope,
   Lock,
   Unlock,
+  Circle,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useClinicalMode } from '@/context/useClinicalMode'
 import type { ClinicalMode } from '@/config/modes'
 import { triggerHaptic } from '@/utils/haptics'
+import { useTaskStore } from '@/stores/taskStore'
+import { usePatientStore } from '@/stores/patientStore'
+import { useMemo } from 'react'
 
-const modeInfo: Record<ClinicalMode, { icon: React.ElementType; label: string; description: string }> = {
-  ward: { icon: ClipboardList, label: 'Ward Round', description: 'Full patient management' },
-  acute: { icon: Siren, label: 'On-Call', description: 'Acute care & escalation' },
-  clinic: { icon: Stethoscope, label: 'Clinic', description: 'Outpatient documentation' },
+const MODE_META: Record<ClinicalMode, { icon: React.ElementType; label: string; shortLabel: string; color: string }> = {
+  ward: { icon: ClipboardList, label: 'Ward Round', shortLabel: 'Ward', color: 'blue' },
+  acute: { icon: Siren, label: 'On-Call', shortLabel: 'Acute', color: 'amber' },
+  clinic: { icon: Stethoscope, label: 'Clinic', shortLabel: 'Clinic', color: 'stone' },
 }
 
-const navItems = [
+const NAV_ITEMS = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
-  { path: '/patients', icon: Users, label: 'Patients', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
-  { path: '/tasks', icon: CheckSquare, label: 'Tasks', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
-  { path: '/labs', icon: FlaskConical, label: 'Labs', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
+  { path: '/patients', icon: Users, label: 'Patients', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[], countKey: 'patients' as const },
+  { path: '/tasks', icon: CheckSquare, label: 'Tasks', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[], countKey: 'tasks' as const },
+  { path: '/labs', icon: FlaskConical, label: 'Labs', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[], countKey: 'criticalLabs' as const },
   { path: '/handover', icon: ArrowRightLeft, label: 'Handover', modes: ['ward', 'acute'] as ClinicalMode[] },
   { path: '/ai', icon: Bot, label: 'AI Assistant', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
   { path: '/drugs', icon: Pill, label: 'Drug Info', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
@@ -41,9 +45,18 @@ export function Sidebar() {
   const navigate = useNavigate()
   const { mode, setMode, config, isModeLocked, setModeLocked } = useClinicalMode()
 
-  const currentModeInfo = modeInfo[mode]
-  const ModeIcon = currentModeInfo.icon
-  const filteredNav = navItems.filter((item) => item.modes.includes(mode))
+  const tasks = useTaskStore((s) => s.tasks)
+  const patients = usePatientStore((s) => s.patients)
+  const criticalValues = usePatientStore((s) => s.criticalValues)
+
+  const counts = useMemo(() => ({
+    patients: patients.length,
+    tasks: tasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled').length,
+    criticalLabs: criticalValues.filter((cv) => !cv.acknowledgedAt).length,
+  }), [tasks, patients, criticalValues])
+
+  const filteredNav = NAV_ITEMS.filter((item) => item.modes.includes(mode))
+  const isDark = mode === 'acute'
 
   return (
     <aside
@@ -54,60 +67,17 @@ export function Sidebar() {
         mode === 'clinic' && 'bg-stone-50 border-stone-200'
       )}
     >
-      {/* Mode Indicator */}
-      <div className={clsx(
-        'px-4 pt-4 pb-3',
-        mode === 'acute' ? 'border-b border-gray-800' : 'border-b border-neutral-100'
-      )}>
-        <div className={clsx(
-          'flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-colors',
-          mode === 'ward' && 'bg-blue-50',
-          mode === 'acute' && 'bg-amber-500/10',
-          mode === 'clinic' && 'bg-stone-100'
-        )}>
-          <div className={clsx(
-            'h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0',
-            mode === 'ward' && 'bg-blue-100',
-            mode === 'acute' && 'bg-amber-500/20',
-            mode === 'clinic' && 'bg-stone-200'
-          )}>
-            <ModeIcon className={clsx(
-              'h-4 w-4',
-              mode === 'ward' && 'text-blue-600',
-              mode === 'acute' && 'text-amber-500',
-              mode === 'clinic' && 'text-stone-600'
-            )} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className={clsx(
-              'text-xs font-bold uppercase tracking-wider leading-tight',
-              mode === 'ward' && 'text-blue-700',
-              mode === 'acute' && 'text-amber-500',
-              mode === 'clinic' && 'text-stone-700'
-            )}>
-              {currentModeInfo.label}
-            </p>
-            <p className={clsx(
-              'text-[10px] leading-tight mt-0.5',
-              mode === 'acute' ? 'text-slate-500' : 'text-ward-muted'
-            )}>
-              {currentModeInfo.description}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Mode Switcher */}
       <div className={clsx(
-        'px-4 py-3',
-        mode === 'acute' ? 'border-b border-gray-800' : 'border-b border-neutral-100'
+        'px-3 pt-3 pb-2 border-b',
+        isDark ? 'border-gray-800' : 'border-neutral-100'
       )}>
         <div className="flex items-center justify-between mb-2">
           <span className={clsx(
             'text-[10px] font-semibold uppercase tracking-wider',
-            mode === 'acute' ? 'text-slate-500' : 'text-ward-muted'
+            isDark ? 'text-slate-500' : 'text-neutral-400'
           )}>
-            Switch Mode
+            Clinical Mode
           </span>
           <button
             onClick={() => {
@@ -115,46 +85,54 @@ export function Sidebar() {
               setModeLocked(!isModeLocked)
             }}
             className={clsx(
-              'p-1 rounded transition-colors',
-              mode === 'acute' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              'p-1 rounded-md transition-colors',
+              isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
             )}
             aria-label={isModeLocked ? 'Unlock mode switching' : 'Lock current mode'}
+            title={isModeLocked ? 'Mode locked — click to unlock' : 'Click to lock current mode'}
           >
             {isModeLocked ? (
               <Lock className="h-3 w-3 text-amber-500" />
             ) : (
-              <Unlock className={clsx(
-                'h-3 w-3',
-                mode === 'acute' ? 'text-slate-500' : 'text-ward-muted'
-              )} />
+              <Unlock className={clsx('h-3 w-3', isDark ? 'text-slate-500' : 'text-neutral-400')} />
             )}
           </button>
         </div>
-        <div className="space-y-1">
+
+        {/* Segmented control */}
+        <div className={clsx(
+          'flex rounded-lg p-0.5 gap-0.5',
+          isDark ? 'bg-gray-800' : 'bg-neutral-100'
+        )}>
           {(['ward', 'acute', 'clinic'] as ClinicalMode[]).map((modeId) => {
-            const info = modeInfo[modeId]
-            const Icon = info.icon
+            const meta = MODE_META[modeId]
+            const Icon = meta.icon
             const isActive = mode === modeId
+            const disabled = isModeLocked && !isActive
+
             return (
               <button
                 key={modeId}
                 onClick={() => {
+                  if (disabled) return
                   triggerHaptic('tap')
                   setMode(modeId)
                 }}
-                disabled={isModeLocked && !isActive}
+                disabled={disabled}
                 className={clsx(
-                  'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all',
-                  isActive && modeId === 'ward' && 'bg-blue-50 text-blue-700',
-                  isActive && modeId === 'acute' && 'bg-amber-500/15 text-amber-500',
-                  isActive && modeId === 'clinic' && 'bg-stone-100 text-stone-700',
-                  !isActive && mode === 'acute' && 'text-slate-500 hover:text-slate-300 hover:bg-white/5',
-                  !isActive && mode !== 'acute' && 'text-neutral-400 hover:text-neutral-600 hover:bg-gray-50',
-                  isModeLocked && !isActive && 'opacity-30 cursor-not-allowed'
+                  'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-all',
+                  isActive && modeId === 'ward' && 'bg-blue-600 text-white shadow-sm',
+                  isActive && modeId === 'acute' && 'bg-amber-500 text-white shadow-sm',
+                  isActive && modeId === 'clinic' && 'bg-stone-600 text-white shadow-sm',
+                  !isActive && isDark && 'text-slate-500 hover:text-slate-300',
+                  !isActive && !isDark && 'text-neutral-400 hover:text-neutral-600',
+                  disabled && 'opacity-30 cursor-not-allowed'
                 )}
+                aria-label={`Switch to ${meta.label} mode`}
+                aria-current={isActive ? 'true' : undefined}
               >
-                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-                <span>{info.label}</span>
+                <Icon className="h-3 w-3" />
+                <span>{meta.shortLabel}</span>
               </button>
             )
           })}
@@ -162,12 +140,15 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5" role="navigation" aria-label="Main navigation">
         {filteredNav.map((item) => {
           const isActive =
             item.path === '/'
               ? location.pathname === '/'
               : location.pathname.startsWith(item.path)
+          const count = item.countKey ? counts[item.countKey] : 0
+          const isCritical = item.countKey === 'criticalLabs' && count > 0
+
           return (
             <button
               key={item.path}
@@ -176,17 +157,33 @@ export function Sidebar() {
                 navigate(item.path)
               }}
               className={clsx(
-                'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] font-medium transition-colors group',
                 isActive && mode === 'ward' && 'bg-blue-50 text-blue-700',
                 isActive && mode === 'acute' && 'bg-amber-500/15 text-amber-400',
                 isActive && mode === 'clinic' && 'bg-stone-100 text-stone-700',
-                !isActive && mode === 'ward' && 'text-neutral-500 hover:bg-gray-50 hover:text-neutral-700',
+                !isActive && mode === 'ward' && 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700',
                 !isActive && mode === 'acute' && 'text-slate-500 hover:text-slate-300 hover:bg-white/5',
                 !isActive && mode === 'clinic' && 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
               )}
+              aria-current={isActive ? 'page' : undefined}
             >
               <item.icon className="h-4 w-4 flex-shrink-0" />
-              {item.label}
+              <span className="flex-1 text-left truncate">{item.label}</span>
+              {item.countKey && count > 0 && (
+                <span className={clsx(
+                  'min-w-[20px] h-5 flex items-center justify-center rounded-full text-[10px] font-bold px-1.5 tabular-nums',
+                  isCritical
+                    ? 'bg-red-100 text-red-700'
+                    : isActive
+                      ? isDark ? 'bg-white/10 text-amber-300' : 'bg-white/80 text-inherit'
+                      : isDark ? 'bg-gray-800 text-slate-400' : 'bg-neutral-100 text-neutral-500'
+                )}>
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
+              {isCritical && (
+                <Circle className="h-2 w-2 fill-red-500 text-red-500 animate-pulse" />
+              )}
             </button>
           )
         })}
@@ -194,17 +191,23 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className={clsx(
-        'px-4 py-3 border-t',
-        mode === 'acute' ? 'border-gray-800' : 'border-neutral-100'
+        'px-3 py-2.5 border-t',
+        isDark ? 'border-gray-800' : 'border-neutral-100'
       )}>
-        <p className={clsx(
-          'text-[10px]',
-          mode === 'acute' ? 'text-slate-600' : 'text-neutral-400'
-        )}>
-          {config.refreshRate > 0
-            ? `Auto-refresh: ${config.refreshRate / 1000}s`
-            : 'Manual refresh'}
-        </p>
+        <div className="flex items-center gap-2">
+          <div className={clsx(
+            'h-2 w-2 rounded-full flex-shrink-0',
+            config.refreshRate > 0 ? 'bg-green-500 animate-pulse' : isDark ? 'bg-slate-600' : 'bg-neutral-300'
+          )} />
+          <span className={clsx(
+            'text-[10px]',
+            isDark ? 'text-slate-500' : 'text-neutral-400'
+          )}>
+            {config.refreshRate > 0
+              ? `Live — ${config.refreshRate / 1000}s refresh`
+              : 'Manual refresh'}
+          </span>
+        </div>
       </div>
     </aside>
   )
