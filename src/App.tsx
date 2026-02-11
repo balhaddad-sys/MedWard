@@ -27,7 +27,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { firebaseReady } from '@/config/firebase'
 import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/services/firebase/auth'
 import { subscribeToUserPatients } from '@/services/firebase/patients'
-import { subscribeToTasks } from '@/services/firebase/tasks'
+import { subscribeToUserTasks } from '@/services/firebase/tasks'
 
 function PageLoader() {
   return (
@@ -117,7 +117,7 @@ function DataSubscriptions() {
     const unsubPatients = subscribeToUserPatients(firebaseUser.uid, (patients) => {
       setPatients(patients)
     })
-    const unsubTasks = subscribeToTasks((tasks) => {
+    const unsubTasks = subscribeToUserTasks(firebaseUser.uid, (tasks) => {
       setTasks(tasks)
     })
     return () => {
