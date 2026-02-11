@@ -4,11 +4,27 @@ import type { ClinicalMode } from '../config/modes'
 import { triggerHaptic } from '../utils/haptics'
 import { ModeContext } from './modeContextDef'
 
+function getInitialMode(): ClinicalMode {
+  const saved = localStorage.getItem('clinical_mode') as ClinicalMode
+  if (saved && saved in MODES) return saved
+
+  // Fall back to user's defaultMode from settings (persisted by zustand)
+  try {
+    const settings = localStorage.getItem('medward-settings')
+    if (settings) {
+      const parsed = JSON.parse(settings)
+      const defaultMode = parsed?.state?.defaultMode as ClinicalMode
+      if (defaultMode && defaultMode in MODES) return defaultMode
+    }
+  } catch {
+    // ignore
+  }
+
+  return 'ward'
+}
+
 export function ModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ClinicalMode>(() => {
-    const saved = localStorage.getItem('clinical_mode') as ClinicalMode
-    return saved && saved in MODES ? saved : 'ward'
-  })
+  const [mode, setModeState] = useState<ClinicalMode>(getInitialMode)
 
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [lastModeSwitch, setLastModeSwitch] = useState<Date | null>(null)
