@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { ClinicalMode } from '@/config/modes'
 
 interface SettingsStore {
   defaultWard: string
-  defaultMode: 'clinical' | 'triage' | 'handover'
+  defaultMode: ClinicalMode
   compactView: boolean
   showAISuggestions: boolean
   labTrendDays: number
@@ -11,7 +12,7 @@ interface SettingsStore {
   notifyTaskReminders: boolean
   notifyHandoverAlerts: boolean
   setDefaultWard: (ward: string) => void
-  setDefaultMode: (mode: 'clinical' | 'triage' | 'handover') => void
+  setDefaultMode: (mode: ClinicalMode) => void
   setCompactView: (compact: boolean) => void
   setShowAISuggestions: (show: boolean) => void
   setLabTrendDays: (days: number) => void
@@ -24,7 +25,7 @@ export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set) => ({
       defaultWard: '',
-      defaultMode: 'clinical',
+      defaultMode: 'ward',
       compactView: false,
       showAISuggestions: true,
       labTrendDays: 7,

@@ -62,11 +62,11 @@ export function SettingsPage() {
             <select
               className="input-field"
               value={settings.defaultMode}
-              onChange={(e) => settings.setDefaultMode(e.target.value as 'clinical' | 'triage' | 'handover')}
+              onChange={(e) => settings.setDefaultMode(e.target.value as 'ward' | 'acute' | 'clinic')}
             >
-              <option value="clinical">Clinical — Full patient management</option>
-              <option value="triage">Lab Triage — Focus on lab results and critical values</option>
-              <option value="handover">Handover — Shift handover preparation</option>
+              <option value="ward">Ward Round — Full patient management</option>
+              <option value="acute">On-Call — Acute care, calculators, escalation tools</option>
+              <option value="clinic">Clinic — Outpatient documentation</option>
             </select>
             <p className="text-xs text-ward-muted mt-1">This mode will be selected when you first open the app.</p>
           </div>
