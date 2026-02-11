@@ -36,12 +36,6 @@ export const LAB_CATEGORIES = {
   MISC: 'Miscellaneous',
 } as const
 
-export const WARD_MODES = {
-  clinical: { label: 'Clinical Mode', description: 'Full patient management' },
-  triage: { label: 'Lab Triage', description: 'Focus on lab results and critical values' },
-  handover: { label: 'Handover Mode', description: 'Shift handover preparation' },
-} as const
-
 export const MAX_PATIENTS_PER_PAGE = 20
 export const LAB_HISTORY_DAYS = 30
 export const CRITICAL_VALUE_ALERT_TIMEOUT = 300000 // 5 minutes

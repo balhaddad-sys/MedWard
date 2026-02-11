@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CheckSquare, ArrowRightLeft, Settings, Activity, FlaskConical, Bot, Pill } from 'lucide-react'
+import { LayoutDashboard, Users, CheckSquare, ArrowRightLeft, Settings, FlaskConical, Bot, Pill, ClipboardList, Siren, Stethoscope } from 'lucide-react'
 import { clsx } from 'clsx'
-import { useUIStore } from '@/stores/uiStore'
+import { useClinicalMode } from '@/context/useClinicalMode'
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -14,19 +14,24 @@ const navItems = [
   { path: '/settings', icon: Settings, label: 'Settings' },
 ]
 
+const modeIcons = {
+  ward: ClipboardList,
+  acute: Siren,
+  clinic: Stethoscope,
+} as const
+
 export function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
-  const currentMode = useUIStore((s) => s.currentMode)
+  const { mode, config } = useClinicalMode()
+  const ModeIcon = modeIcons[mode]
 
   return (
     <aside className="w-60 min-h-[calc(100vh-64px)] bg-white border-r border-ward-border p-4 flex-shrink-0">
       <div className="mb-6 px-3">
         <div className="flex items-center gap-2 text-xs text-ward-muted uppercase tracking-wider font-medium">
-          {currentMode === 'clinical' && <Activity className="h-3.5 w-3.5" />}
-          {currentMode === 'triage' && <FlaskConical className="h-3.5 w-3.5" />}
-          {currentMode === 'handover' && <ArrowRightLeft className="h-3.5 w-3.5" />}
-          {currentMode} mode
+          <ModeIcon className="h-3.5 w-3.5" />
+          {config.label}
         </div>
       </div>
 

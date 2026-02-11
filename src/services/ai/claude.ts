@@ -13,6 +13,14 @@ interface AIResponse {
   usage: { inputTokens: number; outputTokens: number }
 }
 
+interface SBARResponse {
+  situation: string
+  background: string
+  assessment: string
+  recommendation: string
+  usage: { inputTokens: number; outputTokens: number }
+}
+
 export const callAI = async (request: AIRequest): Promise<AIResponse> => {
   const fn = httpsCallable<AIRequest, AIResponse>(functions, 'analyzeWithAI')
   const result = await fn(request)
@@ -34,23 +42,13 @@ export const analyzeLabResults = async (
 export const generateSBAR = async (
   patientData: string
 ): Promise<{ situation: string; background: string; assessment: string; recommendation: string }> => {
-  const fn = httpsCallable<{ patientData: string }, AIResponse>(functions, 'generateSBAR')
+  const fn = httpsCallable<{ patientData: string }, SBARResponse>(functions, 'generateSBAR')
   const result = await fn({ patientData })
-  try {
-    const parsed = JSON.parse(result.data.content)
-    return {
-      situation: parsed.situation ?? result.data.content,
-      background: parsed.background ?? '',
-      assessment: parsed.assessment ?? '',
-      recommendation: parsed.recommendation ?? '',
-    }
-  } catch {
-    return {
-      situation: result.data.content,
-      background: '',
-      assessment: '',
-      recommendation: '',
-    }
+  return {
+    situation: result.data.situation || '',
+    background: result.data.background || '',
+    assessment: result.data.assessment || '',
+    recommendation: result.data.recommendation || '',
   }
 }
 
