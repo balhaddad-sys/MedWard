@@ -30,7 +30,7 @@ let toastId = 0
 
 export const useUIStore = create<UIStore>()((set) => ({
   sidebarOpen: false,
-  currentMode: 'clinical',
+  currentMode: 'ward',
   activeModal: null,
   modalData: null,
   toasts: [],

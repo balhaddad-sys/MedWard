@@ -932,9 +932,9 @@ export default function AcuteRoot() {
                               Unacknowledged Critical Values
                             </h4>
                             <div className="space-y-1">
-                              {ptCriticals.map((cv) => (
-                                <div key={cv.id} className="text-xs text-red-300">
-                                  <span className="font-bold">{cv.testName}:</span> {cv.value} {cv.unit}
+                              {ptCriticals.map((cv, idx) => (
+                                <div key={idx} className="text-xs text-red-300">
+                                  <span className="font-bold">{cv.labName}:</span> {cv.value} {cv.unit}
                                 </div>
                               ))}
                             </div>
