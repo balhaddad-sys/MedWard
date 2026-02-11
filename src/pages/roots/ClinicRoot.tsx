@@ -173,8 +173,10 @@ export default function ClinicRoot() {
   const [assigningSlotIdx, setAssigningSlotIdx] = useState<number | null>(null)
 
   // Lab trends
-  const [labPanels, setLabPanels] = useState<LabPanel[]>([])
-  const [labsLoading, setLabsLoading] = useState(false)
+  const [labFetchResult, setLabFetchResult] = useState<{ panels: LabPanel[]; fetchedFor: string }>({
+    panels: [],
+    fetchedFor: '',
+  })
 
   // Follow-up
   const [followUpDate, setFollowUpDate] = useState('')
@@ -201,17 +203,18 @@ export default function ClinicRoot() {
     saveSchedule(schedule)
   }, [schedule])
 
-  // Load labs when patient changes
+  // Derive loading from whether fetched data matches current patient
+  const labsLoading = selectedPatientId !== '' && labFetchResult.fetchedFor !== selectedPatientId
+  const labPanels = labFetchResult.fetchedFor === selectedPatientId ? labFetchResult.panels : []
+
+  // Fetch labs when patient changes
   useEffect(() => {
-    if (!selectedPatientId) {
-      setLabPanels([])
-      return
-    }
-    setLabsLoading(true)
+    if (!selectedPatientId) return
+    let cancelled = false
     getLabPanels(selectedPatientId, 10)
-      .then((panels) => setLabPanels(panels))
-      .catch(() => setLabPanels([]))
-      .finally(() => setLabsLoading(false))
+      .then((panels) => { if (!cancelled) setLabFetchResult({ panels, fetchedFor: selectedPatientId }) })
+      .catch(() => { if (!cancelled) setLabFetchResult({ panels: [], fetchedFor: selectedPatientId }) })
+    return () => { cancelled = true }
   }, [selectedPatientId])
 
   // Patient tasks
