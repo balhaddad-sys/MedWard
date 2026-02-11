@@ -26,7 +26,7 @@ import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { firebaseReady } from '@/config/firebase'
 import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/services/firebase/auth'
-import { subscribeToAllPatients } from '@/services/firebase/patients'
+import { subscribeToUserPatients } from '@/services/firebase/patients'
 import { subscribeToTasks } from '@/services/firebase/tasks'
 
 function PageLoader() {
@@ -99,6 +99,7 @@ function DataSubscriptions() {
   const setPatients = usePatientStore((s) => s.setPatients)
   const setTasks = useTaskStore((s) => s.setTasks)
   const setIsMobile = useUIStore((s) => s.setIsMobile)
+  const firebaseUser = useAuthStore((s) => s.firebaseUser)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -108,7 +109,12 @@ function DataSubscriptions() {
   }, [setIsMobile])
 
   useEffect(() => {
-    const unsubPatients = subscribeToAllPatients((patients) => {
+    if (!firebaseUser) {
+      setPatients([])
+      setTasks([])
+      return
+    }
+    const unsubPatients = subscribeToUserPatients(firebaseUser.uid, (patients) => {
       setPatients(patients)
     })
     const unsubTasks = subscribeToTasks((tasks) => {
@@ -118,7 +124,7 @@ function DataSubscriptions() {
       unsubPatients()
       unsubTasks()
     }
-  }, [setPatients, setTasks])
+  }, [firebaseUser, setPatients, setTasks])
 
   return null
 }
