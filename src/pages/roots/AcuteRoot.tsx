@@ -61,7 +61,7 @@ export default function AcuteRoot() {
 
   // === WORKSPACE STATE ===
   const [workspacePatientIds, setWorkspacePatientIds] = useState<string[]>([])
-  const [autoLoaded, setAutoLoaded] = useState(false)
+  const autoLoadedRef = useRef(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -124,17 +124,24 @@ export default function AcuteRoot() {
     }
   }, [])
 
-  // Auto-load critical patients (acuity 1-2) on first mount
-  useEffect(() => {
-    if (autoLoaded || patients.length === 0) return
+  // Auto-load critical patients (acuity 1-2) on first data load
+  // Render-time state adjustment avoids cascading renders from useEffect setState
+  if (!autoLoadedRef.current && patients.length > 0) {
+    autoLoadedRef.current = true
     const criticalPatients = patients.filter((p) => p.acuity <= 2)
     if (criticalPatients.length > 0) {
       const ids = criticalPatients.map((p) => p.id)
       setWorkspacePatientIds(ids)
-      ids.forEach((id) => loadPatientLabs(id))
     }
-    setAutoLoaded(true)
-  }, [patients, autoLoaded, loadPatientLabs])
+  }
+
+  // Load labs for auto-loaded workspace patients
+  const labsLoadedRef = useRef(false)
+  useEffect(() => {
+    if (labsLoadedRef.current || workspacePatientIds.length === 0) return
+    labsLoadedRef.current = true
+    workspacePatientIds.forEach((id) => loadPatientLabs(id))
+  }, [workspacePatientIds, loadPatientLabs])
 
   // Resolve workspace patients from the global store, sorted by acuity
   const workspacePatients = useMemo(
