@@ -16,7 +16,6 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useClinicalMode } from '@/context/useClinicalMode'
-import { MODES } from '@/config/modes'
 import type { ClinicalMode } from '@/config/modes'
 import { triggerHaptic } from '@/utils/haptics'
 
@@ -193,39 +192,13 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Mode Features Footer */}
+      {/* Footer */}
       <div className={clsx(
         'px-4 py-3 border-t',
         mode === 'acute' ? 'border-gray-800' : 'border-neutral-100'
       )}>
-        <div className="flex flex-wrap gap-1">
-          {config.features.taskEngine && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">Tasks</span>
-          )}
-          {config.features.timers && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Timers</span>
-          )}
-          {config.features.calculators && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600 font-medium">Calculators</span>
-          )}
-          {config.features.escalation && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 font-medium">Escalation</span>
-          )}
-          {config.features.smartScribe && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-stone-200 text-stone-600 font-medium">SmartText</span>
-          )}
-          {config.features.trendDeck && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Trends</span>
-          )}
-          {config.features.resultsFollowUp && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-medium">Follow-Up</span>
-          )}
-          {config.features.patientEducation && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 font-medium">Education</span>
-          )}
-        </div>
         <p className={clsx(
-          'text-[10px] mt-2',
+          'text-[10px]',
           mode === 'acute' ? 'text-slate-600' : 'text-neutral-400'
         )}>
           {config.refreshRate > 0

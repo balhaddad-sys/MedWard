@@ -1,8 +1,10 @@
-import { Bell, User, LogOut, LayoutDashboard, CheckSquare, FlaskConical, ArrowRightLeft, Users } from 'lucide-react'
+import { Bell, User, LogOut, LayoutDashboard, CheckSquare, FlaskConical, ArrowRightLeft, Users, ClipboardList, Siren, Stethoscope } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
-import { ModeSelector } from './ModeSelector'
+import { useClinicalMode } from '@/context/useClinicalMode'
+import type { ClinicalMode } from '@/config/modes'
+import { triggerHaptic } from '@/utils/haptics'
 import { APP_NAME } from '@/config/constants'
 import { signOut } from '@/services/firebase/auth'
 import { useState } from 'react'
@@ -19,6 +21,7 @@ const desktopNav = [
 export function Header() {
   const isMobile = useUIStore((s) => s.isMobile)
   const user = useAuthStore((s) => s.user)
+  const { mode, setMode } = useClinicalMode()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
@@ -28,14 +31,23 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-ward-border shadow-sm">
+    <header className={clsx(
+      'sticky top-0 z-30 border-b shadow-sm transition-colors duration-300',
+      mode === 'acute' ? 'bg-gray-900 border-gray-700 text-white' : mode === 'clinic' ? 'bg-stone-50 border-stone-200' : 'bg-white border-ward-border'
+    )}>
       <div className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 gap-1 sm:gap-2">
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="h-8 w-8 rounded-lg bg-primary-600 flex items-center justify-center flex-shrink-0">
+            <div className={clsx(
+              'h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0',
+              mode === 'acute' ? 'bg-amber-500' : 'bg-primary-600'
+            )}>
               <span className="text-white font-bold text-sm">M</span>
             </div>
-            <span className="font-semibold text-ward-text hidden sm:block">{APP_NAME}</span>
+            <span className={clsx(
+              'font-semibold hidden sm:block',
+              mode === 'acute' ? 'text-white' : 'text-ward-text'
+            )}>{APP_NAME}</span>
           </div>
           {/* Desktop navigation */}
           {!isMobile && (
@@ -48,7 +60,9 @@ export function Header() {
                     onClick={() => navigate(item.path)}
                     className={clsx(
                       'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                      isActive ? 'bg-primary-50 text-primary-700' : 'text-ward-muted hover:bg-gray-50 hover:text-ward-text'
+                      isActive
+                        ? mode === 'acute' ? 'bg-amber-500/15 text-amber-400' : 'bg-primary-50 text-primary-700'
+                        : mode === 'acute' ? 'text-gray-400 hover:text-white hover:bg-white/5' : 'text-ward-muted hover:bg-gray-50 hover:text-ward-text'
                     )}
                   >
                     <item.icon className="h-4 w-4" />
@@ -60,31 +74,51 @@ export function Header() {
           )}
         </div>
 
-        <div className="flex-shrink min-w-0 overflow-x-auto scrollbar-hide">
-          <ModeSelector />
-        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Mode Switcher */}
+          <div className={clsx(
+            'flex items-center gap-0.5 p-1 rounded-lg',
+            mode === 'acute' ? 'bg-gray-800/60' : 'bg-gray-100'
+          )}>
+            <ModeButton id="ward" label="Ward" Icon={ClipboardList} currentMode={mode} setMode={setMode} />
+            <ModeButton id="acute" label="On-Call" Icon={Siren} currentMode={mode} setMode={setMode} />
+            <ModeButton id="clinic" label="Clinic" Icon={Stethoscope} currentMode={mode} setMode={setMode} />
+          </div>
 
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-          <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
-            <Bell className="h-5 w-5 text-ward-muted" />
+          <button className={clsx(
+            'relative p-2 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center',
+            mode === 'acute' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+          )}>
+            <Bell className={clsx('h-5 w-5', mode === 'acute' ? 'text-slate-400' : 'text-ward-muted')} />
             <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full" />
           </button>
 
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors min-h-[44px]"
+              className={clsx(
+                'flex items-center gap-2 p-1.5 rounded-lg transition-colors min-h-[44px]',
+                mode === 'acute' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              )}
             >
-              <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
-                <User className="h-4 w-4 text-primary-700" />
+              <div className={clsx(
+                'h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0',
+                mode === 'acute' ? 'bg-slate-600/60' : 'bg-primary-100'
+              )}>
+                <User className={clsx('h-4 w-4', mode === 'acute' ? 'text-slate-300' : 'text-primary-700')} />
               </div>
               {!isMobile && (
-                <span className="text-sm font-medium text-ward-text">{user?.displayName || 'User'}</span>
+                <span className={clsx('text-sm font-medium', mode === 'acute' ? 'text-white' : 'text-ward-text')}>
+                  {user?.displayName || 'User'}
+                </span>
               )}
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-ward-border py-1 animate-fade-in z-50">
+              <div
+                className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-ward-border py-1 animate-fade-in z-50"
+                onMouseLeave={() => setShowUserMenu(false)}
+              >
                 <div className="px-4 py-2 border-b border-ward-border">
                   <p className="text-sm font-medium">{user?.displayName}</p>
                   <p className="text-xs text-ward-muted">{user?.role}</p>
@@ -102,5 +136,30 @@ export function Header() {
         </div>
       </div>
     </header>
+  )
+}
+
+function ModeButton({ id, label, Icon, currentMode, setMode }: {
+  id: ClinicalMode
+  label: string
+  Icon: React.ElementType
+  currentMode: ClinicalMode
+  setMode: (mode: ClinicalMode) => void
+}) {
+  const isActive = currentMode === id
+  return (
+    <button
+      onClick={() => { triggerHaptic('tap'); setMode(id) }}
+      className={clsx(
+        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 text-xs font-medium',
+        isActive && id === 'ward' && 'text-blue-600 bg-blue-50',
+        isActive && id === 'acute' && 'text-amber-500 bg-amber-500/10',
+        isActive && id === 'clinic' && 'text-stone-700 bg-stone-100',
+        !isActive && (currentMode === 'acute' ? 'text-gray-500 hover:text-gray-300' : 'text-neutral-400 hover:text-neutral-600')
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span className="uppercase tracking-wider">{label}</span>
+    </button>
   )
 }
