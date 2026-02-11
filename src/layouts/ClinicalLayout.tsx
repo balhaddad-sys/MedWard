@@ -4,6 +4,7 @@ import { useClinicalMode } from '../context/useClinicalMode'
 import type { ClinicalMode } from '../config/modes'
 import { triggerHaptic } from '../utils/haptics'
 import { SyncBadge } from '../components/SyncBadge'
+import { Sidebar } from '../components/layout/Sidebar'
 import { clsx } from 'clsx'
 import {
   ClipboardList,
@@ -12,18 +13,16 @@ import {
   Bell,
   User,
   LogOut,
-  Lock,
-  Unlock,
   LayoutDashboard,
   CheckSquare,
   FlaskConical,
-  ArrowRightLeft,
-  Users,
   Bot,
-  Pill,
   Settings,
   MoreHorizontal,
   X,
+  ArrowRightLeft,
+  Pill,
+  Users,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -34,7 +33,7 @@ import { APP_NAME } from '@/config/constants'
 import { useState, useMemo } from 'react'
 
 export default function ClinicalLayout() {
-  const { mode, isTransitioning, isModeLocked, setModeLocked } = useClinicalMode()
+  const { mode, isTransitioning } = useClinicalMode()
   const user = useAuthStore((s) => s.user)
   const isMobile = useUIStore((s) => s.isMobile)
   const criticalValues = usePatientStore((s) => s.criticalValues)
@@ -44,7 +43,6 @@ export default function ClinicalLayout() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showMore, setShowMore] = useState(false)
 
-  // Real notification count: unacknowledged critical labs + overdue/pending critical tasks
   const notificationCount = useMemo(() => {
     const unackedCriticals = criticalValues.filter((cv) => !cv.acknowledgedAt).length
     const criticalTasks = tasks.filter(
@@ -52,17 +50,6 @@ export default function ClinicalLayout() {
     ).length
     return unackedCriticals + criticalTasks
   }, [criticalValues, tasks])
-
-  const desktopNav = [
-    { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/patients', icon: Users, label: 'Patients' },
-    { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
-    { path: '/labs', icon: FlaskConical, label: 'Labs' },
-    { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
-    { path: '/ai', icon: Bot, label: 'AI' },
-    { path: '/drugs', icon: Pill, label: 'Drugs' },
-    { path: '/settings', icon: Settings, label: 'Settings' },
-  ]
 
   const primaryMobileNav = [
     { path: '/', icon: LayoutDashboard, label: 'Home' },
@@ -86,7 +73,7 @@ export default function ClinicalLayout() {
 
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden transition-colors duration-300">
-      {/* Adaptive Header */}
+      {/* Header */}
       <header
         className={clsx(
           'h-14 flex items-center justify-between px-3 sm:px-4 border-b shrink-0 transition-colors duration-300 z-30',
@@ -114,52 +101,9 @@ export default function ClinicalLayout() {
               {APP_NAME} <span className="opacity-50">PRO</span>
             </span>
           </div>
-
-          {/* Desktop navigation */}
-          {!isMobile && (
-            <nav className="flex items-center gap-1 ml-4">
-              {desktopNav.map((item) => {
-                const isActive =
-                  item.path === '/'
-                    ? location.pathname === '/'
-                    : location.pathname.startsWith(item.path)
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => navigate(item.path)}
-                    className={clsx(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors touch',
-                      isActive
-                        ? mode === 'acute'
-                          ? 'bg-amber-500/15 text-amber-400'
-                          : 'bg-primary-50 text-primary-700'
-                        : mode === 'acute'
-                          ? 'text-gray-400 hover:text-white hover:bg-white/5'
-                          : 'text-ward-muted hover:bg-gray-50 hover:text-ward-text'
-                    )}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </button>
-                )
-              })}
-            </nav>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Desktop Mode Switcher */}
-          {!isMobile && (
-            <div className={clsx(
-              'flex items-center gap-0.5 p-1 rounded-lg',
-              mode === 'acute' ? 'bg-gray-800/60' : 'bg-gray-100'
-            )}>
-              <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />
-              <ModeNavButton id="acute" label="On-Call" Icon={Siren} />
-              <ModeNavButton id="clinic" label="Clinic" Icon={Stethoscope} />
-            </div>
-          )}
-
           {/* Mode Indicator Pill (mobile only) */}
           {isMobile && (
             <div
@@ -170,33 +114,9 @@ export default function ClinicalLayout() {
                 mode === 'clinic' && 'bg-stone-200 text-stone-700'
               )}
             >
-              {mode === 'acute' ? 'On-Call' : mode}
+              {mode === 'ward' ? 'Ward' : mode === 'acute' ? 'On-Call' : 'Clinic'}
             </div>
           )}
-
-          {/* Mode Lock */}
-          <button
-            onClick={() => {
-              triggerHaptic('tap')
-              setModeLocked(!isModeLocked)
-            }}
-            className={clsx(
-              'p-1.5 rounded-lg transition-colors touch min-h-[36px] min-w-[36px] flex items-center justify-center',
-              mode === 'acute' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            )}
-            aria-label={isModeLocked ? 'Unlock mode switching' : 'Lock current mode'}
-          >
-            {isModeLocked ? (
-              <Lock className="h-4 w-4 text-amber-500" />
-            ) : (
-              <Unlock
-                className={clsx(
-                  'h-4 w-4',
-                  mode === 'acute' ? 'text-slate-400' : 'text-ward-muted'
-                )}
-              />
-            )}
-          </button>
 
           <SyncBadge />
 
@@ -244,6 +164,14 @@ export default function ClinicalLayout() {
                   )}
                 />
               </div>
+              {!isMobile && (
+                <span className={clsx(
+                  'text-sm font-medium',
+                  mode === 'acute' ? 'text-slate-300' : 'text-ward-text'
+                )}>
+                  {user?.displayName || 'User'}
+                </span>
+              )}
             </button>
 
             {showUserMenu && (
@@ -277,20 +205,26 @@ export default function ClinicalLayout() {
         </div>
       </header>
 
-      {/* Morphing Content Area */}
-      <main
-        className={clsx(
-          'flex-1 overflow-y-auto relative transition-opacity duration-150',
-          isTransitioning ? 'opacity-50 blur-sm' : 'opacity-100',
-          'bg-ward-bg'
-        )}
-      >
-        <div className="p-3 sm:p-4 md:p-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full min-w-0">
-          <Outlet />
-        </div>
-      </main>
+      {/* Body: Sidebar + Content */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* Desktop Sidebar */}
+        {!isMobile && <Sidebar />}
 
-      {/* Bottom Navigation (Mode Switcher + Nav) */}
+        {/* Main Content Area */}
+        <main
+          className={clsx(
+            'flex-1 overflow-y-auto relative transition-opacity duration-150 min-w-0',
+            isTransitioning ? 'opacity-50 blur-sm' : 'opacity-100',
+            'bg-ward-bg'
+          )}
+        >
+          <div className="p-3 sm:p-4 md:p-6 pb-24 md:pb-6 max-w-7xl mx-auto w-full min-w-0">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+
+      {/* Bottom Navigation (Mobile only) */}
       {isMobile && (
         <>
           {showMore && (
