@@ -37,6 +37,7 @@ SECTION GUIDELINES:
 - Pending orders or follow-ups
 
 STYLE:
+- NEVER use emojis or unicode symbols.
 - Be concise. Use standard medical abbreviations.
 - Prioritize safety-critical information.
 - Each field should be a well-formatted markdown string.

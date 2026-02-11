@@ -118,6 +118,55 @@ export function Markdown({ content, className }: MarkdownProps) {
       continue
     }
 
+    // Table block (lines starting with |)
+    if (/^\|/.test(line.trim())) {
+      const tableRows: string[][] = []
+      while (i < lines.length && /^\|/.test(lines[i].trim())) {
+        const row = lines[i].trim()
+        // Skip separator rows like |---|---|
+        if (/^\|[\s\-:|]+\|$/.test(row)) {
+          i++
+          continue
+        }
+        const cells = row
+          .split('|')
+          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+          .map((c) => c.trim())
+        if (cells.length > 0) tableRows.push(cells)
+        i++
+      }
+      if (tableRows.length > 0) {
+        const [header, ...body] = tableRows
+        elements.push(
+          <div key={`tbl-${i}`} className="overflow-x-auto my-2">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  {header.map((cell, ci) => (
+                    <th key={ci} className="text-left px-2 py-1.5 font-semibold text-slate-700">
+                      {parseInline(cell)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {body.map((row, ri) => (
+                  <tr key={ri} className="border-b border-slate-100">
+                    {row.map((cell, ci) => (
+                      <td key={ci} className="px-2 py-1.5 text-inherit">
+                        {parseInline(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+      continue
+    }
+
     // Paragraph
     elements.push(
       <p key={i} className="text-sm text-inherit my-1">
