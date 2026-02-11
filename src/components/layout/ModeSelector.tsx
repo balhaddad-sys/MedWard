@@ -4,9 +4,9 @@ import { useUIStore } from '@/stores/uiStore'
 import type { WardMode } from '@/types'
 
 const modes: { id: WardMode; label: string; icon: React.ElementType }[] = [
-  { id: 'ward', label: 'Clinical', icon: Activity },
-  { id: 'clinic', label: 'Lab Triage', icon: FlaskConical },
-  { id: 'acute', label: 'Handover', icon: ArrowRightLeft },
+  { id: 'clinical', label: 'Clinical', icon: Activity },
+  { id: 'triage', label: 'Lab Triage', icon: FlaskConical },
+  { id: 'handover', label: 'Handover', icon: ArrowRightLeft },
 ]
 
 export function ModeSelector() {
