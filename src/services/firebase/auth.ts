@@ -35,7 +35,7 @@ export const getOrCreateProfile = async (firebaseUser: FirebaseUser): Promise<Us
       wardIds: [] as string[],
       preferences: {
         defaultWard: '',
-        defaultMode: 'clinical' as const,
+        defaultMode: 'ward' as const,
         notificationSettings: { criticalLabs: true, taskReminders: true, handoverAlerts: true },
         displaySettings: { compactView: false, showAISuggestions: true, labTrendDays: 7 },
       },

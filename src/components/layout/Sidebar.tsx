@@ -17,11 +17,51 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useClinicalMode } from '@/context/useClinicalMode'
-import type { ClinicalMode } from '@/config/modes'
+import type { ClinicalMode, ModeFeatures } from '@/config/modes'
 import { triggerHaptic } from '@/utils/haptics'
 import { useTaskStore } from '@/stores/taskStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useMemo } from 'react'
+
+const FEATURE_BADGES: { key: keyof ModeFeatures; label: string; color: string }[] = [
+  { key: 'spibar', label: 'SBAR', color: 'blue' },
+  { key: 'taskEngine', label: 'Tasks', color: 'blue' },
+  { key: 'escalation', label: 'Escalation', color: 'red' },
+  { key: 'calculators', label: 'Scores', color: 'purple' },
+  { key: 'timers', label: 'Timers', color: 'amber' },
+  { key: 'trendDeck', label: 'Trends', color: 'green' },
+  { key: 'resultsFollowUp', label: 'Follow-Up', color: 'indigo' },
+  { key: 'smartScribe', label: 'SmartScribe', color: 'stone' },
+  { key: 'patientEducation', label: 'Education', color: 'teal' },
+]
+
+const BADGE_STYLES: Record<string, string> = {
+  blue: 'bg-blue-100 text-blue-700',
+  red: 'bg-red-100 text-red-700',
+  purple: 'bg-purple-100 text-purple-700',
+  amber: 'bg-amber-100 text-amber-700',
+  green: 'bg-green-100 text-green-700',
+  indigo: 'bg-indigo-100 text-indigo-700',
+  stone: 'bg-stone-200 text-stone-700',
+  teal: 'bg-teal-100 text-teal-700',
+}
+
+const DARK_BADGE_STYLES: Record<string, string> = {
+  blue: 'bg-blue-500/15 text-blue-400',
+  red: 'bg-red-500/15 text-red-400',
+  purple: 'bg-purple-500/15 text-purple-400',
+  amber: 'bg-amber-500/15 text-amber-400',
+  green: 'bg-green-500/15 text-green-400',
+  indigo: 'bg-indigo-500/15 text-indigo-400',
+  stone: 'bg-slate-700 text-slate-300',
+  teal: 'bg-teal-500/15 text-teal-400',
+}
+
+const NOTIFY_LABELS: Record<string, string> = {
+  'all': 'All alerts',
+  'urgent': 'Urgent only',
+  'critical-only': 'Critical only',
+}
 
 const MODE_META: Record<ClinicalMode, { icon: React.ElementType; label: string; shortLabel: string; color: string }> = {
   ward: { icon: ClipboardList, label: 'Ward Round', shortLabel: 'Ward', color: 'blue' },
@@ -189,24 +229,43 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Features & Status */}
       <div className={clsx(
-        'px-3 py-2.5 border-t',
+        'px-3 py-2.5 border-t space-y-2',
         isDark ? 'border-gray-800' : 'border-neutral-100'
       )}>
-        <div className="flex items-center gap-2">
-          <div className={clsx(
-            'h-2 w-2 rounded-full flex-shrink-0',
-            config.refreshRate > 0 ? 'bg-green-500 animate-pulse' : isDark ? 'bg-slate-600' : 'bg-neutral-300'
-          )} />
-          <span className={clsx(
-            'text-[10px]',
-            isDark ? 'text-slate-500' : 'text-neutral-400'
-          )}>
-            {config.refreshRate > 0
-              ? `Live — ${config.refreshRate / 1000}s refresh`
-              : 'Manual refresh'}
-          </span>
+        {/* Active feature badges */}
+        <div className="flex flex-wrap gap-1">
+          {FEATURE_BADGES.filter((f) => config.features[f.key] === true).map((f) => (
+            <span
+              key={f.key}
+              className={clsx(
+                'text-[9px] font-medium px-1.5 py-0.5 rounded-full',
+                isDark ? DARK_BADGE_STYLES[f.color] : BADGE_STYLES[f.color]
+              )}
+            >
+              {f.label}
+            </span>
+          ))}
+        </div>
+
+        {/* UI behaviour summary */}
+        <div className={clsx(
+          'flex items-center justify-between text-[10px]',
+          isDark ? 'text-slate-500' : 'text-neutral-400'
+        )}>
+          <div className="flex items-center gap-1.5">
+            <div className={clsx(
+              'h-1.5 w-1.5 rounded-full flex-shrink-0',
+              config.refreshRate > 0 ? 'bg-green-500 animate-pulse' : isDark ? 'bg-slate-600' : 'bg-neutral-300'
+            )} />
+            <span>
+              {config.refreshRate > 0
+                ? `${config.refreshRate / 1000}s`
+                : 'Manual'}
+            </span>
+          </div>
+          <span>{NOTIFY_LABELS[config.features.notifyLevel]}</span>
         </div>
       </div>
     </aside>
