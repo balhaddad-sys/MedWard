@@ -19,6 +19,7 @@ STRUCTURE:
    - Resource/staffing notes if relevant
 
 STYLE:
+- NEVER use emojis or unicode symbols.
 - Use markdown headers and bullets for scanability.
 - Be concise — each patient summary should be 4-6 lines max.
 - Use standard medical abbreviations.
