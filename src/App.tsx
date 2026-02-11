@@ -155,8 +155,17 @@ export default function App() {
         try {
           const profile = await getOrCreateProfile(firebaseUser)
           setUser(profile)
-        } catch {
-          setUser(null)
+        } catch (err) {
+          console.error('[MedWard] Profile creation failed — retrying once', err)
+          // Retry once after a short delay (Firestore cold-start / rules propagation)
+          try {
+            await new Promise((r) => setTimeout(r, 2000))
+            const profile = await getOrCreateProfile(firebaseUser)
+            setUser(profile)
+          } catch (retryErr) {
+            console.error('[MedWard] Profile creation retry failed', retryErr)
+            setUser(null)
+          }
         }
       } else {
         localStorage.removeItem('user_id')

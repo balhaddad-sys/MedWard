@@ -485,6 +485,33 @@ export default function AcuteRoot() {
   const [gcsVerbal, setGcsVerbal] = useState(5)
   const [gcsMotor, setGcsMotor] = useState(6)
 
+  // NEWS2 state
+  const [newsRR, setNewsRR] = useState(3) // 0-3
+  const [newsSpO2, setNewsSpO2] = useState(0) // 0-3
+  const [newsOnAir, setNewsOnAir] = useState(0) // 0 or 2
+  const [newsSBP, setNewsSBP] = useState(0) // 0-3
+  const [newsPulse, setNewsPulse] = useState(0) // 0-3
+  const [newsConsc, setNewsConsc] = useState(0) // 0 or 3
+  const [newsTemp, setNewsTemp] = useState(0) // 0-3
+
+  // CURB-65 state
+  const [curbConfusion, setCurbConfusion] = useState(false)
+  const [curbUrea, setCurbUrea] = useState(false)
+  const [curbRR, setCurbRR] = useState(false)
+  const [curbBP, setCurbBP] = useState(false)
+  const [curbAge, setCurbAge] = useState(false)
+
+  // Corrected calcium state
+  const [calcCalcium, setCalcCalcium] = useState('')
+  const [calcAlbumin, setCalcAlbumin] = useState('')
+
+  // QTc state
+  const [qtInterval, setQtInterval] = useState('')
+  const [heartRate, setHeartRate] = useState('')
+
+  // Active sub-calculator (to save space)
+  const [activeCalc, setActiveCalc] = useState<'map' | 'gcs' | 'news2' | 'curb65' | 'calcium' | 'qtc'>('map')
+
   // Custom timer form
   const [customTimerLabel, setCustomTimerLabel] = useState('')
   const [customTimerMinutes, setCustomTimerMinutes] = useState('')
@@ -495,6 +522,18 @@ export default function AcuteRoot() {
       : null
 
   const gcsTotal = gcsEye + gcsVerbal + gcsMotor
+  const news2Total = newsRR + newsSpO2 + newsOnAir + newsSBP + newsPulse + newsConsc + newsTemp
+  const curb65Total = [curbConfusion, curbUrea, curbRR, curbBP, curbAge].filter(Boolean).length
+
+  const correctedCalcium =
+    calcCalcium && calcAlbumin
+      ? (parseFloat(calcCalcium) + 0.02 * (40 - parseFloat(calcAlbumin))).toFixed(2)
+      : null
+
+  const qtcBazett =
+    qtInterval && heartRate && parseFloat(heartRate) > 0
+      ? Math.round(parseFloat(qtInterval) / Math.sqrt(60 / parseFloat(heartRate)))
+      : null
 
   const runningTimerCount = timers.filter((t) => t.isRunning).length
   const overdueTimerCount = timers.filter((t) => t.isRunning && t.elapsed >= t.targetMs).length
@@ -819,69 +858,355 @@ export default function AcuteRoot() {
               <div className="p-3 sm:p-4">
                 {/* CALCULATORS */}
                 {activeToolTab === 'tools' && (
-                  <div className="space-y-4">
-                    {/* MAP Calculator */}
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Calculator className="h-3.5 w-3.5 text-blue-400" />
-                        MAP Calculator
-                      </h3>
-                      <div className="flex items-center gap-2 mb-2">
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          placeholder="SBP"
-                          value={mapSystolic}
-                          onChange={(e) => setMapSystolic(e.target.value)}
-                          className="flex-1 bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                        <span className="text-slate-400 font-bold">/</span>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          placeholder="DBP"
-                          value={mapDiastolic}
-                          onChange={(e) => setMapDiastolic(e.target.value)}
-                          className="flex-1 bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                      </div>
-                      {mapResult !== null && (
-                        <div className="text-center">
-                          <span className="text-2xl font-bold text-blue-400 font-mono">MAP: {mapResult}</span>
-                          <span className="text-xs text-slate-400 ml-2">mmHg</span>
-                          {mapResult < 65 && (
-                            <p className="text-red-400 text-xs mt-1 font-bold">LOW -- Consider vasopressors</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* GCS Calculator */}
-                    <div>
-                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Brain className="h-3.5 w-3.5 text-purple-400" />
-                        GCS Calculator
-                      </h3>
-                      <div className="space-y-2">
-                        <GCSInput label="Eye" value={gcsEye} min={1} max={4} onChange={setGcsEye} />
-                        <GCSInput label="Verbal" value={gcsVerbal} min={1} max={5} onChange={setGcsVerbal} />
-                        <GCSInput label="Motor" value={gcsMotor} min={1} max={6} onChange={setGcsMotor} />
-                      </div>
-                      <div className="text-center mt-2 pt-2 border-t border-slate-700">
-                        <span
+                  <div className="space-y-3">
+                    {/* Calculator selector pills */}
+                    <div className="flex flex-wrap gap-1">
+                      {([
+                        { id: 'map' as const, label: 'MAP' },
+                        { id: 'gcs' as const, label: 'GCS' },
+                        { id: 'news2' as const, label: 'NEWS2' },
+                        { id: 'curb65' as const, label: 'CURB-65' },
+                        { id: 'calcium' as const, label: 'Corr Ca²⁺' },
+                        { id: 'qtc' as const, label: 'QTc' },
+                      ]).map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => {
+                            triggerHaptic('tap')
+                            setActiveCalc(c.id)
+                          }}
                           className={clsx(
-                            'text-2xl font-bold font-mono',
-                            gcsTotal <= 8 ? 'text-red-400' : gcsTotal <= 12 ? 'text-amber-400' : 'text-green-400'
+                            'px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors',
+                            activeCalc === c.id
+                              ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                              : 'bg-slate-700/40 text-slate-500 hover:text-slate-300 border border-transparent'
                           )}
                         >
-                          GCS: {gcsTotal}
-                        </span>
-                        <span className="text-xs text-slate-400 ml-2">/15</span>
-                        {gcsTotal <= 8 && (
-                          <p className="text-red-400 text-xs mt-1 font-bold">SEVERE -- Consider intubation</p>
+                          {c.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* MAP Calculator */}
+                    {activeCalc === 'map' && (
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <Calculator className="h-3.5 w-3.5 text-blue-400" />
+                          Mean Arterial Pressure
+                        </h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            placeholder="SBP"
+                            value={mapSystolic}
+                            onChange={(e) => setMapSystolic(e.target.value)}
+                            className="flex-1 bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                          />
+                          <span className="text-slate-400 font-bold">/</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            placeholder="DBP"
+                            value={mapDiastolic}
+                            onChange={(e) => setMapDiastolic(e.target.value)}
+                            className="flex-1 bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                          />
+                        </div>
+                        {mapResult !== null && (
+                          <div className="text-center">
+                            <span className="text-2xl font-bold text-blue-400 font-mono">MAP: {mapResult}</span>
+                            <span className="text-xs text-slate-400 ml-2">mmHg</span>
+                            {mapResult < 65 && (
+                              <p className="text-red-400 text-xs mt-1 font-bold">LOW — Consider vasopressors</p>
+                            )}
+                          </div>
                         )}
                       </div>
-                    </div>
+                    )}
+
+                    {/* GCS Calculator */}
+                    {activeCalc === 'gcs' && (
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <Brain className="h-3.5 w-3.5 text-purple-400" />
+                          Glasgow Coma Scale
+                        </h3>
+                        <div className="space-y-2">
+                          <GCSInput label="Eye" value={gcsEye} min={1} max={4} onChange={setGcsEye} />
+                          <GCSInput label="Verbal" value={gcsVerbal} min={1} max={5} onChange={setGcsVerbal} />
+                          <GCSInput label="Motor" value={gcsMotor} min={1} max={6} onChange={setGcsMotor} />
+                        </div>
+                        <div className="text-center mt-3 pt-3 border-t border-slate-700">
+                          <span
+                            className={clsx(
+                              'text-3xl font-bold font-mono',
+                              gcsTotal <= 8 ? 'text-red-400' : gcsTotal <= 12 ? 'text-amber-400' : 'text-green-400'
+                            )}
+                          >
+                            GCS: {gcsTotal}
+                          </span>
+                          <span className="text-xs text-slate-400 ml-2">/15</span>
+                          <p className="text-[11px] text-slate-500 font-mono mt-1">
+                            E{gcsEye} V{gcsVerbal} M{gcsMotor}
+                          </p>
+                          {gcsTotal <= 8 && (
+                            <p className="text-red-400 text-xs mt-1 font-bold">SEVERE — Consider intubation</p>
+                          )}
+                          {gcsTotal > 8 && gcsTotal <= 12 && (
+                            <p className="text-amber-400 text-xs mt-1 font-medium">MODERATE — Close monitoring</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* NEWS2 Calculator */}
+                    {activeCalc === 'news2' && (
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <Activity className="h-3.5 w-3.5 text-red-400" />
+                          NEWS2 — National Early Warning Score
+                        </h3>
+                        <div className="space-y-2">
+                          {[
+                            { label: 'Resp Rate', value: newsRR, set: setNewsRR, options: ['12-20', '21-24', '9-11', '≤8 or ≥25'] },
+                            { label: 'SpO₂ Scale 1', value: newsSpO2, set: setNewsSpO2, options: ['≥96%', '94-95%', '92-93%', '≤91%'] },
+                            { label: 'Air / O₂', value: newsOnAir, set: setNewsOnAir, options: ['Air', null, 'O₂'] },
+                            { label: 'Systolic BP', value: newsSBP, set: setNewsSBP, options: ['111-219', '101-110', '91-100', '≤90 or ≥220'] },
+                            { label: 'Pulse', value: newsPulse, set: setNewsPulse, options: ['51-90', '91-110', '41-50', '≤40 or ≥131'] },
+                            { label: 'Consciousness', value: newsConsc, set: setNewsConsc, options: ['Alert', null, null, 'CVPU'] },
+                            { label: 'Temperature', value: newsTemp, set: setNewsTemp, options: ['36.1-38.0', '35.1-36.0 or 38.1-39.0', '≤35.0', '≥39.1'] },
+                          ].map((row) => {
+                            const scores = row.label === 'Air / O₂' ? [0, 2] :
+                                           row.label === 'Consciousness' ? [0, 3] : [0, 1, 2, 3]
+                            return (
+                              <div key={row.label} className="bg-slate-900/40 rounded-lg px-3 py-2">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">{row.label}</span>
+                                <div className="flex gap-1">
+                                  {scores.map((score) => {
+                                    const optIdx = row.label === 'Air / O₂' ? (score === 0 ? 0 : 2) :
+                                                   row.label === 'Consciousness' ? (score === 0 ? 0 : 3) : score
+                                    const optLabel = row.options[optIdx]
+                                    if (!optLabel) return null
+                                    return (
+                                      <button
+                                        key={score}
+                                        onClick={() => { triggerHaptic('tap'); row.set(score) }}
+                                        className={clsx(
+                                          'flex-1 py-1.5 rounded text-[10px] font-semibold transition-colors text-center',
+                                          row.value === score
+                                            ? score === 0 ? 'bg-green-600/30 text-green-400 border border-green-500/40'
+                                              : score <= 1 ? 'bg-amber-600/30 text-amber-400 border border-amber-500/40'
+                                              : 'bg-red-600/30 text-red-400 border border-red-500/40'
+                                            : 'bg-slate-800 text-slate-500 hover:text-slate-300 border border-transparent'
+                                        )}
+                                      >
+                                        {optLabel}
+                                        <span className="block text-[8px] opacity-60">{score}pt</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="text-center mt-3 pt-3 border-t border-slate-700">
+                          <span
+                            className={clsx(
+                              'text-3xl font-bold font-mono',
+                              news2Total >= 7 ? 'text-red-400' : news2Total >= 5 ? 'text-amber-400' : news2Total >= 1 ? 'text-yellow-400' : 'text-green-400'
+                            )}
+                          >
+                            NEWS2: {news2Total}
+                          </span>
+                          <span className="text-xs text-slate-400 ml-2">/20</span>
+                          <p className={clsx(
+                            'text-xs mt-1 font-bold',
+                            news2Total >= 7 ? 'text-red-400' : news2Total >= 5 ? 'text-amber-400' : news2Total >= 1 ? 'text-yellow-400' : 'text-green-400'
+                          )}>
+                            {news2Total >= 7 ? 'HIGH — Urgent/emergency response' :
+                             news2Total >= 5 ? 'MEDIUM — Urgent ward-based response' :
+                             news2Total >= 1 ? 'LOW — Ward-based monitoring' : 'BASELINE'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* CURB-65 */}
+                    {activeCalc === 'curb65' && (
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <Stethoscope className="h-3.5 w-3.5 text-green-400" />
+                          CURB-65 — Pneumonia Severity
+                        </h3>
+                        <div className="space-y-1.5">
+                          {[
+                            { label: 'Confusion (new)', desc: 'AMT ≤8 or new disorientation', value: curbConfusion, set: setCurbConfusion },
+                            { label: 'Urea > 7 mmol/L', desc: 'BUN > 19 mg/dL', value: curbUrea, set: setCurbUrea },
+                            { label: 'Resp Rate ≥ 30', desc: 'Tachypnoea at rest', value: curbRR, set: setCurbRR },
+                            { label: 'BP: SBP<90 or DBP≤60', desc: 'Hypotension', value: curbBP, set: setCurbBP },
+                            { label: 'Age ≥ 65', desc: 'Elderly patient', value: curbAge, set: setCurbAge },
+                          ].map((item) => (
+                            <button
+                              key={item.label}
+                              onClick={() => { triggerHaptic('tap'); item.set(!item.value) }}
+                              className={clsx(
+                                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors',
+                                item.value
+                                  ? 'bg-red-600/20 border border-red-500/40'
+                                  : 'bg-slate-900/40 border border-slate-700 hover:border-slate-600'
+                              )}
+                            >
+                              <div className={clsx(
+                                'h-5 w-5 rounded flex items-center justify-center flex-shrink-0 transition-colors',
+                                item.value ? 'bg-red-500 text-white' : 'bg-slate-700 text-slate-500'
+                              )}>
+                                {item.value && <Check className="h-3 w-3" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className={clsx('text-xs font-bold block', item.value ? 'text-red-300' : 'text-slate-300')}>{item.label}</span>
+                                <span className="text-[10px] text-slate-500 block">{item.desc}</span>
+                              </div>
+                              <span className={clsx(
+                                'text-xs font-bold tabular-nums',
+                                item.value ? 'text-red-400' : 'text-slate-600'
+                              )}>
+                                {item.value ? '1' : '0'}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="text-center mt-3 pt-3 border-t border-slate-700">
+                          <span
+                            className={clsx(
+                              'text-3xl font-bold font-mono',
+                              curb65Total >= 3 ? 'text-red-400' : curb65Total === 2 ? 'text-amber-400' : 'text-green-400'
+                            )}
+                          >
+                            CURB-65: {curb65Total}
+                          </span>
+                          <span className="text-xs text-slate-400 ml-2">/5</span>
+                          <p className={clsx(
+                            'text-xs mt-1 font-bold',
+                            curb65Total >= 3 ? 'text-red-400' : curb65Total === 2 ? 'text-amber-400' : 'text-green-400'
+                          )}>
+                            {curb65Total >= 3 ? 'SEVERE — Consider ICU / HDU' :
+                             curb65Total === 2 ? 'MODERATE — Consider short inpatient / supervised outpatient' :
+                             'LOW — Consider outpatient treatment'}
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-1">
+                            Mortality: {curb65Total === 0 ? '0.6%' : curb65Total === 1 ? '2.7%' : curb65Total === 2 ? '6.8%' : curb65Total === 3 ? '14%' : curb65Total === 4 ? '27%' : '57%'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Corrected Calcium */}
+                    {activeCalc === 'calcium' && (
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <Calculator className="h-3.5 w-3.5 text-teal-400" />
+                          Corrected Calcium
+                        </h3>
+                        <p className="text-[10px] text-slate-500 mb-2">Adjusts total calcium for albumin (Payne formula)</p>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div>
+                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Total Ca²⁺ (mmol/L)</label>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              placeholder="e.g. 2.10"
+                              value={calcCalcium}
+                              onChange={(e) => setCalcCalcium(e.target.value)}
+                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-teal-500 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Albumin (g/L)</label>
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              placeholder="e.g. 35"
+                              value={calcAlbumin}
+                              onChange={(e) => setCalcAlbumin(e.target.value)}
+                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-teal-500 outline-none"
+                            />
+                          </div>
+                        </div>
+                        {correctedCalcium !== null && (
+                          <div className="text-center mt-2">
+                            <span className={clsx(
+                              'text-2xl font-bold font-mono',
+                              parseFloat(correctedCalcium) > 2.65 ? 'text-red-400' :
+                              parseFloat(correctedCalcium) < 2.10 ? 'text-amber-400' : 'text-green-400'
+                            )}>
+                              {correctedCalcium}
+                            </span>
+                            <span className="text-xs text-slate-400 ml-2">mmol/L (corrected)</span>
+                            {parseFloat(correctedCalcium) > 2.65 && (
+                              <p className="text-red-400 text-xs mt-1 font-bold">HYPERCALCAEMIA</p>
+                            )}
+                            {parseFloat(correctedCalcium) < 2.10 && (
+                              <p className="text-amber-400 text-xs mt-1 font-bold">HYPOCALCAEMIA</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* QTc */}
+                    {activeCalc === 'qtc' && (
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                          <Activity className="h-3.5 w-3.5 text-indigo-400" />
+                          Corrected QT Interval (Bazett)
+                        </h3>
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <div>
+                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">QT interval (ms)</label>
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              placeholder="e.g. 400"
+                              value={qtInterval}
+                              onChange={(e) => setQtInterval(e.target.value)}
+                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Heart rate (bpm)</label>
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              placeholder="e.g. 72"
+                              value={heartRate}
+                              onChange={(e) => setHeartRate(e.target.value)}
+                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                          </div>
+                        </div>
+                        {qtcBazett !== null && (
+                          <div className="text-center mt-2">
+                            <span className={clsx(
+                              'text-2xl font-bold font-mono',
+                              qtcBazett > 500 ? 'text-red-400' :
+                              qtcBazett > 450 ? 'text-amber-400' : 'text-green-400'
+                            )}>
+                              QTc: {qtcBazett}
+                            </span>
+                            <span className="text-xs text-slate-400 ml-2">ms</span>
+                            {qtcBazett > 500 && (
+                              <p className="text-red-400 text-xs mt-1 font-bold">PROLONGED — High risk of TdP. Review QT-prolonging drugs.</p>
+                            )}
+                            {qtcBazett > 450 && qtcBazett <= 500 && (
+                              <p className="text-amber-400 text-xs mt-1 font-medium">BORDERLINE — Monitor and review medications</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1537,6 +1862,12 @@ export default function AcuteRoot() {
 
 // === HELPER COMPONENTS ===
 
+const GCS_LABELS: Record<string, string[]> = {
+  Eye:    ['', 'None', 'To pressure', 'To voice', 'Spontaneous'],
+  Verbal: ['', 'None', 'Sounds', 'Words', 'Confused', 'Oriented'],
+  Motor:  ['', 'None', 'Extension', 'Flexion', 'Withdrawal', 'Localising', 'Obeys'],
+}
+
 function GCSInput({
   label,
   value,
@@ -1550,33 +1881,44 @@ function GCSInput({
   max: number
   onChange: (v: number) => void
 }) {
+  const descriptor = GCS_LABELS[label]?.[value] || ''
+
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-slate-300 font-medium w-16">{label}</span>
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3 bg-slate-900/40 rounded-lg px-3 py-2">
+      <div className="w-20 flex-shrink-0">
+        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">{label}</span>
+        <span className="text-[10px] text-slate-500 block truncate">{descriptor}</span>
+      </div>
+      <div className="flex items-center gap-2 flex-1 justify-center">
         <button
           onClick={() => {
             triggerHaptic('tap')
             if (value > min) onChange(value - 1)
           }}
-          className="h-9 w-9 rounded-lg bg-slate-700 flex items-center justify-center text-white hover:bg-slate-600 min-h-[36px]"
+          className={clsx(
+            'h-10 w-10 rounded-lg flex items-center justify-center transition-colors min-h-[40px]',
+            value <= min ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-700 text-white hover:bg-slate-600 active:bg-slate-500'
+          )}
           disabled={value <= min}
         >
-          <Minus className="h-3.5 w-3.5" />
+          <Minus className="h-4 w-4" />
         </button>
-        <span className="text-lg font-bold text-white font-mono w-6 text-center">{value}</span>
+        <span className="text-xl font-bold text-white font-mono w-8 text-center tabular-nums">{value}</span>
         <button
           onClick={() => {
             triggerHaptic('tap')
             if (value < max) onChange(value + 1)
           }}
-          className="h-9 w-9 rounded-lg bg-slate-700 flex items-center justify-center text-white hover:bg-slate-600 min-h-[36px]"
+          className={clsx(
+            'h-10 w-10 rounded-lg flex items-center justify-center transition-colors min-h-[40px]',
+            value >= max ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-700 text-white hover:bg-slate-600 active:bg-slate-500'
+          )}
           disabled={value >= max}
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="h-4 w-4" />
         </button>
       </div>
-      <span className="text-xs text-slate-500 w-8 text-right">/{max}</span>
+      <span className="text-xs text-slate-500 w-8 text-right flex-shrink-0">/{max}</span>
     </div>
   )
 }
