@@ -23,7 +23,6 @@ import {
   Wrench,
   Siren,
   Shield,
-  Heart,
   CheckSquare,
   Circle,
 } from 'lucide-react'
@@ -87,6 +86,44 @@ export default function AcuteRoot() {
   // === LAB DATA PER PATIENT ===
   const [patientLabs, setPatientLabs] = useState<Record<string, LabResultData | null>>({})
 
+  // Load labs when a patient is added to workspace
+  const loadPatientLabs = useCallback(async (patientId: string) => {
+    try {
+      const labs = await getLabPanels(patientId, 5)
+      if (labs.length > 0) {
+        const latestLab = labs[0]
+        const labData: LabResultData = {
+          patientName: latestLab.panelName,
+          collectionDate: latestLab.collectedAt
+            ? new Date(latestLab.collectedAt.seconds * 1000).toLocaleDateString()
+            : undefined,
+          results: (latestLab.values || []).map((v) => ({
+            test: v.name,
+            value: v.value,
+            unit: v.unit,
+            flag:
+              v.flag === 'critical_high' || v.flag === 'critical_low'
+                ? 'Critical'
+                : v.flag === 'high'
+                  ? 'High'
+                  : v.flag === 'low'
+                    ? 'Low'
+                    : 'Normal',
+            refRange:
+              v.referenceMin !== undefined && v.referenceMax !== undefined
+                ? `${v.referenceMin}-${v.referenceMax}`
+                : undefined,
+          })),
+        }
+        setPatientLabs((prev) => ({ ...prev, [patientId]: labData }))
+      } else {
+        setPatientLabs((prev) => ({ ...prev, [patientId]: null }))
+      }
+    } catch {
+      setPatientLabs((prev) => ({ ...prev, [patientId]: null }))
+    }
+  }, [])
+
   // Auto-load critical patients (acuity 1-2) on first mount
   useEffect(() => {
     if (autoLoaded || patients.length === 0) return
@@ -97,7 +134,7 @@ export default function AcuteRoot() {
       ids.forEach((id) => loadPatientLabs(id))
     }
     setAutoLoaded(true)
-  }, [patients, autoLoaded])
+  }, [patients, autoLoaded, loadPatientLabs])
 
   // Resolve workspace patients from the global store, sorted by acuity
   const workspacePatients = useMemo(
@@ -142,44 +179,6 @@ export default function AcuteRoot() {
       searchInputRef.current.focus()
     }
   }, [showSearch])
-
-  // Load labs when a patient is added to workspace
-  const loadPatientLabs = useCallback(async (patientId: string) => {
-    try {
-      const labs = await getLabPanels(patientId, 5)
-      if (labs.length > 0) {
-        const latestLab = labs[0]
-        const labData: LabResultData = {
-          patientName: latestLab.panelName,
-          collectionDate: latestLab.collectedAt
-            ? new Date(latestLab.collectedAt.seconds * 1000).toLocaleDateString()
-            : undefined,
-          results: (latestLab.values || []).map((v) => ({
-            test: v.name,
-            value: v.value,
-            unit: v.unit,
-            flag:
-              v.flag === 'critical_high' || v.flag === 'critical_low'
-                ? 'Critical'
-                : v.flag === 'high'
-                  ? 'High'
-                  : v.flag === 'low'
-                    ? 'Low'
-                    : 'Normal',
-            refRange:
-              v.referenceMin !== undefined && v.referenceMax !== undefined
-                ? `${v.referenceMin}-${v.referenceMax}`
-                : undefined,
-          })),
-        }
-        setPatientLabs((prev) => ({ ...prev, [patientId]: labData }))
-      } else {
-        setPatientLabs((prev) => ({ ...prev, [patientId]: null }))
-      }
-    } catch {
-      setPatientLabs((prev) => ({ ...prev, [patientId]: null }))
-    }
-  }, [])
 
   // === WORKSPACE ACTIONS ===
   const addToWorkspace = useCallback(
