@@ -15,8 +15,6 @@ import {
   Minus,
   Search,
   X,
-  Trash2,
-  Edit3,
   Check,
   ChevronDown,
   ChevronUp,
@@ -25,12 +23,21 @@ import {
   Shield,
   CheckSquare,
   Circle,
+  Copy,
+  FileText,
+  Clock,
+  Stethoscope,
+  Activity,
+  Clipboard,
+  ChevronRight,
+  MessageSquare,
+  Zap,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { triggerHaptic, hapticPatterns } from '@/utils/haptics'
-import { deletePatient, updatePatient } from '@/services/firebase/patients'
+import { updatePatient } from '@/services/firebase/patients'
 import { LabResultTable } from '@/components/features/labs/LabResultTable'
 import { getLabPanels } from '@/services/firebase/labs'
 import type { Patient } from '@/types'
@@ -43,14 +50,43 @@ interface AcuteTimer {
   startedAt: number | null
   isRunning: boolean
   elapsed: number
+  patientId?: string
 }
 
-interface EditFormState {
-  firstName: string
-  lastName: string
-  mrn: string
-  bedNumber: string
-  primaryDiagnosis: string
+interface QuickNote {
+  patientId: string
+  text: string
+  timestamp: number
+}
+
+// Persist workspace patient IDs
+const WORKSPACE_KEY = 'oncall_workspace'
+const NOTES_KEY = 'oncall_notes'
+
+function loadWorkspace(): string[] {
+  try {
+    const stored = localStorage.getItem(WORKSPACE_KEY)
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+function saveWorkspace(ids: string[]) {
+  localStorage.setItem(WORKSPACE_KEY, JSON.stringify(ids))
+}
+
+function loadNotes(): QuickNote[] {
+  try {
+    const stored = localStorage.getItem(NOTES_KEY)
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+}
+
+function saveNotes(notes: QuickNote[]) {
+  localStorage.setItem(NOTES_KEY, JSON.stringify(notes))
 }
 
 export default function AcuteRoot() {
@@ -59,8 +95,10 @@ export default function AcuteRoot() {
   const tasks = useTaskStore((s) => s.tasks)
   const navigate = useNavigate()
 
-  // === WORKSPACE STATE ===
+  // === WORKSPACE STATE (persisted) ===
   const [workspacePatientIds, setWorkspacePatientIds] = useState<string[]>(() => {
+    const saved = loadWorkspace()
+    if (saved.length > 0) return saved
     const storePatients = usePatientStore.getState().patients
     return storePatients.filter((p) => p.acuity <= 2).map((p) => p.id)
   })
@@ -68,15 +106,14 @@ export default function AcuteRoot() {
   const [showSearch, setShowSearch] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
-  // === EDITING STATE ===
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<EditFormState>({
-    firstName: '',
-    lastName: '',
-    mrn: '',
-    bedNumber: '',
-    primaryDiagnosis: '',
-  })
+  // === QUICK NOTES STATE (persisted) ===
+  const [quickNotes, setQuickNotes] = useState<QuickNote[]>(loadNotes)
+  const [activeNotePatientId, setActiveNotePatientId] = useState<string | null>(null)
+  const [noteInput, setNoteInput] = useState('')
+
+  // === QUICK TASK ADD ===
+  const [quickTaskPatientId, setQuickTaskPatientId] = useState<string | null>(null)
+  const [quickTaskInput, setQuickTaskInput] = useState('')
 
   // === TOOLS PANEL ===
   const [showTools, setShowTools] = useState(false)
@@ -87,6 +124,20 @@ export default function AcuteRoot() {
 
   // === LAB DATA PER PATIENT ===
   const [patientLabs, setPatientLabs] = useState<Record<string, LabResultData | null>>({})
+
+  // === HANDOVER MODE ===
+  const [showHandover, setShowHandover] = useState(false)
+  const [copiedSbar, setCopiedSbar] = useState<string | null>(null)
+
+  // Persist workspace whenever it changes
+  useEffect(() => {
+    saveWorkspace(workspacePatientIds)
+  }, [workspacePatientIds])
+
+  // Persist notes whenever they change
+  useEffect(() => {
+    saveNotes(quickNotes)
+  }, [quickNotes])
 
   // Load labs when a patient is added to workspace
   const loadPatientLabs = useCallback(async (patientId: string) => {
@@ -131,6 +182,8 @@ export default function AcuteRoot() {
     if (usePatientStore.getState().patients.length > 0) return
     const unsub = usePatientStore.subscribe((state) => {
       if (state.patients.length > 0) {
+        const saved = loadWorkspace()
+        if (saved.length > 0) return // Already have a saved workspace
         const ids = state.patients.filter((p) => p.acuity <= 2).map((p) => p.id)
         if (ids.length > 0) {
           setWorkspacePatientIds(ids)
@@ -141,7 +194,7 @@ export default function AcuteRoot() {
     return () => unsub()
   }, [])
 
-  // Load labs for auto-loaded workspace patients
+  // Load labs for workspace patients
   const labsLoadedRef = useRef(false)
   useEffect(() => {
     if (labsLoadedRef.current || workspacePatientIds.length === 0) return
@@ -218,53 +271,6 @@ export default function AcuteRoot() {
     })
   }, [])
 
-  const handleDeletePatient = useCallback(
-    async (id: string) => {
-      if (!window.confirm('DELETE PATIENT: This permanently removes them from the entire hospital system. Are you sure?')) {
-        return
-      }
-      triggerHaptic('warning')
-      try {
-        await deletePatient(id)
-        removeFromWorkspace(id)
-      } catch {
-        // Error handled silently - patient may not exist
-      }
-    },
-    [removeFromWorkspace]
-  )
-
-  // === EDIT ACTIONS ===
-  const startEditing = useCallback(
-    (patient: Patient) => {
-      triggerHaptic('tap')
-      setEditingId(patient.id)
-      setEditForm({
-        firstName: patient.firstName,
-        lastName: patient.lastName,
-        mrn: patient.mrn,
-        bedNumber: patient.bedNumber,
-        primaryDiagnosis: patient.primaryDiagnosis,
-      })
-    },
-    []
-  )
-
-  const saveEdit = useCallback(async () => {
-    if (!editingId) return
-    triggerHaptic('success')
-    try {
-      await updatePatient(editingId, editForm)
-    } catch {
-      // Error handled silently
-    }
-    setEditingId(null)
-  }, [editingId, editForm])
-
-  const cancelEdit = useCallback(() => {
-    setEditingId(null)
-  }, [])
-
   const toggleCardExpanded = useCallback((id: string) => {
     triggerHaptic('tap')
     setExpandedCards((prev) => {
@@ -277,6 +283,139 @@ export default function AcuteRoot() {
       return next
     })
   }, [])
+
+  // === QUICK NOTES ===
+  const addQuickNote = useCallback((patientId: string, text: string) => {
+    if (!text.trim()) return
+    triggerHaptic('success')
+    const note: QuickNote = { patientId, text: text.trim(), timestamp: Date.now() }
+    setQuickNotes((prev) => [note, ...prev])
+    setNoteInput('')
+    setActiveNotePatientId(null)
+  }, [])
+
+  const getPatientNotes = useCallback(
+    (patientId: string) => quickNotes.filter((n) => n.patientId === patientId),
+    [quickNotes]
+  )
+
+  const deleteNote = useCallback((timestamp: number) => {
+    triggerHaptic('tap')
+    setQuickNotes((prev) => prev.filter((n) => n.timestamp !== timestamp))
+  }, [])
+
+  // === SBAR COPY ===
+  const buildSbarText = useCallback(
+    (patient: Patient) => {
+      const ptTasks = getPatientTasks(patient.id)
+      const ptCriticals = getPatientCriticals(patient.id)
+      const notes = getPatientNotes(patient.id)
+
+      let sbar = `SBAR — ${patient.lastName}, ${patient.firstName}\n`
+      sbar += `${'—'.repeat(40)}\n`
+      sbar += `S: ${patient.firstName} ${patient.lastName}, Bed ${patient.bedNumber}, ${patient.primaryDiagnosis}`
+      if (patient.codeStatus && patient.codeStatus !== 'full') sbar += ` (${patient.codeStatus.toUpperCase()})`
+      sbar += `\n`
+      sbar += `B: Acuity ${patient.acuity}/5. Allergies: ${patient.allergies?.length ? patient.allergies.join(', ') : 'NKDA'}.`
+      if (patient.diagnoses?.length) sbar += ` PMHx: ${patient.diagnoses.slice(0, 5).join(', ')}`
+      sbar += `\n`
+      sbar += `A: ${ptTasks.length > 0 ? `${ptTasks.length} pending task(s). ` : 'No pending tasks. '}`
+      sbar += `${ptCriticals.length > 0 ? `${ptCriticals.length} critical lab value(s) unacknowledged.` : 'Labs stable.'}\n`
+      sbar += `R: ${ptCriticals.length > 0 ? 'Review and acknowledge critical labs. ' : ''}`
+      sbar += `${ptTasks.filter((t) => t.priority === 'critical').length > 0 ? 'Attend to critical tasks. ' : ''}`
+      sbar += `Continue current management plan.\n`
+      if (notes.length > 0) {
+        sbar += `\nOn-Call Notes:\n`
+        notes.forEach((n) => {
+          sbar += `  [${new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${n.text}\n`
+        })
+      }
+      return sbar
+    },
+    [getPatientTasks, getPatientCriticals, getPatientNotes]
+  )
+
+  const copySbar = useCallback(
+    async (patient: Patient) => {
+      const text = buildSbarText(patient)
+      try {
+        await navigator.clipboard.writeText(text)
+        triggerHaptic('success')
+        setCopiedSbar(patient.id)
+        setTimeout(() => setCopiedSbar(null), 2000)
+      } catch {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+        triggerHaptic('success')
+        setCopiedSbar(patient.id)
+        setTimeout(() => setCopiedSbar(null), 2000)
+      }
+    },
+    [buildSbarText]
+  )
+
+  // === HANDOVER SUMMARY ===
+  const buildHandoverSummary = useCallback(() => {
+    let summary = `ON-CALL HANDOVER SUMMARY\n`
+    summary += `${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}\n`
+    summary += `${'='.repeat(50)}\n`
+    summary += `Active patients: ${workspacePatients.length}\n\n`
+
+    workspacePatients.forEach((patient, idx) => {
+      const ptTasks = getPatientTasks(patient.id)
+      const ptCriticals = getPatientCriticals(patient.id)
+      const notes = getPatientNotes(patient.id)
+
+      summary += `${idx + 1}. ${patient.lastName}, ${patient.firstName} — Bed ${patient.bedNumber}\n`
+      summary += `   Dx: ${patient.primaryDiagnosis} | Acuity: ${patient.acuity}/5`
+      if (patient.codeStatus && patient.codeStatus !== 'full') summary += ` | ${patient.codeStatus.toUpperCase()}`
+      summary += `\n`
+      if (patient.allergies?.length) summary += `   Allergies: ${patient.allergies.join(', ')}\n`
+      if (ptTasks.length > 0) {
+        summary += `   Tasks (${ptTasks.length}):\n`
+        ptTasks.slice(0, 5).forEach((t) => {
+          summary += `     - [${t.priority.toUpperCase()}] ${t.title}\n`
+        })
+        if (ptTasks.length > 5) summary += `     ... +${ptTasks.length - 5} more\n`
+      }
+      if (ptCriticals.length > 0) {
+        summary += `   Critical Labs:\n`
+        ptCriticals.forEach((cv) => {
+          summary += `     - ${cv.labName}: ${cv.value} ${cv.unit}\n`
+        })
+      }
+      if (notes.length > 0) {
+        summary += `   On-Call Notes:\n`
+        notes.forEach((n) => {
+          summary += `     [${new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${n.text}\n`
+        })
+      }
+      summary += `\n`
+    })
+
+    return summary
+  }, [workspacePatients, getPatientTasks, getPatientCriticals, getPatientNotes])
+
+  const copyHandover = useCallback(async () => {
+    const text = buildHandoverSummary()
+    try {
+      await navigator.clipboard.writeText(text)
+      triggerHaptic('success')
+    } catch {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textarea)
+      triggerHaptic('success')
+    }
+  }, [buildHandoverSummary])
 
   // === TIMERS ===
   const [timers, setTimers] = useState<AcuteTimer[]>([
@@ -316,6 +455,21 @@ export default function AcuteRoot() {
     )
   }, [])
 
+  // Add custom timer
+  const addCustomTimer = useCallback((label: string, minutes: number, patientId?: string) => {
+    triggerHaptic('tap')
+    const id = `custom_${Date.now()}`
+    setTimers((prev) => [
+      ...prev,
+      { id, label, targetMs: minutes * 60 * 1000, startedAt: Date.now(), isRunning: true, elapsed: 0, patientId },
+    ])
+  }, [])
+
+  const removeTimer = useCallback((id: string) => {
+    triggerHaptic('tap')
+    setTimers((prev) => prev.filter((t) => t.id !== id))
+  }, [])
+
   const formatTime = (ms: number) => {
     const totalSecs = Math.floor(ms / 1000)
     const h = Math.floor(totalSecs / 3600)
@@ -332,6 +486,10 @@ export default function AcuteRoot() {
   const [gcsVerbal, setGcsVerbal] = useState(5)
   const [gcsMotor, setGcsMotor] = useState(6)
 
+  // Custom timer form
+  const [customTimerLabel, setCustomTimerLabel] = useState('')
+  const [customTimerMinutes, setCustomTimerMinutes] = useState('')
+
   const mapResult =
     mapSystolic && mapDiastolic
       ? Math.round((parseInt(mapDiastolic) * 2 + parseInt(mapSystolic)) / 3)
@@ -340,11 +498,48 @@ export default function AcuteRoot() {
   const gcsTotal = gcsEye + gcsVerbal + gcsMotor
 
   const runningTimerCount = timers.filter((t) => t.isRunning).length
+  const overdueTimerCount = timers.filter((t) => t.isRunning && t.elapsed >= t.targetMs).length
 
   // Workspace stats
   const critCount = workspacePatients.filter((p) => p.acuity <= 2).length
   const totalPendingTasks = workspacePatientIds.reduce((acc, id) => acc + getPatientTasks(id).length, 0)
   const totalCriticalLabs = workspacePatientIds.reduce((acc, id) => acc + getPatientCriticals(id).length, 0)
+
+  // All critical items across workspace (for banner)
+  const allCriticalItems = useMemo(() => {
+    const items: { type: 'lab' | 'task'; patientName: string; bedNumber: string; detail: string; patientId: string }[] = []
+    workspacePatients.forEach((p) => {
+      getPatientCriticals(p.id).forEach((cv) => {
+        items.push({
+          type: 'lab',
+          patientName: `${p.lastName}, ${p.firstName}`,
+          bedNumber: p.bedNumber,
+          detail: `${cv.labName}: ${cv.value} ${cv.unit}`,
+          patientId: p.id,
+        })
+      })
+      getPatientTasks(p.id)
+        .filter((t) => t.priority === 'critical')
+        .forEach((t) => {
+          items.push({
+            type: 'task',
+            patientName: `${p.lastName}, ${p.firstName}`,
+            bedNumber: p.bedNumber,
+            detail: t.title,
+            patientId: p.id,
+          })
+        })
+    })
+    return items
+  }, [workspacePatients, getPatientCriticals, getPatientTasks])
+
+  // Quick task presets for on-call
+  const quickTaskPresets = [
+    { label: 'Check vitals', icon: Activity },
+    { label: 'Repeat bloods', icon: Stethoscope },
+    { label: 'Fluid bolus', icon: Zap },
+    { label: 'Reassess in 1h', icon: Clock },
+  ]
 
   return (
     <div className="animate-fade-in flex flex-col h-full -mx-3 -mt-3 sm:-mx-4 sm:-mt-4 md:-mx-6 md:-mt-6">
@@ -374,6 +569,31 @@ export default function AcuteRoot() {
                 <span className="font-bold">{totalCriticalLabs}</span> crit labs
               </div>
             )}
+            {overdueTimerCount > 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-red-400 animate-pulse">
+                <Timer className="w-3 h-3" />
+                <span className="font-bold">{overdueTimerCount}</span> overdue
+              </div>
+            )}
+
+            {/* Handover button */}
+            <div className="ml-auto flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  triggerHaptic('tap')
+                  setShowHandover(!showHandover)
+                }}
+                className={clsx(
+                  'flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors',
+                  showHandover
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-700/60 text-slate-400 hover:text-white'
+                )}
+              >
+                <Clipboard className="w-3 h-3" />
+                Handover
+              </button>
+            </div>
           </div>
         )}
 
@@ -384,7 +604,7 @@ export default function AcuteRoot() {
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search hospital census..."
+              placeholder="Add patient (name, MRN, bed)..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value)
@@ -417,13 +637,16 @@ export default function AcuteRoot() {
             className={clsx(
               'relative flex items-center justify-center p-2.5 rounded-lg border transition-colors min-h-[42px] min-w-[42px]',
               showTools
-                ? 'bg-red-600 border-red-500 text-white'
+                ? 'bg-amber-600 border-amber-500 text-white'
                 : 'bg-slate-700/60 border-slate-600 text-slate-300 hover:bg-slate-700'
             )}
           >
             <Wrench className="w-4 h-4" />
             {runningTimerCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full text-[9px] font-bold flex items-center justify-center text-black">
+              <span className={clsx(
+                'absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center',
+                overdueTimerCount > 0 ? 'bg-red-500 text-white animate-pulse' : 'bg-amber-500 text-black'
+              )}>
                 {runningTimerCount}
               </span>
             )}
@@ -467,7 +690,7 @@ export default function AcuteRoot() {
                       <span className="text-xs bg-slate-600/80 text-slate-300 px-2 py-0.5 rounded font-mono">
                         {p.mrn}
                       </span>
-                      <Plus className="w-4 h-4 text-slate-400" />
+                      <Plus className="w-4 h-4 text-green-400" />
                     </div>
                   </button>
                 ))
@@ -488,6 +711,75 @@ export default function AcuteRoot() {
       {/* === B. MAIN CONTENT AREA === */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-3 py-3 sm:px-4 sm:py-4">
+
+          {/* CRITICAL ALERTS BANNER */}
+          {allCriticalItems.length > 0 && !showHandover && (
+            <div className="mb-3 bg-red-900/30 rounded-xl border border-red-800/50 p-3 animate-fade-in">
+              <h3 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Action Required ({allCriticalItems.length})
+              </h3>
+              <div className="space-y-1.5">
+                {allCriticalItems.slice(0, 6).map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      triggerHaptic('tap')
+                      setExpandedCards((prev) => new Set(prev).add(item.patientId))
+                      document.getElementById(`patient-${item.patientId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }}
+                    className="w-full flex items-center gap-2 text-xs p-2 rounded-lg bg-slate-900/40 hover:bg-slate-800/60 transition-colors text-left"
+                  >
+                    <span className={clsx(
+                      'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0',
+                      item.type === 'lab' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                    )}>
+                      {item.type === 'lab' ? 'LAB' : 'TASK'}
+                    </span>
+                    <span className="text-slate-400 flex-shrink-0">Bed {item.bedNumber}</span>
+                    <span className="text-white font-medium truncate">{item.detail}</span>
+                    <ChevronRight className="w-3 h-3 text-slate-600 ml-auto flex-shrink-0" />
+                  </button>
+                ))}
+                {allCriticalItems.length > 6 && (
+                  <p className="text-[10px] text-red-400/60 text-center pt-1">+{allCriticalItems.length - 6} more items</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* HANDOVER SUMMARY PANEL */}
+          {showHandover && workspacePatients.length > 0 && (
+            <div className="mb-4 bg-blue-900/20 rounded-xl border border-blue-800/40 overflow-hidden animate-fade-in">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-blue-800/30">
+                <h3 className="text-sm font-bold text-blue-400 flex items-center gap-2">
+                  <Clipboard className="w-4 h-4" />
+                  Handover Summary
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={copyHandover}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-500 transition-colors min-h-[36px]"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy All
+                  </button>
+                  <button
+                    onClick={() => setShowHandover(false)}
+                    className="p-1.5 text-slate-400 hover:text-white rounded"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 max-h-[60vh] overflow-y-auto">
+                <pre className="text-xs text-slate-300 whitespace-pre-wrap font-mono leading-relaxed">
+                  {buildHandoverSummary()}
+                </pre>
+              </div>
+            </div>
+          )}
+
           {/* TOOLS PANEL (Collapsible) */}
           {showTools && (
             <div className="mb-4 bg-slate-800/60 rounded-xl border border-slate-700 overflow-hidden animate-fade-in">
@@ -513,6 +805,14 @@ export default function AcuteRoot() {
                   >
                     <tab.Icon className="h-3.5 w-3.5" />
                     <span className="hidden xs:inline">{tab.label}</span>
+                    {tab.id === 'timers' && runningTimerCount > 0 && (
+                      <span className={clsx(
+                        'ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold',
+                        overdueTimerCount > 0 ? 'bg-red-500 text-white' : 'bg-amber-500/30 text-amber-400'
+                      )}>
+                        {runningTimerCount}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -593,6 +893,8 @@ export default function AcuteRoot() {
                       const remaining = Math.max(0, timer.targetMs - timer.elapsed)
                       const progress = Math.min(1, timer.elapsed / timer.targetMs)
                       const isOverdue = timer.elapsed >= timer.targetMs && timer.isRunning
+                      const linkedPatient = timer.patientId ? workspacePatients.find((p) => p.id === timer.patientId) : null
+                      const isCustom = timer.id.startsWith('custom_')
                       return (
                         <div
                           key={timer.id}
@@ -606,8 +908,25 @@ export default function AcuteRoot() {
                           )}
                         >
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-bold text-white uppercase tracking-wider">{timer.label}</span>
-                            {isOverdue && <span className="text-[10px] font-bold text-red-400 animate-pulse">OVERDUE</span>}
+                            <div>
+                              <span className="text-xs font-bold text-white uppercase tracking-wider">{timer.label}</span>
+                              {linkedPatient && (
+                                <span className="text-[10px] text-slate-400 ml-2">
+                                  ({linkedPatient.lastName}, Bed {linkedPatient.bedNumber})
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {isOverdue && <span className="text-[10px] font-bold text-red-400 animate-pulse">OVERDUE</span>}
+                              {isCustom && (
+                                <button
+                                  onClick={() => removeTimer(timer.id)}
+                                  className="p-1 text-slate-600 hover:text-red-400 transition-colors"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <div className="text-center mb-2">
                             <span
@@ -656,6 +975,58 @@ export default function AcuteRoot() {
                         </div>
                       )
                     })}
+
+                    {/* Add Custom Timer */}
+                    <div className="bg-slate-900/40 rounded-lg p-3 border border-dashed border-slate-600">
+                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Add Timer</h4>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Label (e.g. Reassess Bed 4)"
+                          value={customTimerLabel}
+                          onChange={(e) => setCustomTimerLabel(e.target.value)}
+                          className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-2 text-xs text-white outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-600"
+                        />
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="Min"
+                          value={customTimerMinutes}
+                          onChange={(e) => setCustomTimerMinutes(e.target.value)}
+                          className="w-16 bg-slate-900/60 border border-slate-600 rounded px-2 py-2 text-xs text-white text-center outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-slate-600 font-mono"
+                        />
+                        <button
+                          onClick={() => {
+                            if (customTimerLabel && customTimerMinutes) {
+                              addCustomTimer(customTimerLabel, parseInt(customTimerMinutes))
+                              setCustomTimerLabel('')
+                              setCustomTimerMinutes('')
+                            }
+                          }}
+                          disabled={!customTimerLabel || !customTimerMinutes}
+                          className="p-2 rounded-lg bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-30 disabled:cursor-not-allowed min-h-[36px] min-w-[36px] flex items-center justify-center transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {/* Quick timer presets */}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {[
+                          { label: 'Reassess 30m', min: 30 },
+                          { label: 'Reassess 1h', min: 60 },
+                          { label: 'Repeat bloods 4h', min: 240 },
+                          { label: 'ABx due 6h', min: 360 },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            onClick={() => addCustomTimer(preset.label, preset.min)}
+                            className="px-2 py-1 rounded bg-slate-700/60 text-[10px] text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                          >
+                            + {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -679,6 +1050,9 @@ export default function AcuteRoot() {
                         {action.label}
                       </button>
                     ))}
+                    <p className="text-[10px] text-slate-600 text-center pt-1">
+                      Tap to trigger escalation alert
+                    </p>
                   </div>
                 )}
               </div>
@@ -688,200 +1062,313 @@ export default function AcuteRoot() {
           {/* === C. WORKSPACE (Empty Slate / Active Cards) === */}
           {workspacePatients.length === 0 ? (
             /* EMPTY STATE */
-            <div className="flex flex-col items-center justify-center py-20 sm:py-32 text-slate-600 select-none">
-              <Siren className="w-16 h-16 sm:w-20 sm:h-20 mb-4 opacity-20" />
+            <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-slate-600 select-none">
+              <Siren className="w-14 h-14 sm:w-16 sm:h-16 mb-4 opacity-20" />
               <h2 className="text-lg sm:text-xl font-bold uppercase tracking-widest opacity-40">On-Call Console</h2>
-              <p className="text-sm opacity-30 mt-1 text-center px-4">
-                No critical patients. Search above to add patients to your workspace.
+              <p className="text-sm opacity-30 mt-2 text-center px-4 max-w-md leading-relaxed">
+                Search above to add patients to your workspace.
+                Critical patients (acuity 1-2) are auto-loaded.
               </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                <button
+                  onClick={() => searchInputRef.current?.focus()}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg font-bold text-sm hover:bg-amber-500 transition-colors min-h-[44px]"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Patient
+                </button>
+              </div>
             </div>
           ) : (
             /* ACTIVE PATIENT CARDS */
             <div className="space-y-3 sm:space-y-4">
               {workspacePatients.map((patient) => {
-                const isEditing = editingId === patient.id
                 const isExpanded = expandedCards.has(patient.id)
                 const labs = patientLabs[patient.id]
                 const ptTasks = getPatientTasks(patient.id)
                 const ptCriticals = getPatientCriticals(patient.id)
+                const ptNotes = getPatientNotes(patient.id)
+                const isNotingForThis = activeNotePatientId === patient.id
+                const isTaskingForThis = quickTaskPatientId === patient.id
 
                 return (
                   <div
                     key={patient.id}
+                    id={`patient-${patient.id}`}
                     className={clsx(
                       'bg-slate-800/80 rounded-xl border-l-4 shadow-lg overflow-hidden transition-all',
                       patient.acuity <= 2 ? 'border-red-500' : patient.acuity === 3 ? 'border-amber-500' : 'border-slate-500'
                     )}
                   >
-                    {/* Patient Header */}
-                    <div className="p-3 sm:p-4">
+                    {/* Patient Header (always visible) */}
+                    <div
+                      className="p-3 sm:p-4 cursor-pointer"
+                      onClick={() => toggleCardExpanded(patient.id)}
+                    >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1" onClick={() => toggleCardExpanded(patient.id)}>
-                          {isEditing ? (
-                            /* EDIT MODE */
-                            <div className="space-y-2">
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editForm.firstName}
-                                  onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
-                                  placeholder="First name"
-                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-amber-500"
-                                />
-                                <input
-                                  type="text"
-                                  value={editForm.lastName}
-                                  onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
-                                  placeholder="Last name"
-                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-sm text-white outline-none focus:ring-1 focus:ring-amber-500"
-                                />
-                              </div>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editForm.mrn}
-                                  onChange={(e) => setEditForm((f) => ({ ...f, mrn: e.target.value }))}
-                                  placeholder="MRN"
-                                  className="w-28 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-amber-500 font-mono"
-                                />
-                                <input
-                                  type="text"
-                                  value={editForm.bedNumber}
-                                  onChange={(e) => setEditForm((f) => ({ ...f, bedNumber: e.target.value }))}
-                                  placeholder="Bed"
-                                  className="w-20 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-amber-500"
-                                />
-                                <input
-                                  type="text"
-                                  value={editForm.primaryDiagnosis}
-                                  onChange={(e) => setEditForm((f) => ({ ...f, primaryDiagnosis: e.target.value }))}
-                                  placeholder="Diagnosis"
-                                  className="flex-1 bg-slate-900/60 border border-slate-600 rounded px-2 py-1.5 text-xs text-white outline-none focus:ring-1 focus:ring-amber-500"
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            /* VIEW MODE */
-                            <>
-                              <div className="flex items-center gap-2">
-                                <h3 className="text-base sm:text-lg font-bold text-white leading-tight truncate">
-                                  {patient.lastName}, {patient.firstName}
-                                </h3>
-                                {/* Code Status Badge */}
-                                {patient.codeStatus && patient.codeStatus !== 'full' && (
-                                  <span className={clsx(
-                                    'px-1.5 py-0.5 text-[10px] font-bold rounded uppercase flex-shrink-0',
-                                    patient.codeStatus === 'comfort'
-                                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                                  )}>
-                                    <Shield className="w-2.5 h-2.5 inline mr-0.5" />
-                                    {patient.codeStatus}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
-                                  {patient.mrn}
-                                </span>
-                                <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded">
-                                  Bed {patient.bedNumber}
-                                </span>
-                                {patient.acuity <= 2 && (
-                                  <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold border border-red-500/30 animate-pulse">
-                                    ACUITY {patient.acuity}
-                                  </span>
-                                )}
-                                {patient.acuity === 3 && (
-                                  <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold border border-amber-500/30">
-                                    ACUITY 3
-                                  </span>
-                                )}
-                                <span className="text-[10px] text-slate-500 truncate max-w-[150px]">
-                                  {patient.primaryDiagnosis}
-                                </span>
-                              </div>
+                        <div className="min-w-0 flex-1">
+                          {/* Name + Code Status */}
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base sm:text-lg font-bold text-white leading-tight truncate">
+                              {patient.lastName}, {patient.firstName}
+                            </h3>
+                            {patient.codeStatus && patient.codeStatus !== 'full' && (
+                              <span className={clsx(
+                                'px-1.5 py-0.5 text-[10px] font-bold rounded uppercase flex-shrink-0',
+                                patient.codeStatus === 'comfort'
+                                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                              )}>
+                                <Shield className="w-2.5 h-2.5 inline mr-0.5" />
+                                {patient.codeStatus}
+                              </span>
+                            )}
+                          </div>
 
-                              {/* Allergies + Quick Indicators Row */}
-                              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                {/* Allergies */}
-                                {patient.allergies && patient.allergies.length > 0 ? (
-                                  <span className="text-[10px] bg-red-900/40 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">
-                                    <AlertTriangle className="w-2.5 h-2.5 inline mr-0.5" />
-                                    {patient.allergies.slice(0, 3).join(', ')}
-                                    {patient.allergies.length > 3 && ` +${patient.allergies.length - 3}`}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] text-slate-600 px-1.5 py-0.5">NKDA</span>
-                                )}
-                                {/* Task count */}
-                                {ptTasks.length > 0 && (
-                                  <span className="text-[10px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded">
-                                    <CheckSquare className="w-2.5 h-2.5 inline mr-0.5" />
-                                    {ptTasks.length} task{ptTasks.length > 1 ? 's' : ''}
-                                  </span>
-                                )}
-                                {/* Critical lab flag */}
-                                {ptCriticals.length > 0 && (
-                                  <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold border border-red-500/30 animate-pulse">
-                                    {ptCriticals.length} CRIT LAB{ptCriticals.length > 1 ? 'S' : ''}
-                                  </span>
-                                )}
-                              </div>
-                            </>
-                          )}
+                          {/* Key Info Row */}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <span className="text-[11px] bg-slate-700 text-white px-1.5 py-0.5 rounded font-bold">
+                              Bed {patient.bedNumber}
+                            </span>
+                            <span className="text-[10px] bg-slate-700/60 text-slate-300 px-1.5 py-0.5 rounded font-mono">
+                              {patient.mrn}
+                            </span>
+                            {patient.acuity <= 2 && (
+                              <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold border border-red-500/30 animate-pulse">
+                                ACUITY {patient.acuity}
+                              </span>
+                            )}
+                            {patient.acuity === 3 && (
+                              <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold border border-amber-500/30">
+                                ACUITY 3
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Diagnosis */}
+                          <p className="text-xs text-slate-400 mt-1 truncate">{patient.primaryDiagnosis}</p>
+
+                          {/* Compact Indicators Row */}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            {patient.allergies && patient.allergies.length > 0 ? (
+                              <span className="text-[10px] bg-red-900/40 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">
+                                <AlertTriangle className="w-2.5 h-2.5 inline mr-0.5" />
+                                {patient.allergies.slice(0, 3).join(', ')}
+                                {patient.allergies.length > 3 && ` +${patient.allergies.length - 3}`}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-600 px-1.5 py-0.5">NKDA</span>
+                            )}
+                            {ptTasks.length > 0 && (
+                              <span className="text-[10px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded">
+                                <CheckSquare className="w-2.5 h-2.5 inline mr-0.5" />
+                                {ptTasks.length} task{ptTasks.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {ptCriticals.length > 0 && (
+                              <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold border border-red-500/30 animate-pulse">
+                                {ptCriticals.length} CRIT LAB{ptCriticals.length > 1 ? 'S' : ''}
+                              </span>
+                            )}
+                            {ptNotes.length > 0 && (
+                              <span className="text-[10px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded">
+                                <MessageSquare className="w-2.5 h-2.5 inline mr-0.5" />
+                                {ptNotes.length} note{ptNotes.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {isEditing ? (
-                            <>
-                              <button
-                                onClick={saveEdit}
-                                className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 min-h-[36px] min-w-[36px] flex items-center justify-center"
-                              >
-                                <Check className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={cancelEdit}
-                                className="p-2 rounded-lg bg-slate-700 text-slate-400 hover:text-white min-h-[36px] min-w-[36px] flex items-center justify-center"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => startEditing(patient)}
-                                className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 min-h-[36px] min-w-[36px] flex items-center justify-center"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => removeFromWorkspace(patient.id)}
-                                className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 min-h-[36px] min-w-[36px] flex items-center justify-center"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
+                        {/* Right side: Remove + Expand */}
+                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removeFromWorkspace(patient.id)
+                            }}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+                            title="Remove from workspace"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                          {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
                         </div>
                       </div>
-
-                      {/* Expand/Collapse Indicator */}
-                      {!isEditing && (
-                        <button
-                          onClick={() => toggleCardExpanded(patient.id)}
-                          className="w-full flex items-center justify-center pt-2 text-slate-600 hover:text-slate-400 transition-colors"
-                        >
-                          {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        </button>
-                      )}
                     </div>
 
+                    {/* === QUICK ACTIONS BAR (always visible) === */}
+                    <div className="flex items-center gap-1 px-3 pb-2 sm:px-4 sm:pb-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => {
+                          triggerHaptic('tap')
+                          setActiveNotePatientId(isNotingForThis ? null : patient.id)
+                          setQuickTaskPatientId(null)
+                        }}
+                        className={clsx(
+                          'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors min-h-[32px]',
+                          isNotingForThis
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700'
+                        )}
+                      >
+                        <FileText className="w-3 h-3" />
+                        Note
+                      </button>
+                      <button
+                        onClick={() => {
+                          triggerHaptic('tap')
+                          setQuickTaskPatientId(isTaskingForThis ? null : patient.id)
+                          setActiveNotePatientId(null)
+                        }}
+                        className={clsx(
+                          'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors min-h-[32px]',
+                          isTaskingForThis
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700'
+                        )}
+                      >
+                        <Plus className="w-3 h-3" />
+                        Task
+                      </button>
+                      <button
+                        onClick={() => copySbar(patient)}
+                        className={clsx(
+                          'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-colors min-h-[32px]',
+                          copiedSbar === patient.id
+                            ? 'bg-green-600 text-white'
+                            : 'bg-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700'
+                        )}
+                      >
+                        {copiedSbar === patient.id ? (
+                          <><Check className="w-3 h-3" /> Copied</>
+                        ) : (
+                          <><Copy className="w-3 h-3" /> SBAR</>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => navigate(`/patients/${patient.id}`)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors min-h-[32px] ml-auto"
+                      >
+                        <ClipboardList className="w-3 h-3" />
+                        Chart
+                      </button>
+                    </div>
+
+                    {/* Quick Note Input */}
+                    {isNotingForThis && (
+                      <div className="px-3 pb-3 sm:px-4 sm:pb-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            placeholder="Quick bedside note... (e.g. 'Reviewed, stable, continue plan')"
+                            value={noteInput}
+                            onChange={(e) => setNoteInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') addQuickNote(patient.id, noteInput)
+                              if (e.key === 'Escape') setActiveNotePatientId(null)
+                            }}
+                            className="flex-1 bg-slate-900/60 border border-blue-500/50 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-600"
+                          />
+                          <button
+                            onClick={() => addQuickNote(patient.id, noteInput)}
+                            disabled={!noteInput.trim()}
+                            className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-30 min-h-[36px] min-w-[36px] flex items-center justify-center transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {/* Recent notes */}
+                        {ptNotes.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {ptNotes.slice(0, 3).map((note) => (
+                              <div key={note.timestamp} className="flex items-start gap-2 text-xs p-1.5 rounded bg-slate-900/30">
+                                <span className="text-blue-400/60 flex-shrink-0">
+                                  {new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <span className="text-slate-300 flex-1">{note.text}</span>
+                                <button
+                                  onClick={() => deleteNote(note.timestamp)}
+                                  className="text-slate-600 hover:text-red-400 flex-shrink-0"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Quick Task Add */}
+                    {isTaskingForThis && (
+                      <div className="px-3 pb-3 sm:px-4 sm:pb-4 animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                        {/* Quick task presets */}
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {quickTaskPresets.map((preset) => (
+                            <button
+                              key={preset.label}
+                              onClick={() => {
+                                triggerHaptic('tap')
+                                navigate(`/tasks?patientId=${patient.id}&title=${encodeURIComponent(preset.label)}`)
+                              }}
+                              className="flex items-center gap-1 px-2 py-1.5 rounded bg-slate-700/60 text-[10px] text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                            >
+                              <preset.icon className="w-3 h-3" />
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            autoFocus
+                            placeholder="Custom task..."
+                            value={quickTaskInput}
+                            onChange={(e) => setQuickTaskInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && quickTaskInput.trim()) {
+                                navigate(`/tasks?patientId=${patient.id}&title=${encodeURIComponent(quickTaskInput.trim())}`)
+                              }
+                              if (e.key === 'Escape') setQuickTaskPatientId(null)
+                            }}
+                            className="flex-1 bg-slate-900/60 border border-amber-500/50 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-slate-600"
+                          />
+                          <button
+                            onClick={() => {
+                              if (quickTaskInput.trim()) {
+                                navigate(`/tasks?patientId=${patient.id}&title=${encodeURIComponent(quickTaskInput.trim())}`)
+                              }
+                            }}
+                            disabled={!quickTaskInput.trim()}
+                            className="p-2 rounded-lg bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-30 min-h-[36px] min-w-[36px] flex items-center justify-center transition-colors"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Expanded Content */}
-                    {isExpanded && !isEditing && (
+                    {isExpanded && (
                       <div className="border-t border-slate-700/60 px-3 pb-3 sm:px-4 sm:pb-4 pt-3 space-y-3 animate-fade-in">
+                        {/* Critical Values Alert (first, most important) */}
+                        {ptCriticals.length > 0 && (
+                          <div className="bg-red-900/20 rounded-lg p-3 border border-red-800/40">
+                            <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <AlertTriangle className="w-3 h-3" />
+                              Unacknowledged Critical Values
+                            </h4>
+                            <div className="space-y-1">
+                              {ptCriticals.map((cv, idx) => (
+                                <div key={idx} className="text-xs text-red-300">
+                                  <span className="font-bold">{cv.labName}:</span> {cv.value} {cv.unit}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Patient Tasks */}
                         {ptTasks.length > 0 && (
                           <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-700">
@@ -924,17 +1411,26 @@ export default function AcuteRoot() {
                           </div>
                         )}
 
-                        {/* Critical Values Alert */}
-                        {ptCriticals.length > 0 && (
-                          <div className="bg-red-900/20 rounded-lg p-3 border border-red-800/40">
-                            <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                              <AlertTriangle className="w-3 h-3" />
-                              Unacknowledged Critical Values
+                        {/* On-Call Notes */}
+                        {ptNotes.length > 0 && (
+                          <div className="bg-blue-900/10 rounded-lg p-3 border border-blue-800/30">
+                            <h4 className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <MessageSquare className="w-3 h-3" />
+                              On-Call Notes ({ptNotes.length})
                             </h4>
-                            <div className="space-y-1">
-                              {ptCriticals.map((cv, idx) => (
-                                <div key={idx} className="text-xs text-red-300">
-                                  <span className="font-bold">{cv.labName}:</span> {cv.value} {cv.unit}
+                            <div className="space-y-1.5">
+                              {ptNotes.map((note) => (
+                                <div key={note.timestamp} className="flex items-start gap-2 text-xs">
+                                  <span className="text-blue-400/60 flex-shrink-0 font-mono">
+                                    {new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  <span className="text-slate-300 flex-1">{note.text}</span>
+                                  <button
+                                    onClick={() => deleteNote(note.timestamp)}
+                                    className="text-slate-700 hover:text-red-400 flex-shrink-0 transition-colors"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
                                 </div>
                               ))}
                             </div>
@@ -968,10 +1464,27 @@ export default function AcuteRoot() {
 
                         {/* SBAR Quick Preview */}
                         <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-700">
-                          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <ClipboardList className="w-3 h-3" />
-                            Quick SBAR
-                          </h4>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                              <ClipboardList className="w-3 h-3" />
+                              Quick SBAR
+                            </h4>
+                            <button
+                              onClick={() => copySbar(patient)}
+                              className={clsx(
+                                'flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold transition-colors',
+                                copiedSbar === patient.id
+                                  ? 'bg-green-600/20 text-green-400'
+                                  : 'bg-slate-700/60 text-slate-400 hover:text-white'
+                              )}
+                            >
+                              {copiedSbar === patient.id ? (
+                                <><Check className="w-3 h-3" /> Copied</>
+                              ) : (
+                                <><Copy className="w-3 h-3" /> Copy</>
+                              )}
+                            </button>
+                          </div>
                           <div className="grid grid-cols-1 gap-1.5 text-xs">
                             <div className="bg-slate-800/60 rounded px-2.5 py-2">
                               <span className="text-red-400 font-bold text-[10px]">S:</span>
@@ -1010,15 +1523,6 @@ export default function AcuteRoot() {
                             </div>
                           </div>
                         </div>
-
-                        {/* Danger Zone */}
-                        <button
-                          onClick={() => handleDeletePatient(patient.id)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 text-red-900 hover:text-red-500 text-[10px] uppercase tracking-wider font-bold transition-colors"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Delete from system
-                        </button>
                       </div>
                     )}
                   </div>
