@@ -13,7 +13,7 @@ export const analyzeLabPanel = async (
     patientHistory ? `\n\nPatient context: ${patientHistory}` : ''
   }\n\nRespond in JSON: { "summary": "", "clinicalSignificance": "critical|significant|routine|normal", "keyFindings": [], "suggestedActions": [], "trends": [] }`
 
-  const response = await callAI({ prompt, maxTokens: 1024 })
+  const response = await callAI({ prompt, maxTokens: 1024, promptType: 'lab-analysis' })
   try {
     const parsed = JSON.parse(response.content)
     return {

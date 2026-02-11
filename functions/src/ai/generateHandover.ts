@@ -51,6 +51,28 @@ export const generateHandover = onCall(
           `Attending: ${patient.attendingPhysician || "Unknown"}`,
         ];
 
+        // Fetch patient history for context
+        const historyDoc = await db
+          .collection("patients")
+          .doc(patientDoc.id)
+          .collection("history")
+          .doc("current")
+          .get();
+
+        if (historyDoc.exists) {
+          const history = historyDoc.data()!;
+          const historyLines: string[] = [];
+          if (Array.isArray(history.pmh) && history.pmh.length > 0) {
+            historyLines.push(`  PMH: ${history.pmh.map((h: { condition: string }) => h.condition).join(", ")}`);
+          }
+          if (Array.isArray(history.medications) && history.medications.length > 0) {
+            historyLines.push(`  Meds: ${history.medications.map((m: { name: string; dose?: string }) => `${m.name}${m.dose ? ` ${m.dose}` : ""}`).join(", ")}`);
+          }
+          if (historyLines.length > 0) {
+            parts.push(`History:\n${historyLines.join("\n")}`);
+          }
+        }
+
         // Fetch recent labs for this patient
         const labsSnap = await db
           .collection("patients")

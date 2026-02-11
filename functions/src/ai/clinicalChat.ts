@@ -48,6 +48,48 @@ export const clinicalChat = onCall(
             `Acuity: ${patient.acuity || "N/A"}`,
           ];
 
+          // Fetch patient history document
+          const historyDoc = await db
+            .collection("patients")
+            .doc(patientId)
+            .collection("history")
+            .doc("current")
+            .get();
+
+          if (historyDoc.exists) {
+            const history = historyDoc.data()!;
+            const historyParts: string[] = [];
+
+            if (history.hpiText) {
+              historyParts.push(`HPI: ${history.hpiText}`);
+            }
+            if (Array.isArray(history.pmh) && history.pmh.length > 0) {
+              historyParts.push(`PMH: ${history.pmh.map((h: { condition: string; status?: string }) => `${h.condition}${h.status ? ` (${h.status})` : ""}`).join(", ")}`);
+            }
+            if (Array.isArray(history.psh) && history.psh.length > 0) {
+              historyParts.push(`PSH: ${history.psh.map((s: { procedure: string; year?: string }) => `${s.procedure}${s.year ? ` (${s.year})` : ""}`).join(", ")}`);
+            }
+            if (Array.isArray(history.medications) && history.medications.length > 0) {
+              historyParts.push(`Medications: ${history.medications.map((m: { name: string; dose?: string; route?: string; frequency?: string }) => `${m.name}${m.dose ? ` ${m.dose}` : ""}${m.route ? ` ${m.route}` : ""}${m.frequency ? ` ${m.frequency}` : ""}`).join("; ")}`);
+            }
+            if (history.socialHistory) {
+              const sh = history.socialHistory;
+              const shParts: string[] = [];
+              if (sh.smoking) shParts.push(`Smoking: ${sh.smoking}`);
+              if (sh.alcohol) shParts.push(`Alcohol: ${sh.alcohol}`);
+              if (sh.occupation) shParts.push(`Occupation: ${sh.occupation}`);
+              if (sh.livingSituation) shParts.push(`Living: ${sh.livingSituation}`);
+              if (shParts.length > 0) historyParts.push(`Social Hx: ${shParts.join(", ")}`);
+            }
+            if (Array.isArray(history.familyHistory) && history.familyHistory.length > 0) {
+              historyParts.push(`Family Hx: ${history.familyHistory.map((f: { relation: string; condition: string }) => `${f.relation}: ${f.condition}`).join("; ")}`);
+            }
+
+            if (historyParts.length > 0) {
+              contextParts.push(`\nPatient History:\n${historyParts.join("\n")}`);
+            }
+          }
+
           // Fetch recent labs
           const labsSnap = await db
             .collection("patients")

@@ -3,6 +3,16 @@ import { callClaude, anthropicApiKey } from "../utils/anthropic";
 import { checkRateLimit } from "../utils/rateLimiter";
 import { logAuditEvent } from "../utils/auditLog";
 import { LAB_ANALYSIS_SYSTEM_PROMPT } from "../prompts/labAnalysis";
+import { CLINICAL_ASSISTANT_SYSTEM_PROMPT } from "../prompts/clinicalAssistant";
+import { DRUG_INFO_SYSTEM_PROMPT } from "../prompts/drugInfo";
+
+type PromptType = "lab-analysis" | "clinical-assistant" | "drug-info";
+
+const SYSTEM_PROMPTS: Record<PromptType, string> = {
+  "lab-analysis": LAB_ANALYSIS_SYSTEM_PROMPT,
+  "clinical-assistant": CLINICAL_ASSISTANT_SYSTEM_PROMPT,
+  "drug-info": DRUG_INFO_SYSTEM_PROMPT,
+};
 
 export const analyzeWithAI = onCall(
   { secrets: [anthropicApiKey], cors: true, region: "europe-west1" },
@@ -11,7 +21,7 @@ export const analyzeWithAI = onCall(
       throw new HttpsError("unauthenticated", "Authentication required");
     }
 
-    const { prompt, context, maxTokens } = request.data;
+    const { prompt, context, maxTokens, promptType } = request.data;
 
     if (!prompt || typeof prompt !== "string") {
       throw new HttpsError("invalid-argument", "Prompt is required");
@@ -23,10 +33,17 @@ export const analyzeWithAI = onCall(
     }
 
     try {
+      // Select system prompt based on type — default to lab-analysis for backwards compat
+      const selectedType: PromptType =
+        promptType && typeof promptType === "string" && promptType in SYSTEM_PROMPTS
+          ? (promptType as PromptType)
+          : "lab-analysis";
+      const systemPrompt = SYSTEM_PROMPTS[selectedType];
+
       const response = await callClaude(
-        LAB_ANALYSIS_SYSTEM_PROMPT,
+        systemPrompt,
         context ? `${prompt}\n\nContext: ${context}` : prompt,
-        maxTokens || 1024
+        maxTokens || 2048
       );
 
       await logAuditEvent(
@@ -35,7 +52,11 @@ export const analyzeWithAI = onCall(
         request.auth.token.email || "",
         "ai",
         "analysis",
-        { inputTokens: response.usage.inputTokens, outputTokens: response.usage.outputTokens }
+        {
+          promptType: selectedType,
+          inputTokens: response.usage.inputTokens,
+          outputTokens: response.usage.outputTokens,
+        }
       );
 
       return response;

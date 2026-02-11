@@ -9,6 +9,7 @@ import { OverviewTab } from './patient-detail/OverviewTab'
 import { LabsTab } from './patient-detail/LabsTab'
 import { TasksTab } from './patient-detail/TasksTab'
 import { SBARTab } from './patient-detail/SBARTab'
+import { HistoryTab } from './patient-detail/HistoryTab'
 
 export function PatientDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -70,6 +71,10 @@ export function PatientDetailPage() {
 
       {detail.activeTab === 'overview' && (
         <OverviewTab patient={patient} setActiveTab={detail.setActiveTab} setShowLabEntry={detail.setShowLabEntry} setShowTaskForm={detail.setShowTaskForm} handleGenerateSBAR={detail.handleGenerateSBAR} />
+      )}
+
+      {detail.activeTab === 'history' && id && (
+        <HistoryTab patientId={id} addToast={detail.addToast} />
       )}
 
       {detail.activeTab === 'labs' && id && (
