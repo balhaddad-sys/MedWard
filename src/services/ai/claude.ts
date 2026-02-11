@@ -33,14 +33,21 @@ interface SBARResult {
 }
 
 export class AIServiceError extends Error {
+  code: 'timeout' | 'network' | 'server' | 'parse' | 'unknown'
+  retryable: boolean
+  override cause?: unknown
+
   constructor(
     message: string,
-    readonly code: 'timeout' | 'network' | 'server' | 'parse' | 'unknown',
-    readonly retryable: boolean,
-    readonly cause?: unknown
+    code: 'timeout' | 'network' | 'server' | 'parse' | 'unknown',
+    retryable: boolean,
+    cause?: unknown
   ) {
     super(message)
     this.name = 'AIServiceError'
+    this.code = code
+    this.retryable = retryable
+    this.cause = cause
   }
 }
 
