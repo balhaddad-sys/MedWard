@@ -84,6 +84,7 @@ export function usePatientDetail(id: string | undefined) {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'history', label: 'History' },
     { id: 'labs', label: 'Labs', count: labs.length },
     { id: 'tasks', label: 'Tasks', count: pendingTasks.length },
     { id: 'sbar', label: 'SBAR' },

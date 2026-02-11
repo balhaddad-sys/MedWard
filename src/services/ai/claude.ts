@@ -5,6 +5,7 @@ interface AIRequest {
   prompt: string
   context?: string
   maxTokens?: number
+  promptType?: 'lab-analysis' | 'clinical-assistant' | 'drug-info'
 }
 
 interface AIResponse {

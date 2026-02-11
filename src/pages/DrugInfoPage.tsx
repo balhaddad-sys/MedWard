@@ -80,7 +80,7 @@ Be concise and clinically focused.`
 Be concise and ward-relevant.`
       }
 
-      const response = await callAI({ prompt, maxTokens: 2048 })
+      const response = await callAI({ prompt, maxTokens: 2048, promptType: 'drug-info' })
       const drugResult: DrugResult = {
         name: drug,
         content: response.content,

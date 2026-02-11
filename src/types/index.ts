@@ -2,6 +2,8 @@ export type { Patient, PatientFormData, PatientSummary } from './patient'
 export type { LabPanel, LabValue, LabFlag, LabCategory, LabAIAnalysis, LabTrend, LabUploadResult, CriticalValue, ExtractedPatientInfo, ExtractedLabResult, ExtractedLabPanel, ExtractionResponse, ExtractedTrend, ExtractedTrendDirection } from './lab'
 export type { Task, TaskFormData, TaskPriority, TaskStatus, TaskCategory } from './task'
 export type { User, UserRole, UserPreferences, AuthState } from './user'
+export type { PatientHistory, PMHEntry, PSHEntry, MedicationEntry, FamilyHistoryEntry, SocialHistory } from './history'
+export { EMPTY_HISTORY } from './history'
 
 export interface Ward {
   id: string

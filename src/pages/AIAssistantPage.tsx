@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
-import { Bot, Send, Trash2, Sparkles, Stethoscope, Pill, FlaskConical, ClipboardList } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { Bot, Send, Trash2, Sparkles, Stethoscope, Pill, FlaskConical, ClipboardList, User } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { callAI } from '@/services/ai/claude'
+import { clinicalAIService } from '@/services/ClinicalAIService'
+import { usePatientStore } from '@/stores/patientStore'
 import { Markdown } from '@/components/ui/Markdown'
 import { clsx } from 'clsx'
 
@@ -24,12 +25,26 @@ export function AIAssistantPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const patients = usePatientStore((s) => s.patients)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Update AI service patient context when selection changes
+  useEffect(() => {
+    if (selectedPatientId) {
+      clinicalAIService.setPatientContext(selectedPatientId)
+    }
+  }, [selectedPatientId])
+
+  const selectedPatient = useMemo(
+    () => patients.find((p) => p.id === selectedPatientId),
+    [patients, selectedPatientId]
+  )
 
   const handleSend = async (text?: string) => {
     const prompt = text || input.trim()
@@ -46,15 +61,11 @@ export function AIAssistantPage() {
     setLoading(true)
 
     try {
-      const response = await callAI({
-        prompt,
-        context: 'You are a clinical decision support AI assistant for healthcare professionals. Provide evidence-based information. Always remind that AI suggestions should be verified with clinical judgment and primary sources.',
-        maxTokens: 2048,
-      })
+      const result = await clinicalAIService.sendMessage(prompt)
       const aiMsg: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: response.content,
+        content: result.text,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, aiMsg])
@@ -81,12 +92,13 @@ export function AIAssistantPage() {
   const handleClear = () => {
     setMessages([])
     setInput('')
+    clinicalAIService.clearHistory()
   }
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-100px)] animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-ward-text flex items-center gap-2">
             <Bot className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" /> AI Assistant
@@ -100,6 +112,30 @@ export function AIAssistantPage() {
         )}
       </div>
 
+      {/* Patient context selector */}
+      <div className="flex-shrink-0 mb-3">
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4 text-ward-muted flex-shrink-0" />
+          <select
+            value={selectedPatientId}
+            onChange={(e) => setSelectedPatientId(e.target.value)}
+            className="input-field text-sm flex-1"
+          >
+            <option value="">No patient context (general query)</option>
+            {patients.map((p) => (
+              <option key={p.id} value={p.id}>
+                Bed {p.bedNumber} — {p.lastName}, {p.firstName} — {p.primaryDiagnosis}
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedPatient && (
+          <p className="text-xs text-primary-600 mt-1 ml-6">
+            AI responses will include {selectedPatient.firstName}'s history, labs, meds, and allergies
+          </p>
+        )}
+      </div>
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto space-y-4 min-h-0 pb-4">
         {messages.length === 0 ? (
@@ -110,6 +146,7 @@ export function AIAssistantPage() {
             <h2 className="text-lg font-semibold text-ward-text mb-2">How can I help?</h2>
             <p className="text-sm text-ward-muted mb-6 max-w-md">
               Ask me about differential diagnoses, drug information, lab interpretations, clinical guidelines, and more.
+              {patients.length > 0 && ' Select a patient above for context-aware responses.'}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
               {quickPrompts.map((qp) => (
@@ -152,7 +189,7 @@ export function AIAssistantPage() {
                 {msg.role === 'assistant' && (
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <Bot className="h-3.5 w-3.5 text-primary-600" />
-                    <span className="text-xs font-medium text-primary-600">AI Assistant</span>
+                    <span className="text-xs font-medium text-primary-600">MedWard AI</span>
                   </div>
                 )}
                 {msg.role === 'user' ? (

@@ -1,5 +1,7 @@
-import { callAI } from './claude'
+import { generateSBAR } from './claude'
+import { getPatientHistory } from '@/services/firebase/history'
 import type { Patient, Task, LabPanel } from '@/types'
+import type { PatientHistory } from '@/types/history'
 
 export interface SBARData {
   situation: string
@@ -8,11 +10,49 @@ export interface SBARData {
   recommendation: string
 }
 
+function buildHistoryContext(history: PatientHistory | null): string {
+  if (!history) return ''
+  const parts: string[] = []
+
+  if (history.hpiText) {
+    parts.push(`HPI: ${history.hpiText}`)
+  }
+  if (history.pmh.length > 0) {
+    parts.push(`PMH: ${history.pmh.map((h) => `${h.condition}${h.status ? ` (${h.status})` : ''}`).join(', ')}`)
+  }
+  if (history.psh.length > 0) {
+    parts.push(`PSH: ${history.psh.map((s) => `${s.procedure}${s.year ? ` (${s.year})` : ''}`).join(', ')}`)
+  }
+  if (history.medications.length > 0) {
+    parts.push(`Medications: ${history.medications.map((m) => `${m.name}${m.dose ? ` ${m.dose}` : ''}${m.route ? ` ${m.route}` : ''}${m.frequency ? ` ${m.frequency}` : ''}`).join('; ')}`)
+  }
+  if (history.socialHistory.smoking || history.socialHistory.alcohol || history.socialHistory.occupation) {
+    const sh: string[] = []
+    if (history.socialHistory.smoking) sh.push(`Smoking: ${history.socialHistory.smoking}`)
+    if (history.socialHistory.alcohol) sh.push(`Alcohol: ${history.socialHistory.alcohol}`)
+    if (history.socialHistory.occupation) sh.push(`Occupation: ${history.socialHistory.occupation}`)
+    parts.push(`Social Hx: ${sh.join(', ')}`)
+  }
+  if (history.familyHistory.length > 0) {
+    parts.push(`Family Hx: ${history.familyHistory.map((f) => `${f.relation}: ${f.condition}`).join('; ')}`)
+  }
+
+  return parts.length > 0 ? `\nPatient History:\n${parts.join('\n')}` : ''
+}
+
 export const generateSBARReport = async (
   patient: Patient,
   recentLabs: LabPanel[],
   activeTasks: Task[]
 ): Promise<SBARData> => {
+  // Fetch patient history for richer context
+  let history: PatientHistory | null = null
+  try {
+    history = await getPatientHistory(patient.id)
+  } catch {
+    // History not available, continue without it
+  }
+
   const labSummary = (recentLabs ?? [])
     .slice(0, 5)
     .map((panel) => {
@@ -26,35 +66,18 @@ export const generateSBARReport = async (
     .map((t) => `- [${t.priority ?? 'medium'}] ${t.title ?? ''}`)
     .join('\n')
 
-  const prompt = `Generate SBAR report for:
-Patient: ${patient.firstName ?? ''} ${patient.lastName ?? ''}, ${patient.primaryDiagnosis ?? 'Unknown'}
+  const historyContext = buildHistoryContext(history)
+
+  const patientData = `Patient: ${patient.firstName ?? ''} ${patient.lastName ?? ''}, ${patient.primaryDiagnosis ?? 'Unknown'}
 Acuity: ${patient.acuity ?? 'N/A'}, Code Status: ${patient.codeStatus ?? 'Unknown'}
 Diagnoses: ${(patient.diagnoses ?? []).join(', ')}
 Allergies: ${(patient.allergies ?? []).join(', ')}
-
+${historyContext}
 Recent Labs:
 ${labSummary}
 
 Active Tasks:
-${taskSummary}
+${taskSummary}`
 
-Respond in JSON: { "situation": "", "background": "", "assessment": "", "recommendation": "" }`
-
-  const response = await callAI({ prompt, maxTokens: 2048 })
-  try {
-    const parsed = JSON.parse(response.content)
-    return {
-      situation: parsed.situation ?? '',
-      background: parsed.background ?? '',
-      assessment: parsed.assessment ?? '',
-      recommendation: parsed.recommendation ?? '',
-    }
-  } catch {
-    return {
-      situation: `${patient.firstName ?? ''} ${patient.lastName ?? ''} - ${patient.primaryDiagnosis ?? 'Unknown'}`,
-      background: response.content,
-      assessment: '',
-      recommendation: '',
-    }
-  }
+  return generateSBAR(patientData)
 }
