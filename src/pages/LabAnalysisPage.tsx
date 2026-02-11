@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { FlaskConical, Sparkles, Upload, Search, AlertTriangle, TrendingUp, Filter, X } from 'lucide-react'
+import { FlaskConical, Sparkles, Upload, Search, AlertTriangle, TrendingUp, X } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { LabPanelView } from '@/components/features/labs/LabPanelView'
 import { LabTriageView } from '@/components/features/labs/LabTriageView'
