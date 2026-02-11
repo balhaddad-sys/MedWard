@@ -60,8 +60,10 @@ export default function AcuteRoot() {
   const navigate = useNavigate()
 
   // === WORKSPACE STATE ===
-  const [workspacePatientIds, setWorkspacePatientIds] = useState<string[]>([])
-  const autoLoadedRef = useRef(false)
+  const [workspacePatientIds, setWorkspacePatientIds] = useState<string[]>(() => {
+    const storePatients = usePatientStore.getState().patients
+    return storePatients.filter((p) => p.acuity <= 2).map((p) => p.id)
+  })
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -124,16 +126,20 @@ export default function AcuteRoot() {
     }
   }, [])
 
-  // Auto-load critical patients (acuity 1-2) on first data load
-  // Render-time state adjustment avoids cascading renders from useEffect setState
-  if (!autoLoadedRef.current && patients.length > 0) {
-    autoLoadedRef.current = true
-    const criticalPatients = patients.filter((p) => p.acuity <= 2)
-    if (criticalPatients.length > 0) {
-      const ids = criticalPatients.map((p) => p.id)
-      setWorkspacePatientIds(ids)
-    }
-  }
+  // Auto-load critical patients if they arrive after mount
+  useEffect(() => {
+    if (usePatientStore.getState().patients.length > 0) return
+    const unsub = usePatientStore.subscribe((state) => {
+      if (state.patients.length > 0) {
+        const ids = state.patients.filter((p) => p.acuity <= 2).map((p) => p.id)
+        if (ids.length > 0) {
+          setWorkspacePatientIds(ids)
+        }
+        unsub()
+      }
+    })
+    return () => unsub()
+  }, [])
 
   // Load labs for auto-loaded workspace patients
   const labsLoadedRef = useRef(false)
