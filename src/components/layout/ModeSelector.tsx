@@ -1,33 +1,34 @@
-import { Activity, FlaskConical, ArrowRightLeft } from 'lucide-react'
+import { ClipboardList, Siren, Stethoscope } from 'lucide-react'
 import { clsx } from 'clsx'
-import { useUIStore } from '@/stores/uiStore'
-import type { WardMode } from '@/types'
+import { useClinicalMode } from '@/context/useClinicalMode'
+import type { ClinicalMode } from '@/config/modes'
 
-const modes: { id: WardMode; label: string; icon: React.ElementType }[] = [
-  { id: 'clinical', label: 'Clinical', icon: Activity },
-  { id: 'triage', label: 'Lab Triage', icon: FlaskConical },
-  { id: 'handover', label: 'Handover', icon: ArrowRightLeft },
+const modes: { id: ClinicalMode; label: string; icon: React.ElementType }[] = [
+  { id: 'ward', label: 'Ward', icon: ClipboardList },
+  { id: 'acute', label: 'On-Call', icon: Siren },
+  { id: 'clinic', label: 'Clinic', icon: Stethoscope },
 ]
 
 export function ModeSelector() {
-  const currentMode = useUIStore((s) => s.currentMode)
-  const setCurrentMode = useUIStore((s) => s.setCurrentMode)
+  const { mode, setMode, isModeLocked } = useClinicalMode()
 
   return (
     <div className="flex gap-0.5 sm:gap-1 p-0.5 sm:p-1 bg-gray-100 rounded-lg">
-      {modes.map((mode) => (
+      {modes.map((m) => (
         <button
-          key={mode.id}
-          onClick={() => setCurrentMode(mode.id)}
+          key={m.id}
+          onClick={() => setMode(m.id)}
+          disabled={isModeLocked}
           className={clsx(
             'flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap min-h-[36px]',
-            currentMode === mode.id
+            mode === m.id
               ? 'bg-white text-primary-700 shadow-sm'
-              : 'text-ward-muted hover:text-ward-text'
+              : 'text-ward-muted hover:text-ward-text',
+            isModeLocked && mode !== m.id && 'opacity-40 cursor-not-allowed'
           )}
         >
-          <mode.icon className="h-3.5 w-3.5 flex-shrink-0" />
-          <span className="hidden sm:inline">{mode.label}</span>
+          <m.icon className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="hidden sm:inline">{m.label}</span>
         </button>
       ))}
     </div>
