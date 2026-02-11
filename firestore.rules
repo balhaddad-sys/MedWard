@@ -16,7 +16,7 @@ service cloud.firestore {
 
     function isAdminOrClinician() {
       let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-      return userRole == 'admin' || userRole == 'clinician';
+      return userRole == 'admin' || userRole == 'physician' || userRole == 'clinician';
     }
 
     // Validate string field length
@@ -31,7 +31,7 @@ service cloud.firestore {
                     && request.resource.data.keys().hasAll(['email', 'displayName', 'role'])
                     && isValidString(request.resource.data.email, 254)
                     && isValidString(request.resource.data.displayName, 100)
-                    && request.resource.data.role in ['admin', 'clinician', 'nurse'];
+                    && request.resource.data.role in ['admin', 'physician', 'clinician', 'nurse'];
       allow update: if isOwner(userId)
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
     }
