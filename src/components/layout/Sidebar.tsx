@@ -23,9 +23,9 @@ export function Sidebar() {
     <aside className="w-60 min-h-[calc(100vh-64px)] bg-white border-r border-ward-border p-4 flex-shrink-0">
       <div className="mb-6 px-3">
         <div className="flex items-center gap-2 text-xs text-ward-muted uppercase tracking-wider font-medium">
-          {currentMode === 'ward' && <Activity className="h-3.5 w-3.5" />}
-          {currentMode === 'clinic' && <FlaskConical className="h-3.5 w-3.5" />}
-          {currentMode === 'acute' && <ArrowRightLeft className="h-3.5 w-3.5" />}
+          {currentMode === 'clinical' && <Activity className="h-3.5 w-3.5" />}
+          {currentMode === 'triage' && <FlaskConical className="h-3.5 w-3.5" />}
+          {currentMode === 'handover' && <ArrowRightLeft className="h-3.5 w-3.5" />}
           {currentMode} mode
         </div>
       </div>

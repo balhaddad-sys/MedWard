@@ -44,4 +44,4 @@ export interface SBARReport {
   generatedAt: import('firebase/firestore').Timestamp
 }
 
-export type WardMode = 'ward' | 'acute' | 'clinic'
+export type WardMode = 'ward' | 'acute' | 'clinic' | 'clinical' | 'triage' | 'handover'
