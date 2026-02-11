@@ -22,9 +22,14 @@ import {
   ChevronUp,
   Wrench,
   Siren,
+  Shield,
+  Heart,
+  CheckSquare,
+  Circle,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { usePatientStore } from '@/stores/patientStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { triggerHaptic, hapticPatterns } from '@/utils/haptics'
 import { deletePatient, updatePatient } from '@/services/firebase/patients'
 import { LabResultTable } from '@/components/features/labs/LabResultTable'
@@ -51,10 +56,13 @@ interface EditFormState {
 
 export default function AcuteRoot() {
   const patients = usePatientStore((s) => s.patients)
+  const criticalValues = usePatientStore((s) => s.criticalValues)
+  const tasks = useTaskStore((s) => s.tasks)
   const navigate = useNavigate()
 
-  // === WORKSPACE STATE (Starts Empty) ===
+  // === WORKSPACE STATE ===
   const [workspacePatientIds, setWorkspacePatientIds] = useState<string[]>([])
+  const [autoLoaded, setAutoLoaded] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -79,10 +87,38 @@ export default function AcuteRoot() {
   // === LAB DATA PER PATIENT ===
   const [patientLabs, setPatientLabs] = useState<Record<string, LabResultData | null>>({})
 
-  // Resolve workspace patients from the global store
+  // Auto-load critical patients (acuity 1-2) on first mount
+  useEffect(() => {
+    if (autoLoaded || patients.length === 0) return
+    const criticalPatients = patients.filter((p) => p.acuity <= 2)
+    if (criticalPatients.length > 0) {
+      const ids = criticalPatients.map((p) => p.id)
+      setWorkspacePatientIds(ids)
+      ids.forEach((id) => loadPatientLabs(id))
+    }
+    setAutoLoaded(true)
+  }, [patients, autoLoaded])
+
+  // Resolve workspace patients from the global store, sorted by acuity
   const workspacePatients = useMemo(
-    () => workspacePatientIds.map((id) => patients.find((p) => p.id === id)).filter(Boolean) as Patient[],
+    () =>
+      workspacePatientIds
+        .map((id) => patients.find((p) => p.id === id))
+        .filter(Boolean)
+        .sort((a, b) => (a!.acuity || 5) - (b!.acuity || 5)) as Patient[],
     [workspacePatientIds, patients]
+  )
+
+  // Get tasks for a specific patient
+  const getPatientTasks = useCallback(
+    (patientId: string) => tasks.filter((t) => t.patientId === patientId && t.status !== 'completed' && t.status !== 'cancelled'),
+    [tasks]
+  )
+
+  // Get critical values for a specific patient
+  const getPatientCriticals = useCallback(
+    (patientId: string) => criticalValues.filter((cv) => cv.patientId === patientId && !cv.acknowledgedAt),
+    [criticalValues]
   )
 
   // Filter global patients by search query
@@ -293,10 +329,42 @@ export default function AcuteRoot() {
 
   const runningTimerCount = timers.filter((t) => t.isRunning).length
 
+  // Workspace stats
+  const critCount = workspacePatients.filter((p) => p.acuity <= 2).length
+  const totalPendingTasks = workspacePatientIds.reduce((acc, id) => acc + getPatientTasks(id).length, 0)
+  const totalCriticalLabs = workspacePatientIds.reduce((acc, id) => acc + getPatientCriticals(id).length, 0)
+
   return (
     <div className="animate-fade-in flex flex-col h-full -mx-3 -mt-3 sm:-mx-4 sm:-mt-4 md:-mx-6 md:-mt-6">
-      {/* === A. TOP BAR: Global Search === */}
+      {/* === A. TOP BAR: Global Search + Stats === */}
       <div className="sticky top-0 z-20 bg-slate-800/95 backdrop-blur-sm border-b border-slate-700/80 px-3 py-2.5 sm:px-4 sm:py-3">
+        {/* Stats strip */}
+        {workspacePatients.length > 0 && (
+          <div className="flex items-center gap-3 mb-2 max-w-4xl mx-auto">
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+              <span className="font-bold text-white text-xs">{workspacePatients.length}</span> active
+            </div>
+            {critCount > 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-red-400">
+                <AlertTriangle className="w-3 h-3" />
+                <span className="font-bold">{critCount}</span> critical
+              </div>
+            )}
+            {totalPendingTasks > 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-amber-400">
+                <CheckSquare className="w-3 h-3" />
+                <span className="font-bold">{totalPendingTasks}</span> tasks
+              </div>
+            )}
+            {totalCriticalLabs > 0 && (
+              <div className="flex items-center gap-1 text-[10px] text-red-400 animate-pulse">
+                <AlertTriangle className="w-3 h-3" />
+                <span className="font-bold">{totalCriticalLabs}</span> crit labs
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 max-w-4xl mx-auto">
           {/* Search Input */}
           <div className="relative flex-1">
@@ -356,7 +424,7 @@ export default function AcuteRoot() {
             <div className="max-w-4xl mx-auto">
               {searchResults.length === 0 ? (
                 <div className="p-4 text-center text-slate-500 text-sm">
-                  No patients found matching "{searchQuery}"
+                  No patients found matching &quot;{searchQuery}&quot;
                 </div>
               ) : (
                 searchResults.map((p) => (
@@ -374,6 +442,11 @@ export default function AcuteRoot() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                      {p.codeStatus && p.codeStatus !== 'full' && (
+                        <span className="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-[10px] font-bold rounded border border-purple-500/30 uppercase">
+                          {p.codeStatus}
+                        </span>
+                      )}
                       {p.acuity <= 2 && (
                         <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 text-[10px] font-bold rounded border border-red-500/30">
                           CRIT
@@ -466,7 +539,7 @@ export default function AcuteRoot() {
                           <span className="text-2xl font-bold text-blue-400 font-mono">MAP: {mapResult}</span>
                           <span className="text-xs text-slate-400 ml-2">mmHg</span>
                           {mapResult < 65 && (
-                            <p className="text-red-400 text-xs mt-1 font-bold">LOW — Consider vasopressors</p>
+                            <p className="text-red-400 text-xs mt-1 font-bold">LOW -- Consider vasopressors</p>
                           )}
                         </div>
                       )}
@@ -494,7 +567,7 @@ export default function AcuteRoot() {
                         </span>
                         <span className="text-xs text-slate-400 ml-2">/15</span>
                         {gcsTotal <= 8 && (
-                          <p className="text-red-400 text-xs mt-1 font-bold">SEVERE — Consider intubation</p>
+                          <p className="text-red-400 text-xs mt-1 font-bold">SEVERE -- Consider intubation</p>
                         )}
                       </div>
                     </div>
@@ -607,7 +680,7 @@ export default function AcuteRoot() {
               <Siren className="w-16 h-16 sm:w-20 sm:h-20 mb-4 opacity-20" />
               <h2 className="text-lg sm:text-xl font-bold uppercase tracking-widest opacity-40">On-Call Console</h2>
               <p className="text-sm opacity-30 mt-1 text-center px-4">
-                Workspace clear. Search above to add active patients.
+                No critical patients. Search above to add patients to your workspace.
               </p>
             </div>
           ) : (
@@ -617,6 +690,8 @@ export default function AcuteRoot() {
                 const isEditing = editingId === patient.id
                 const isExpanded = expandedCards.has(patient.id)
                 const labs = patientLabs[patient.id]
+                const ptTasks = getPatientTasks(patient.id)
+                const ptCriticals = getPatientCriticals(patient.id)
 
                 return (
                   <div
@@ -676,9 +751,23 @@ export default function AcuteRoot() {
                           ) : (
                             /* VIEW MODE */
                             <>
-                              <h3 className="text-base sm:text-lg font-bold text-white leading-tight truncate">
-                                {patient.lastName}, {patient.firstName}
-                              </h3>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-base sm:text-lg font-bold text-white leading-tight truncate">
+                                  {patient.lastName}, {patient.firstName}
+                                </h3>
+                                {/* Code Status Badge */}
+                                {patient.codeStatus && patient.codeStatus !== 'full' && (
+                                  <span className={clsx(
+                                    'px-1.5 py-0.5 text-[10px] font-bold rounded uppercase flex-shrink-0',
+                                    patient.codeStatus === 'comfort'
+                                      ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  )}>
+                                    <Shield className="w-2.5 h-2.5 inline mr-0.5" />
+                                    {patient.codeStatus}
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                 <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
                                   {patient.mrn}
@@ -691,9 +780,41 @@ export default function AcuteRoot() {
                                     ACUITY {patient.acuity}
                                   </span>
                                 )}
+                                {patient.acuity === 3 && (
+                                  <span className="text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded font-bold border border-amber-500/30">
+                                    ACUITY 3
+                                  </span>
+                                )}
                                 <span className="text-[10px] text-slate-500 truncate max-w-[150px]">
                                   {patient.primaryDiagnosis}
                                 </span>
+                              </div>
+
+                              {/* Allergies + Quick Indicators Row */}
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                {/* Allergies */}
+                                {patient.allergies && patient.allergies.length > 0 ? (
+                                  <span className="text-[10px] bg-red-900/40 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">
+                                    <AlertTriangle className="w-2.5 h-2.5 inline mr-0.5" />
+                                    {patient.allergies.slice(0, 3).join(', ')}
+                                    {patient.allergies.length > 3 && ` +${patient.allergies.length - 3}`}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-600 px-1.5 py-0.5">NKDA</span>
+                                )}
+                                {/* Task count */}
+                                {ptTasks.length > 0 && (
+                                  <span className="text-[10px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded">
+                                    <CheckSquare className="w-2.5 h-2.5 inline mr-0.5" />
+                                    {ptTasks.length} task{ptTasks.length > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                                {/* Critical lab flag */}
+                                {ptCriticals.length > 0 && (
+                                  <span className="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold border border-red-500/30 animate-pulse">
+                                    {ptCriticals.length} CRIT LAB{ptCriticals.length > 1 ? 'S' : ''}
+                                  </span>
+                                )}
                               </div>
                             </>
                           )}
@@ -749,6 +870,65 @@ export default function AcuteRoot() {
                     {/* Expanded Content */}
                     {isExpanded && !isEditing && (
                       <div className="border-t border-slate-700/60 px-3 pb-3 sm:px-4 sm:pb-4 pt-3 space-y-3 animate-fade-in">
+                        {/* Patient Tasks */}
+                        {ptTasks.length > 0 && (
+                          <div className="bg-slate-900/40 rounded-lg p-3 border border-slate-700">
+                            <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <CheckSquare className="w-3 h-3" />
+                              Pending Tasks ({ptTasks.length})
+                            </h4>
+                            <div className="space-y-1.5">
+                              {ptTasks.slice(0, 5).map((task) => (
+                                <div key={task.id} className="flex items-start gap-2 text-xs">
+                                  <Circle className={clsx(
+                                    'w-2.5 h-2.5 mt-0.5 flex-shrink-0',
+                                    task.priority === 'critical' ? 'text-red-400' :
+                                    task.priority === 'high' ? 'text-amber-400' :
+                                    'text-slate-500'
+                                  )} />
+                                  <div className="min-w-0 flex-1">
+                                    <span className={clsx(
+                                      'text-slate-300',
+                                      task.priority === 'critical' && 'text-red-300 font-bold'
+                                    )}>{task.title}</span>
+                                    {task.dueAt && (
+                                      <span className="text-slate-600 ml-1.5">
+                                        due {new Date(task.dueAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className={clsx(
+                                    'text-[9px] font-bold uppercase px-1 py-0.5 rounded flex-shrink-0',
+                                    task.priority === 'critical' ? 'bg-red-500/20 text-red-400' :
+                                    task.priority === 'high' ? 'bg-amber-500/20 text-amber-400' :
+                                    'bg-slate-700 text-slate-400'
+                                  )}>{task.priority}</span>
+                                </div>
+                              ))}
+                              {ptTasks.length > 5 && (
+                                <p className="text-[10px] text-slate-600 text-center pt-1">+{ptTasks.length - 5} more</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Critical Values Alert */}
+                        {ptCriticals.length > 0 && (
+                          <div className="bg-red-900/20 rounded-lg p-3 border border-red-800/40">
+                            <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                              <AlertTriangle className="w-3 h-3" />
+                              Unacknowledged Critical Values
+                            </h4>
+                            <div className="space-y-1">
+                              {ptCriticals.map((cv) => (
+                                <div key={cv.id} className="text-xs text-red-300">
+                                  <span className="font-bold">{cv.testName}:</span> {cv.value} {cv.unit}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Lab Data */}
                         {labs ? (
                           <LabResultTable data={labs} variant="dark" compact />
@@ -785,12 +965,35 @@ export default function AcuteRoot() {
                               <span className="text-red-400 font-bold text-[10px]">S:</span>
                               <span className="text-slate-300 ml-1.5">
                                 {patient.firstName} {patient.lastName}, Bed {patient.bedNumber}, {patient.primaryDiagnosis}
+                                {patient.codeStatus && patient.codeStatus !== 'full' && (
+                                  <span className="text-purple-400 font-bold ml-1">({patient.codeStatus.toUpperCase()})</span>
+                                )}
                               </span>
                             </div>
                             <div className="bg-slate-800/60 rounded px-2.5 py-2">
                               <span className="text-amber-400 font-bold text-[10px]">B:</span>
                               <span className="text-slate-300 ml-1.5">
-                                Acuity {patient.acuity}/5. Allergies: {patient.allergies?.length ? patient.allergies.join(', ') : 'NKDA'}
+                                Acuity {patient.acuity}/5. Allergies: {patient.allergies?.length ? patient.allergies.join(', ') : 'NKDA'}.
+                                {patient.diagnoses?.length ? ` PMHx: ${patient.diagnoses.slice(0, 3).join(', ')}` : ''}
+                              </span>
+                            </div>
+                            <div className="bg-slate-800/60 rounded px-2.5 py-2">
+                              <span className="text-green-400 font-bold text-[10px]">A:</span>
+                              <span className="text-slate-300 ml-1.5">
+                                {ptTasks.length > 0
+                                  ? `${ptTasks.length} pending task${ptTasks.length > 1 ? 's' : ''}. `
+                                  : 'No pending tasks. '}
+                                {ptCriticals.length > 0
+                                  ? `${ptCriticals.length} critical lab value${ptCriticals.length > 1 ? 's' : ''} unacknowledged.`
+                                  : 'Labs stable.'}
+                              </span>
+                            </div>
+                            <div className="bg-slate-800/60 rounded px-2.5 py-2">
+                              <span className="text-blue-400 font-bold text-[10px]">R:</span>
+                              <span className="text-slate-300 ml-1.5">
+                                {ptCriticals.length > 0 ? 'Review and acknowledge critical labs. ' : ''}
+                                {ptTasks.filter((t) => t.priority === 'critical').length > 0 ? 'Attend to critical tasks. ' : ''}
+                                Continue current management plan.
                               </span>
                             </div>
                           </div>

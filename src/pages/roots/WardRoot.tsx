@@ -13,6 +13,9 @@ import {
   Edit,
   Trash2,
   X,
+  Users,
+  Activity,
+  AlertCircle,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { usePatientStore } from '@/stores/patientStore'
@@ -26,6 +29,7 @@ import type { Patient, Task } from '@/types'
 
 export default function WardRoot() {
   const patients = usePatientStore((s) => s.patients)
+  const criticalValues = usePatientStore((s) => s.criticalValues)
   const tasks = useTaskStore((s) => s.tasks)
   const openModal = useUIStore((s) => s.openModal)
   const addToast = useUIStore((s) => s.addToast)
@@ -35,6 +39,12 @@ export default function WardRoot() {
   const [filterAcuity, setFilterAcuity] = useState<number | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [activeSection, setActiveSection] = useState<'patients' | 'tasks' | 'results'>('patients')
+
+  // === COMPUTED DATA ===
+  const criticalPatients = useMemo(
+    () => patients.filter((p) => p.acuity <= 2),
+    [patients]
+  )
 
   const filteredPatients = useMemo(() => {
     let filtered = patients
@@ -78,25 +88,32 @@ export default function WardRoot() {
     })
   }, [tasks])
 
+  const patientTaskCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const t of tasks) {
+      if (t.patientId && (t.status === 'pending' || t.status === 'in_progress')) {
+        counts[t.patientId] = (counts[t.patientId] || 0) + 1
+      }
+    }
+    return counts
+  }, [tasks])
+
+  const patientsWithCriticals = useMemo(() => {
+    const set = new Set<string>()
+    for (const cv of criticalValues) set.add(cv.patientId)
+    return set
+  }, [criticalValues])
+
   const handleEditPatient = useCallback((patient: Patient) => {
     triggerHaptic('tap')
     openModal('patient-form', {
       patientId: patient.id,
       initialData: {
-        mrn: patient.mrn,
-        firstName: patient.firstName,
-        lastName: patient.lastName,
-        dateOfBirth: patient.dateOfBirth,
-        gender: patient.gender,
-        wardId: patient.wardId,
-        bedNumber: patient.bedNumber,
-        acuity: patient.acuity,
-        primaryDiagnosis: patient.primaryDiagnosis,
-        diagnoses: patient.diagnoses,
-        allergies: patient.allergies,
-        codeStatus: patient.codeStatus,
-        attendingPhysician: patient.attendingPhysician,
-        team: patient.team,
+        mrn: patient.mrn, firstName: patient.firstName, lastName: patient.lastName,
+        dateOfBirth: patient.dateOfBirth, gender: patient.gender, wardId: patient.wardId,
+        bedNumber: patient.bedNumber, acuity: patient.acuity, primaryDiagnosis: patient.primaryDiagnosis,
+        diagnoses: patient.diagnoses, allergies: patient.allergies, codeStatus: patient.codeStatus,
+        attendingPhysician: patient.attendingPhysician, team: patient.team,
       },
     })
   }, [openModal])
@@ -106,7 +123,6 @@ export default function WardRoot() {
       await deletePatient(patientId)
       triggerHaptic('tap')
       addToast({ type: 'success', title: 'Patient deleted' })
-      // Store update handled by onSnapshot listener in DataSubscriptions
     } catch (err) {
       console.error('Delete patient failed:', err)
       addToast({ type: 'error', title: 'Failed to delete patient', message: 'Check permissions or try again.' })
@@ -114,80 +130,67 @@ export default function WardRoot() {
   }, [addToast])
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-3 animate-fade-in">
+      {/* === WARD OVERVIEW STATS === */}
+      <div className="grid grid-cols-4 gap-2">
+        <StatCard icon={<Users className="h-4 w-4" />} label="Census" value={patients.length} color="blue" />
+        <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Critical" value={criticalPatients.length} color={criticalPatients.length > 0 ? 'red' : 'green'} />
+        <StatCard icon={<Clock className="h-4 w-4" />} label="Tasks" value={urgentTasks.length} sub={`/${pendingTasks.length}`} color={urgentTasks.length > 0 ? 'amber' : 'green'} />
+        <StatCard icon={<Activity className="h-4 w-4" />} label="Lab Flags" value={criticalValues.length} color={criticalValues.length > 0 ? 'red' : 'green'} />
+      </div>
+
+      {/* === CRITICAL ALERT BANNER === */}
+      {criticalValues.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 animate-fade-in">
+          <div className="flex items-center gap-2 mb-1.5">
+            <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+            <span className="text-xs font-bold text-red-700 uppercase tracking-wider">Critical Values ({criticalValues.length})</span>
+          </div>
+          <div className="space-y-1">
+            {criticalValues.slice(0, 5).map((cv, i) => {
+              const p = patients.find((pt) => pt.id === cv.patientId)
+              return (
+                <button key={i} onClick={() => navigate(`/patients/${cv.patientId}`)} className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-red-100 transition-colors text-xs">
+                  <span className="font-bold text-red-700 w-12 flex-shrink-0">Bed {p?.bedNumber || '?'}</span>
+                  <span className="text-red-800 font-medium truncate">{p?.lastName}, {p?.firstName}</span>
+                  <span className="text-red-600 ml-auto flex-shrink-0 font-mono">{cv.labName}: {cv.value} {cv.unit}</span>
+                </button>
+              )
+            })}
+            {criticalValues.length > 5 && <p className="text-[10px] text-red-500 text-center pt-1">+{criticalValues.length - 5} more</p>}
+          </div>
+        </div>
+      )}
+
       {/* Section Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-        {[
+        {([
           { id: 'patients' as const, label: 'Patients', count: patients.length },
           { id: 'tasks' as const, label: 'Tasks', count: pendingTasks.length },
-          { id: 'results' as const, label: 'Results', count: 0 },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              triggerHaptic('tap')
-              setActiveSection(tab.id)
-            }}
-            className={clsx(
-              'flex-1 py-2 px-3 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors touch',
-              activeSection === tab.id
-                ? 'bg-white text-primary-700 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            )}
-          >
+          { id: 'results' as const, label: 'Results', count: criticalValues.length },
+        ]).map((tab) => (
+          <button key={tab.id} onClick={() => { triggerHaptic('tap'); setActiveSection(tab.id) }}
+            className={clsx('flex-1 py-2 px-3 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors touch',
+              activeSection === tab.id ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
             {tab.label}
-            {tab.count > 0 && (
-              <span className="ml-1.5 text-[10px] opacity-70">({tab.count})</span>
-            )}
+            {tab.count > 0 && <span className={clsx('ml-1.5 text-[10px] font-bold', tab.id === 'results' && criticalValues.length > 0 ? 'text-red-500' : 'opacity-70')}>({tab.count})</span>}
           </button>
         ))}
       </div>
 
-      {/* Patient List Section */}
+      {/* Patient List */}
       {activeSection === 'patients' && (
         <div className="space-y-3">
-          {/* Search + Filters */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ward-muted" />
-              <input
-                type="text"
-                placeholder="Search by name, MRN, or bed number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="input-field pl-9 pr-8 text-sm"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-ward-muted hover:text-ward-text transition-colors"
-                  aria-label="Clear search"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+              <input type="text" placeholder="Search by name, MRN, or bed..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="input-field pl-9 pr-8 text-sm" />
+              {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-ward-muted hover:text-ward-text" aria-label="Clear"><X className="h-3.5 w-3.5" /></button>}
             </div>
-            <button
-              onClick={() => {
-                triggerHaptic('tap')
-                setShowFilters(!showFilters)
-              }}
-              className={clsx(
-                'p-2.5 rounded-lg border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch',
-                showFilters
-                  ? 'border-primary-300 bg-primary-50 text-primary-600'
-                  : 'border-ward-border text-ward-muted hover:bg-gray-50'
-              )}
-            >
+            <button onClick={() => { triggerHaptic('tap'); setShowFilters(!showFilters) }} className={clsx('p-2.5 rounded-lg border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch', showFilters ? 'border-primary-300 bg-primary-50 text-primary-600' : 'border-ward-border text-ward-muted hover:bg-gray-50')}>
               <Filter className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => {
-                triggerHaptic('tap')
-                openModal('patient-form')
-              }}
-              className="p-2.5 rounded-lg bg-primary-600 text-white min-h-[44px] min-w-[44px] flex items-center justify-center touch hover:bg-primary-700"
-            >
+            <button onClick={() => { triggerHaptic('tap'); openModal('patient-form') }} className="p-2.5 rounded-lg bg-primary-600 text-white min-h-[44px] min-w-[44px] flex items-center justify-center touch hover:bg-primary-700">
               <Plus className="h-4 w-4" />
             </button>
           </div>
@@ -195,208 +198,106 @@ export default function WardRoot() {
           {showFilters && (
             <div className="flex gap-1.5 flex-wrap">
               {[null, 1, 2, 3, 4, 5].map((acuity) => (
-                <button
-                  key={String(acuity)}
-                  onClick={() => {
-                    triggerHaptic('tap')
-                    setFilterAcuity(acuity)
-                  }}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[36px] touch',
-                    filterAcuity === acuity
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  )}
-                >
-                  {acuity === null
-                    ? 'All'
-                    : ACUITY_LEVELS[acuity as keyof typeof ACUITY_LEVELS]?.label ?? `Acuity ${acuity}`}
+                <button key={String(acuity)} onClick={() => { triggerHaptic('tap'); setFilterAcuity(acuity) }}
+                  className={clsx('px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[36px] touch', filterAcuity === acuity ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+                  {acuity === null ? 'All' : ACUITY_LEVELS[acuity as keyof typeof ACUITY_LEVELS]?.label ?? `Acuity ${acuity}`}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Patient count + active filters */}
           {filteredPatients.length > 0 && (
             <div className="flex items-center justify-between text-xs text-ward-muted">
-              <span>
-                {filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'}
-                {(searchQuery || filterAcuity !== null) && ' matching filters'}
-              </span>
-              {(searchQuery || filterAcuity !== null) && (
-                <button
-                  onClick={() => {
-                    setSearchQuery('')
-                    setFilterAcuity(null)
-                    setShowFilters(false)
-                  }}
-                  className="text-primary-600 font-medium hover:text-primary-700 transition-colors"
-                >
-                  Clear filters
-                </button>
-              )}
+              <span>{filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'}{(searchQuery || filterAcuity !== null) && ' matching filters'}</span>
+              {(searchQuery || filterAcuity !== null) && <button onClick={() => { setSearchQuery(''); setFilterAcuity(null); setShowFilters(false) }} className="text-primary-600 font-medium">Clear</button>}
             </div>
           )}
 
-          {/* Dense Patient Rows */}
           <div className="space-y-1">
             {filteredPatients.length === 0 ? (
               <div className="text-center py-12 text-ward-muted">
                 {searchQuery || filterAcuity !== null ? (
                   <>
                     <Search className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm font-medium">No patients match your search</p>
-                    <p className="text-xs mt-1">
-                      {searchQuery && `No results for "${searchQuery}".`} Try adjusting your search or{' '}
-                      <button
-                        onClick={() => {
-                          setSearchQuery('')
-                          setFilterAcuity(null)
-                          setShowFilters(false)
-                        }}
-                        className="text-primary-600 font-medium hover:underline"
-                      >
-                        clear all filters
-                      </button>
-                    </p>
+                    <p className="text-sm font-medium">No patients match</p>
+                    <button onClick={() => { setSearchQuery(''); setFilterAcuity(null); setShowFilters(false) }} className="text-xs text-primary-600 font-medium mt-1">Clear filters</button>
                   </>
                 ) : (
                   <>
                     <Plus className="h-8 w-8 mx-auto mb-2 opacity-40" />
                     <p className="text-sm font-medium">No patients on the ward</p>
-                    <p className="text-xs mt-1 mb-3">Add your first patient to get started</p>
-                    <button
-                      onClick={() => {
-                        triggerHaptic('tap')
-                        openModal('patient-form')
-                      }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Patient
-                    </button>
+                    <button onClick={() => { triggerHaptic('tap'); openModal('patient-form') }} className="inline-flex items-center gap-1.5 px-4 py-2 mt-3 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"><Plus className="h-4 w-4" /> Add Patient</button>
                   </>
                 )}
               </div>
             ) : (
               filteredPatients.map((patient) => (
-                <WardPatientRow
-                  key={patient.id}
-                  patient={patient}
-                  taskCount={
-                    tasks.filter(
-                      (t) =>
-                        t.patientId === patient.id &&
-                        (t.status === 'pending' || t.status === 'in_progress')
-                    ).length
-                  }
-                  onTap={() => {
-                    triggerHaptic('tap')
-                    navigate(`/patients/${patient.id}`)
-                  }}
-                  onEdit={() => handleEditPatient(patient)}
-                  onDelete={() => handleDeletePatient(patient.id)}
-                />
+                <WardPatientRow key={patient.id} patient={patient} taskCount={patientTaskCounts[patient.id] || 0} hasCritical={patientsWithCriticals.has(patient.id)}
+                  onTap={() => { triggerHaptic('tap'); navigate(`/patients/${patient.id}`) }}
+                  onEdit={() => handleEditPatient(patient)} onDelete={() => handleDeletePatient(patient.id)} />
               ))
             )}
           </div>
         </div>
       )}
 
-      {/* Task Engine Section */}
+      {/* Tasks */}
       {activeSection === 'tasks' && (
         <div className="space-y-4">
-          {/* Urgent Tasks */}
           {urgentTasks.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Urgent ({urgentTasks.length})
-              </h3>
-              <div className="space-y-1">
-                {urgentTasks.map((task) => (
-                  <TaskRow key={task.id} task={task} variant="urgent" />
-                ))}
-              </div>
+              <h3 className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2 flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Urgent ({urgentTasks.length})</h3>
+              <div className="space-y-1">{urgentTasks.map((t) => <TaskRow key={t.id} task={t} variant="urgent" patients={patients} />)}</div>
             </div>
           )}
-
-          {/* Pending Tasks */}
           <div>
-            <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider mb-2 flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" />
-              Open Tasks ({pendingTasks.length})
-            </h3>
+            <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider mb-2 flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Open ({pendingTasks.length})</h3>
             <div className="space-y-1">
               {pendingTasks.length === 0 ? (
-                <div className="text-center py-8 text-ward-muted">
-                  <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm font-medium">All caught up</p>
-                  <p className="text-xs mt-1">No pending tasks. Create tasks from individual patient pages.</p>
-                </div>
-              ) : (
-                pendingTasks.slice(0, 20).map((task) => (
-                  <TaskRow key={task.id} task={task} variant="normal" />
-                ))
-              )}
+                <div className="text-center py-8 text-ward-muted"><CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40" /><p className="text-sm font-medium">All caught up</p></div>
+              ) : pendingTasks.slice(0, 20).map((t) => <TaskRow key={t.id} task={t} variant="normal" patients={patients} />)}
             </div>
           </div>
-
-          {/* Completed Today */}
           {completedToday.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Completed Today ({completedToday.length})
-              </h3>
-              <div className="space-y-1">
-                {completedToday.slice(0, 10).map((task) => (
-                  <TaskRow key={task.id} task={task} variant="completed" />
-                ))}
-              </div>
+              <h3 className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-2 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Done Today ({completedToday.length})</h3>
+              <div className="space-y-1">{completedToday.slice(0, 10).map((t) => <TaskRow key={t.id} task={t} variant="completed" patients={patients} />)}</div>
             </div>
           )}
         </div>
       )}
 
-      {/* Results Follow-Up Section */}
+      {/* Results */}
       {activeSection === 'results' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider flex items-center gap-1">
-              <FlaskConical className="h-3.5 w-3.5" />
-              Results Follow-Up
-            </h3>
-            <button
-              onClick={() => navigate('/labs')}
-              className="text-xs text-primary-600 font-medium touch"
-            >
-              View All Labs
-            </button>
+            <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider flex items-center gap-1"><FlaskConical className="h-3.5 w-3.5" /> Results Follow-Up</h3>
+            <button onClick={() => navigate('/labs')} className="text-xs text-primary-600 font-medium touch">View All Labs</button>
           </div>
-          <div className="text-center py-8 text-ward-muted">
-            <FlaskConical className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Lab results requiring follow-up will appear here</p>
-          </div>
-
-          {/* Handover Quick-Access */}
-          <button
-            onClick={() => {
-              triggerHaptic('tap')
-              navigate('/handover')
-            }}
-            className="w-full flex items-center justify-between p-4 rounded-xl border border-ward-border bg-white hover:bg-gray-50 transition-colors touch"
-          >
+          {criticalValues.length > 0 ? (
+            <div className="space-y-1.5">
+              {criticalValues.map((cv, i) => {
+                const p = patients.find((pt) => pt.id === cv.patientId)
+                return (
+                  <button key={i} onClick={() => { triggerHaptic('tap'); navigate(`/patients/${cv.patientId}`) }}
+                    className="w-full flex items-center gap-3 p-3 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 transition-colors text-left touch">
+                    <div className="h-2.5 w-2.5 rounded-full bg-red-500 flex-shrink-0 animate-pulse" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-red-800 truncate">{cv.labName}: {cv.value} {cv.unit}</p>
+                      <p className="text-xs text-red-600 truncate">{p ? `Bed ${p.bedNumber} — ${p.lastName}, ${p.firstName}` : 'Unknown'}</p>
+                    </div>
+                    <span className="text-[10px] font-bold text-red-600 uppercase px-2 py-0.5 bg-red-100 rounded-full border border-red-200 flex-shrink-0">{cv.flag === 'critical_high' ? 'HIGH' : 'LOW'}</span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-ward-muted"><CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40 text-green-400" /><p className="text-sm font-medium text-green-600">No critical values</p><p className="text-xs mt-1">All results within range.</p></div>
+          )}
+          <button onClick={() => { triggerHaptic('tap'); navigate('/handover') }} className="w-full flex items-center justify-between p-4 rounded-xl border border-ward-border bg-white hover:bg-gray-50 transition-colors touch">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                <ArrowRightLeft className="h-5 w-5 text-amber-600" />
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-semibold text-ward-text">
-                  Generate Handover
-                </p>
-                <p className="text-xs text-ward-muted">SBAR-formatted export</p>
-              </div>
+              <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center"><ArrowRightLeft className="h-5 w-5 text-amber-600" /></div>
+              <div className="text-left"><p className="text-sm font-semibold text-ward-text">Generate Handover</p><p className="text-xs text-ward-muted">SBAR-formatted export</p></div>
             </div>
             <ChevronRight className="h-4 w-4 text-ward-muted" />
           </button>
@@ -406,156 +307,60 @@ export default function WardRoot() {
   )
 }
 
-function WardPatientRow({
-  patient,
-  taskCount,
-  onTap,
-  onEdit,
-  onDelete,
-}: {
-  patient: Patient
-  taskCount: number
-  onTap: () => void
-  onEdit: () => void
-  onDelete: () => void
-}) {
+function StatCard({ icon, label, value, sub, color }: { icon: React.ReactNode; label: string; value: number; sub?: string; color: 'blue' | 'red' | 'amber' | 'green' }) {
+  const colors = { blue: 'bg-blue-50 text-blue-700', red: 'bg-red-50 text-red-700', amber: 'bg-amber-50 text-amber-700', green: 'bg-green-50 text-green-700' }
+  return (
+    <div className={clsx('rounded-xl p-2.5 text-center', colors[color])}>
+      <div className="flex items-center justify-center mb-1 opacity-70">{icon}</div>
+      <p className="text-lg font-bold font-mono leading-none">{value}{sub && <span className="text-xs opacity-60">{sub}</span>}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wider mt-0.5 opacity-70">{label}</p>
+    </div>
+  )
+}
+
+function WardPatientRow({ patient, taskCount, hasCritical, onTap, onEdit, onDelete }: { patient: Patient; taskCount: number; hasCritical: boolean; onTap: () => void; onEdit: () => void; onDelete: () => void }) {
   const [confirming, setConfirming] = useState(false)
-
-  const acuityColor =
-    patient.acuity <= 2
-      ? 'bg-red-500'
-      : patient.acuity === 3
-        ? 'bg-yellow-500'
-        : 'bg-green-500'
-
+  const acuityColor = patient.acuity <= 2 ? 'bg-red-500' : patient.acuity === 3 ? 'bg-yellow-500' : 'bg-green-500'
   const rightActions = confirming
-    ? [
-        {
-          label: 'Cancel',
-          icon: <X className="h-4 w-4" />,
-          color: 'bg-gray-500',
-          onClick: () => setConfirming(false),
-        },
-        {
-          label: 'Confirm',
-          icon: <Trash2 className="h-4 w-4" />,
-          color: 'bg-red-600',
-          onClick: () => {
-            onDelete()
-            setConfirming(false)
-          },
-        },
-      ]
-    : [
-        {
-          label: 'Edit',
-          icon: <Edit className="h-4 w-4" />,
-          color: 'bg-blue-500',
-          onClick: onEdit,
-        },
-        {
-          label: 'Delete',
-          icon: <Trash2 className="h-4 w-4" />,
-          color: 'bg-red-500',
-          onClick: () => setConfirming(true),
-        },
-      ]
+    ? [{ label: 'Cancel', icon: <X className="h-4 w-4" />, color: 'bg-gray-500', onClick: () => setConfirming(false) }, { label: 'Confirm', icon: <Trash2 className="h-4 w-4" />, color: 'bg-red-600', onClick: () => { onDelete(); setConfirming(false) } }]
+    : [{ label: 'Edit', icon: <Edit className="h-4 w-4" />, color: 'bg-blue-500', onClick: onEdit }, { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, color: 'bg-red-500', onClick: () => setConfirming(true) }]
 
   return (
     <SwipeableRow rightActions={rightActions}>
-      <button
-        onClick={onTap}
-        className="w-full flex items-center gap-3 p-3 bg-white border border-ward-border rounded-lg hover:bg-gray-50 transition-all text-left touch relative"
-      >
-        {/* Acuity dot */}
+      <button onClick={onTap} className={clsx('w-full flex items-center gap-3 p-3 bg-white border rounded-lg hover:bg-gray-50 transition-all text-left touch', hasCritical ? 'border-red-300 bg-red-50/30' : 'border-ward-border')}>
         <div className={clsx('h-2.5 w-2.5 rounded-full flex-shrink-0', acuityColor)} />
-
-        {/* Bed */}
-        <div className="w-12 text-xs font-mono font-bold text-ward-text flex-shrink-0">
-          {patient.bedNumber || '—'}
-        </div>
-
-        {/* Name + Diagnosis */}
+        <div className="w-10 text-xs font-mono font-bold text-ward-text flex-shrink-0">{patient.bedNumber || '—'}</div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ward-text truncate">
-            {patient.lastName?.toUpperCase()}, {patient.firstName}
-          </p>
-          <p className="text-xs text-ward-muted truncate">
-            {patient.primaryDiagnosis || 'No diagnosis'}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-ward-text truncate">{patient.lastName?.toUpperCase()}, {patient.firstName}</p>
+            {hasCritical && <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />}
+          </div>
+          <p className="text-xs text-ward-muted truncate">{patient.primaryDiagnosis || 'No diagnosis'}</p>
+          {patient.allergies && patient.allergies.length > 0 && <p className="text-[10px] text-red-600 font-medium truncate">Allergy: {patient.allergies.join(', ')}</p>}
         </div>
-
-        {/* Tasks badge */}
-        {taskCount > 0 && (
-          <span className="flex-shrink-0 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold">
-            {taskCount}
-          </span>
-        )}
-
+        {patient.codeStatus && patient.codeStatus !== 'full' && <span className="flex-shrink-0 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold uppercase">{patient.codeStatus}</span>}
+        {taskCount > 0 && <span className="flex-shrink-0 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold">{taskCount}</span>}
         <ChevronRight className="h-4 w-4 text-ward-muted flex-shrink-0" />
       </button>
     </SwipeableRow>
   )
 }
 
-function TaskRow({ task, variant }: { task: Task; variant: 'urgent' | 'normal' | 'completed' }) {
+function TaskRow({ task, variant, patients }: { task: Task; variant: 'urgent' | 'normal' | 'completed'; patients: Patient[] }) {
   const navigate = useNavigate()
-
-  const priorityColors: Record<string, string> = {
-    critical: 'bg-red-500',
-    high: 'bg-orange-500',
-    medium: 'bg-yellow-500',
-    low: 'bg-green-500',
-  }
+  const patient = patients.find((p) => p.id === task.patientId)
+  const priorityColors: Record<string, string> = { critical: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500', low: 'bg-green-500' }
 
   return (
-    <button
-      onClick={() => {
-        triggerHaptic('tap')
-        if (task.patientId) navigate(`/patients/${task.patientId}`)
-      }}
-      className={clsx(
-        'w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left touch',
-        variant === 'urgent'
-          ? 'bg-red-50 border-red-200 hover:bg-red-100'
-          : variant === 'completed'
-            ? 'bg-gray-50 border-gray-200 opacity-70'
-            : 'bg-white border-ward-border hover:bg-gray-50'
-      )}
-    >
-      <div
-        className={clsx(
-          'h-2 w-2 rounded-full flex-shrink-0',
-          variant === 'completed' ? 'bg-green-500' : priorityColors[task.priority] || 'bg-gray-400'
-        )}
-      />
+    <button onClick={() => { triggerHaptic('tap'); if (task.patientId) navigate(`/patients/${task.patientId}`) }}
+      className={clsx('w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left touch',
+        variant === 'urgent' ? 'bg-red-50 border-red-200 hover:bg-red-100' : variant === 'completed' ? 'bg-gray-50 border-gray-200 opacity-70' : 'bg-white border-ward-border hover:bg-gray-50')}>
+      <div className={clsx('h-2 w-2 rounded-full flex-shrink-0', variant === 'completed' ? 'bg-green-500' : priorityColors[task.priority] || 'bg-gray-400')} />
       <div className="flex-1 min-w-0">
-        <p
-          className={clsx(
-            'text-sm font-medium truncate',
-            variant === 'completed' ? 'text-gray-500 line-through' : 'text-ward-text'
-          )}
-        >
-          {task.title}
-        </p>
-        <p className="text-xs text-ward-muted truncate">
-          {task.patientName} {task.bedNumber ? `- Bed ${task.bedNumber}` : ''}
-        </p>
+        <p className={clsx('text-sm font-medium truncate', variant === 'completed' ? 'text-gray-500 line-through' : 'text-ward-text')}>{task.title}</p>
+        <p className="text-xs text-ward-muted truncate">{patient ? `Bed ${patient.bedNumber} — ${patient.lastName}, ${patient.firstName}` : task.patientName || 'Unassigned'}</p>
       </div>
-      {variant !== 'completed' && (
-        <span
-          className={clsx(
-            'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full flex-shrink-0',
-            task.priority === 'critical'
-              ? 'bg-red-100 text-red-700'
-              : task.priority === 'high'
-                ? 'bg-orange-100 text-orange-700'
-                : 'bg-gray-100 text-gray-600'
-          )}
-        >
-          {task.priority}
-        </span>
-      )}
+      {variant !== 'completed' && <span className={clsx('text-[10px] font-bold uppercase px-2 py-0.5 rounded-full flex-shrink-0', task.priority === 'critical' ? 'bg-red-100 text-red-700' : task.priority === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600')}>{task.priority}</span>}
     </button>
   )
 }

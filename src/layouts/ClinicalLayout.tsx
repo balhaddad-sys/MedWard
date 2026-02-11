@@ -27,18 +27,31 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
+import { usePatientStore } from '@/stores/patientStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { signOut } from '@/services/firebase/auth'
 import { APP_NAME } from '@/config/constants'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 export default function ClinicalLayout() {
   const { mode, isTransitioning, isModeLocked, setModeLocked } = useClinicalMode()
   const user = useAuthStore((s) => s.user)
   const isMobile = useUIStore((s) => s.isMobile)
+  const criticalValues = usePatientStore((s) => s.criticalValues)
+  const tasks = useTaskStore((s) => s.tasks)
   const navigate = useNavigate()
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showMore, setShowMore] = useState(false)
+
+  // Real notification count: unacknowledged critical labs + overdue/pending critical tasks
+  const notificationCount = useMemo(() => {
+    const unackedCriticals = criticalValues.filter((cv) => !cv.acknowledgedAt).length
+    const criticalTasks = tasks.filter(
+      (t) => t.priority === 'critical' && t.status !== 'completed' && t.status !== 'cancelled'
+    ).length
+    return unackedCriticals + criticalTasks
+  }, [criticalValues, tasks])
 
   const desktopNav = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -197,10 +210,16 @@ export default function ClinicalLayout() {
             <Bell
               className={clsx(
                 'h-5 w-5',
-                mode === 'acute' ? 'text-slate-400' : 'text-ward-muted'
+                notificationCount > 0
+                  ? 'text-red-500'
+                  : mode === 'acute' ? 'text-slate-400' : 'text-ward-muted'
               )}
             />
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full" />
+            {notificationCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center px-1">
+                {notificationCount > 99 ? '99+' : notificationCount}
+              </span>
+            )}
           </button>
 
           {/* User menu */}

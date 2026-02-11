@@ -16,7 +16,7 @@ export interface User {
 
 export interface UserPreferences {
   defaultWard: string
-  defaultMode: 'clinical' | 'triage' | 'handover'
+  defaultMode: 'ward' | 'acute' | 'clinic'
   notificationSettings: {
     criticalLabs: boolean
     taskReminders: boolean
