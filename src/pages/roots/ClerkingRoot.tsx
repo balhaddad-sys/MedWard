@@ -191,6 +191,14 @@ export default function ClerkingRoot() {
       alert('No active note');
       return;
     }
+    if (!clerkingNote) {
+      alert('No active note');
+      return;
+    }
+    if (!clerkingNote.patientId || clerkingNote.patientId === 'unassigned') {
+      alert('Please assign a patient before saving to On-Call');
+      return;
+    }
     if (!clerkingNote?.workingDiagnosis || clerkingNote.workingDiagnosis === 'Assessment pending') {
       alert('Please add a working diagnosis first');
       return;
@@ -199,6 +207,8 @@ export default function ClerkingRoot() {
     if (!confirmed) return;
     setIsSaving(true);
     try {
+      // Flush local changes first so transaction reads the latest patient linkage/content.
+      await updateClerkingNote(activeNoteId, clerkingNote);
       const result = await saveClerkingToOnCall(activeNoteId, user.id);
       if (result.success) {
         alert('✅ Added to On-Call!');

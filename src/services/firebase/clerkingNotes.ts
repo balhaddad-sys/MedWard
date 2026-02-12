@@ -350,17 +350,17 @@ export async function saveClerkingToOnCall(
       }
 
       const note = noteSnap.data() as ClerkingNote;
-
-      // 2. Get the patient data (if patient is assigned)
-      let patient: any = null;
-      if (note.patientId && note.patientId !== 'unassigned') {
-        const patientRef = doc(db, PATIENTS_COLLECTION, note.patientId);
-        const patientSnap = await transaction.get(patientRef);
-
-        if (patientSnap.exists()) {
-          patient = patientSnap.data();
-        }
+      if (!note.patientId || note.patientId === 'unassigned') {
+        throw new Error('Please assign a patient before saving to On-Call');
       }
+
+      // 2. Get the assigned patient data
+      const patientRef = doc(db, PATIENTS_COLLECTION, note.patientId);
+      const patientSnap = await transaction.get(patientRef);
+      if (!patientSnap.exists()) {
+        throw new Error('Assigned patient not found');
+      }
+      const patient = patientSnap.data();
 
       // 3. Update the clerking note to "signed"
       transaction.update(noteRef, {

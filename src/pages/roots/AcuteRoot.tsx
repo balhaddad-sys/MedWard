@@ -209,23 +209,34 @@ export default function AcuteRoot() {
     return () => unsub()
   }, [])
 
-  // Load labs for workspace patients
-  const labsLoadedRef = useRef(false)
-  useEffect(() => {
-    if (labsLoadedRef.current || workspacePatientIds.length === 0) return
-    labsLoadedRef.current = true
-    workspacePatientIds.forEach((id) => loadPatientLabs(id))
-  }, [workspacePatientIds, loadPatientLabs])
-
-  // Resolve workspace patients from the global store, sorted by acuity
-  // On-call patients are those with wardId="on-call" (automatically displayed)
+  // Resolve workspace patients from the global store, sorted by acuity.
+  // Includes patients explicitly tracked in workspace IDs (from on-call list)
+  // and legacy "wardId=on-call" entries.
   const workspacePatients = useMemo(
     () =>
       patients
-        .filter((p) => p.wardId === 'on-call')
+        .filter((p) => {
+          const inWorkspace = workspacePatientIds.includes(p.id)
+          return inWorkspace || p.wardId === 'on-call'
+        })
         .sort((a, b) => (a.acuity || 5) - (b.acuity || 5)),
-    [patients]
+    [patients, workspacePatientIds]
   )
+
+  const workspacePatientIdSet = useMemo(
+    () => new Set(workspacePatients.map((p) => p.id)),
+    [workspacePatients]
+  )
+
+  // Load labs for any patient currently visible in workspace.
+  const labsLoadedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    workspacePatients.forEach((patient) => {
+      if (labsLoadedRef.current.has(patient.id)) return
+      labsLoadedRef.current.add(patient.id)
+      loadPatientLabs(patient.id)
+    })
+  }, [workspacePatients, loadPatientLabs])
 
   // Get tasks for a specific patient
   const getPatientTasks = useCallback(
@@ -246,13 +257,13 @@ export default function AcuteRoot() {
     return patients
       .filter(
         (p) =>
-          !workspacePatientIds.includes(p.id) &&
+          !workspacePatientIdSet.has(p.id) &&
           (`${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
             (p.mrn || '').toLowerCase().includes(q) ||
             (p.bedNumber || '').toLowerCase().includes(q))
       )
       .slice(0, 8)
-  }, [searchQuery, patients, workspacePatientIds])
+  }, [searchQuery, patients, workspacePatientIdSet])
 
   // Focus search input when search is shown
   useEffect(() => {
@@ -556,8 +567,8 @@ export default function AcuteRoot() {
 
   // Workspace stats
   const critCount = workspacePatients.filter((p) => p.acuity <= 2).length
-  const totalPendingTasks = workspacePatientIds.reduce((acc, id) => acc + getPatientTasks(id).length, 0)
-  const totalCriticalLabs = workspacePatientIds.reduce((acc, id) => acc + getPatientCriticals(id).length, 0)
+  const totalPendingTasks = workspacePatients.reduce((acc, patient) => acc + getPatientTasks(patient.id).length, 0)
+  const totalCriticalLabs = workspacePatients.reduce((acc, patient) => acc + getPatientCriticals(patient.id).length, 0)
 
   // All critical items across workspace (for banner)
   const allCriticalItems = useMemo(() => {
