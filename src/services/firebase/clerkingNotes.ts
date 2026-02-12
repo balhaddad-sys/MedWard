@@ -25,7 +25,6 @@ import type {
   ClerkingNote,
   OnCallListEntry,
   ClerkingStatus,
-  SectionStatus,
 } from '@/types/clerking';
 
 const CLERKING_NOTES_COLLECTION = 'clerking_notes';
