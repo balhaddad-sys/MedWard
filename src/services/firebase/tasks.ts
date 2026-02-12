@@ -90,3 +90,25 @@ export const subscribeToTasks = (userId: string, callback: (tasks: Task[]) => vo
     callback([])
   })
 }
+
+export const subscribeToUserTasks = (
+  userId: string,
+  callback: (tasks: Task[]) => void
+): Unsubscribe => {
+  const q = query(
+    getTasksRef(),
+    where('createdBy', '==', userId),
+    orderBy('createdAt', 'desc')
+  )
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
+      callback(tasks)
+    },
+    (error) => {
+      console.error('User task subscription error:', error)
+      callback([])
+    }
+  )
+}

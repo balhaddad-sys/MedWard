@@ -26,8 +26,8 @@ import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { firebaseReady } from '@/config/firebase'
 import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/services/firebase/auth'
-import { subscribeToAllPatients } from '@/services/firebase/patients'
-import { subscribeToTasks } from '@/services/firebase/tasks'
+import { subscribeToUserPatients } from '@/services/firebase/patients'
+import { subscribeToUserTasks } from '@/services/firebase/tasks'
 
 function PageLoader() {
   return (
@@ -109,19 +109,22 @@ function DataSubscriptions() {
   }, [setIsMobile])
 
   useEffect(() => {
-    if (!firebaseUser) return
-
-    const unsubPatients = subscribeToAllPatients(firebaseUser.uid, (patients) => {
+    if (!firebaseUser) {
+      setPatients([])
+      setTasks([])
+      return
+    }
+    const unsubPatients = subscribeToUserPatients(firebaseUser.uid, (patients) => {
       setPatients(patients)
     })
-    const unsubTasks = subscribeToTasks(firebaseUser.uid, (tasks) => {
+    const unsubTasks = subscribeToUserTasks(firebaseUser.uid, (tasks) => {
       setTasks(tasks)
     })
     return () => {
       unsubPatients()
       unsubTasks()
     }
-  }, [setPatients, setTasks, firebaseUser])
+  }, [firebaseUser, setPatients, setTasks])
 
   return null
 }
