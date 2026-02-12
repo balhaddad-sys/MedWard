@@ -67,14 +67,15 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
     // PHASE 1: Run safety validation
     const safetyResult = validatePatientSafety(data)
 
-    // If there are blockers or warnings, show modal
-    if (safetyResult.blockers.length > 0 || safetyResult.warnings.length > 0) {
+    // Only show modal if there are BLOCKERS (not warnings)
+    // All fields are optional, so warnings should not prevent save
+    if (safetyResult.blockers.length > 0) {
       setSafetyValidation(safetyResult)
       setShowSafetyModal(true)
       return
     }
 
-    // If validation passes, proceed with save
+    // If validation passes (no blockers), proceed with save
     await performSave()
   }
 
