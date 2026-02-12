@@ -8,7 +8,6 @@
 import { useNavigate } from 'react-router-dom';
 import { User, Bed, Activity, FileText } from 'lucide-react';
 import type { Patient } from '@/types';
-import { ACUITY_LEVELS } from '@/config/constants';
 
 interface UnstablePatientCardProps {
   patient: Patient;

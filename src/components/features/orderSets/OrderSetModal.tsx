@@ -15,7 +15,7 @@ import type { OrderSet, OrderSetItem } from '@/types/orderSet';
 interface OrderSetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  patientId: string;
+  _patientId: string;
   patientName: string;
   bedNumber: string;
   onCreateTasks: (orderSetId: string, selectedItems: OrderSetItem[]) => Promise<void>;

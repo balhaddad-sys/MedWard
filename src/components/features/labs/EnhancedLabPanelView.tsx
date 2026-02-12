@@ -1,9 +1,7 @@
 import { useState, useMemo } from 'react'
-import { Search, TrendingUp, List, Clock, GitCompare, Filter, Calendar, AlertCircle, X } from 'lucide-react'
+import { Search, TrendingUp, List, Clock, Filter, AlertCircle, X } from 'lucide-react'
 import { LabPanelComponent } from './LabPanel'
-import { LabTrendChart, LabSparkline } from './LabTrendChart'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
+import { LabTrendChart } from './LabTrendChart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import type { LabPanel } from '@/types'
 import { triggerHaptic } from '@/utils/haptics'
@@ -40,7 +38,7 @@ export function EnhancedLabPanelView({ panels, onReview, onDelete }: EnhancedLab
   const [filterMode, setFilterMode] = useState<FilterMode>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [showFilters, setShowFilters] = useState(false)
+  const [_showFilters, _setShowFilters] = useState(false)
   const [selectedPanels, setSelectedPanels] = useState<Set<string>>(new Set())
 
   const categories = useMemo(() => {
@@ -78,13 +76,15 @@ export function EnhancedLabPanelView({ panels, onReview, onDelete }: EnhancedLab
           p.values.some((v) => v.flag?.includes('critical'))
         )
         break
-      case 'recent':
+      case 'recent': {
+        // eslint-disable-next-line react-hooks/purity
         const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
         filtered = filtered.filter((p) => {
           const date = toMillis(p.collectedAt)
           return date > oneDayAgo
         })
         break
+      }
     }
 
     return filtered.sort((a, b) => {
@@ -120,7 +120,7 @@ export function EnhancedLabPanelView({ panels, onReview, onDelete }: EnhancedLab
     setFilterMode(mode)
   }
 
-  const togglePanelSelection = (panelId: string) => {
+  const _togglePanelSelection = (panelId: string) => {
     const newSelected = new Set(selectedPanels)
     if (newSelected.has(panelId)) {
       newSelected.delete(panelId)
@@ -339,7 +339,7 @@ export function EnhancedLabPanelView({ panels, onReview, onDelete }: EnhancedLab
           <div className="absolute left-2 top-0 bottom-0 w-px bg-ward-border" />
 
           <div className="space-y-4">
-            {filteredPanels.map((panel, index) => {
+            {filteredPanels.map((panel, _index) => {
               const hasCritical = panel.values.some((v) => v.flag?.includes('critical'))
               const hasAbnormal = panel.values.some((v) => v.flag && v.flag !== 'normal')
 

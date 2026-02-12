@@ -13,7 +13,6 @@ import {
   RotateCcw,
   Plus,
   Minus,
-  Search,
   X,
   Check,
   ChevronDown,

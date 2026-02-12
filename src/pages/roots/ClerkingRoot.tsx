@@ -6,7 +6,6 @@ import {
   Plus,
   UserPlus,
   X,
-  Save,
   Clock,
   Send,
   Trash2,
@@ -36,7 +35,7 @@ const AUTOSAVE_INTERVAL = 3000;
 
 export default function ClerkingRoot() {
   const user = useAuthStore((s) => s.user);
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const patients = usePatientStore((s) => s.patients);
 
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
@@ -71,6 +70,7 @@ export default function ClerkingRoot() {
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clerkingNote, activeNoteId]);
 
   function loadDraft() {

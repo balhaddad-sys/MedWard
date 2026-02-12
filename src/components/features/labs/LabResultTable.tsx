@@ -23,10 +23,10 @@ interface LabResultTableProps {
 }
 
 export function LabResultTable({ data, variant = 'dark', compact = false }: LabResultTableProps) {
-  if (!data || !data.results || data.results.length === 0) return null
-
   const isDark = variant === 'dark'
   const isMobile = useUIStore((s) => s.isMobile)
+
+  if (!data || !data.results || data.results.length === 0) return null
 
   return (
     <div

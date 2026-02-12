@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Clock, CheckCircle, Eye, Image, X, Trash2 } from 'lucide-react'
+import { Clock, Eye, Image, X, Trash2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Sparkline } from '@/components/ui/Sparkline'
 import type { LabPanel as LabPanelType } from '@/types'
 import { formatTimestamp, formatLabValue } from '@/utils/formatters'
-import { getLabFlagColor, getLabFlagLabel, getLabFlagBg } from '@/utils/labUtils'
+import { getLabFlagLabel } from '@/utils/labUtils'
 
 interface LabPanelProps {
   panel: LabPanelType
@@ -84,7 +84,7 @@ export function LabPanelComponent({ panel, trendData, onReview, onDelete }: LabP
         </CardHeader>
 
         <div className="p-3 space-y-1.5">
-          {(panel.values ?? []).map((value, index) => {
+          {(panel.values ?? []).map((value, _index) => {
             const isCritical = value.flag === 'critical_low' || value.flag === 'critical_high'
             const isAbnormal = value.flag && value.flag !== 'normal'
 

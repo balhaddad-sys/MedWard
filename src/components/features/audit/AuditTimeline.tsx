@@ -30,6 +30,7 @@ export function AuditTimeline({ patientId }: AuditTimelineProps) {
 
   useEffect(() => {
     loadAuditLogs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId]);
 
   const loadAuditLogs = async () => {

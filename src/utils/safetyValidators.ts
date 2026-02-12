@@ -5,7 +5,7 @@
  * Returns blockers (cannot save) vs warnings (can save with confirmation)
  */
 
-import type { Patient, PatientFormData } from '@/types';
+import type { PatientFormData } from '@/types';
 import type { ClerkingNote } from '@/types/clerking';
 
 export type ValidationLevel = 'blocker' | 'warning';

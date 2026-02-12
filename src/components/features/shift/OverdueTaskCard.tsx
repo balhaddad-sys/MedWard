@@ -5,7 +5,7 @@
  * Shows task details, priority, and time overdue
  */
 
-import { Clock, User, AlertCircle, Check } from 'lucide-react';
+import { Clock, User, Check } from 'lucide-react';
 import type { Task } from '@/types/task';
 
 interface OverdueTaskCardProps {

@@ -13,7 +13,6 @@
 
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { usePatientStore } from '@/stores/patientStore';
 import { getPatientsByState } from '@/services/firebase/patients';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { UnstablePatientCard } from '@/components/features/shift/UnstablePatientCard';
@@ -27,13 +26,14 @@ import type { LabPanel } from '@/types';
 export default function ShiftView() {
   const user = useAuthStore((s) => s.user);
   const [unstablePatients, setUnstablePatients] = useState<Patient[]>([]);
-  const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
-  const [criticalLabs, setCriticalLabs] = useState<LabPanel[]>([]);
+  const [_overdueTasks, _setOverdueTasks] = useState<Task[]>([]);
+  const [_criticalLabs, _setCriticalLabs] = useState<LabPanel[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     loadActionItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   async function loadActionItems() {

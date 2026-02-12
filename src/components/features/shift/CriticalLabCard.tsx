@@ -5,7 +5,6 @@
  * Shows patient, lab panel, and critical values
  */
 
-import { useNavigate } from 'react-router-dom';
 import { FlaskConical, User, AlertTriangle, Eye } from 'lucide-react';
 import type { LabPanel } from '@/types';
 
@@ -15,7 +14,6 @@ interface CriticalLabCardProps {
 }
 
 export function CriticalLabCard({ lab, onReview }: CriticalLabCardProps) {
-  const navigate = useNavigate();
 
   const handleReview = () => {
     // TODO: Navigate to patient labs tab and mark as reviewed

@@ -13,7 +13,7 @@ import {
   orderBy,
   onSnapshot,
   Timestamp,
-  type Unsubscribe,
+  type Unsubscribe as _Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { AlertTierSystem } from '@/services/AlertTierSystem';
@@ -26,11 +26,10 @@ export function useAlertMonitor(userId?: string) {
 
   useEffect(() => {
     if (!userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }
-
-    let unsubscribe: Unsubscribe;
 
     // Subscribe to active alerts
     const q = query(
@@ -39,7 +38,7 @@ export function useAlertMonitor(userId?: string) {
       orderBy('createdAt', 'desc')
     );
 
-    unsubscribe = onSnapshot(
+    const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         const now = Timestamp.now();
