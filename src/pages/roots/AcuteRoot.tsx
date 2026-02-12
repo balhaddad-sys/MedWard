@@ -40,6 +40,7 @@ import { useUIStore } from '@/stores/uiStore'
 import { triggerHaptic, hapticPatterns } from '@/utils/haptics'
 import { LabResultTable } from '@/components/features/labs/LabResultTable'
 import { getLabPanels } from '@/services/firebase/labs'
+import { subscribeToOnCallList } from '@/services/firebase/onCallList'
 import type { Patient } from '@/types'
 import type { LabResultData } from '@/components/features/labs/LabResultTable'
 
@@ -134,6 +135,19 @@ export default function AcuteRoot() {
   useEffect(() => {
     saveWorkspace(workspacePatientIds)
   }, [workspacePatientIds])
+
+  // Subscribe to on-call list and auto-add patients
+  useEffect(() => {
+    const unsubscribe = subscribeToOnCallList((entries) => {
+      const onCallPatientIds = entries.map((entry) => entry.snapshot.patientId);
+      setWorkspacePatientIds((prev) => {
+        // Merge on-call patients with existing workspace
+        const merged = new Set([...prev, ...onCallPatientIds]);
+        return Array.from(merged);
+      });
+    });
+    return () => unsubscribe();
+  }, [])
 
   // Persist notes whenever they change
   useEffect(() => {

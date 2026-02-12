@@ -119,7 +119,7 @@ export default function ClinicalLayout() {
                 mode === 'clerking' && 'bg-stone-200 text-stone-700'
               )}
             >
-              {mode === 'ward' ? 'Ward' : mode === 'acute' ? 'On-Call' : 'Clinic'}
+              {mode === 'ward' ? 'Ward' : mode === 'acute' ? 'On-Call' : 'Clerking'}
             </div>
           )}
 
@@ -374,7 +374,7 @@ export default function ClinicalLayout() {
             >
               <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />
               <ModeNavButton id="acute" label="On-Call" Icon={Siren} />
-              <ModeNavButton id="clerking" label="Clinic" Icon={Stethoscope} />
+              <ModeNavButton id="clerking" label="Clerking" Icon={Stethoscope} />
             </div>
           </nav>
         </>
