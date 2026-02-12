@@ -24,7 +24,6 @@ import { db } from '@/config/firebase';
 import type {
   ClerkingNote,
   OnCallListEntry,
-  OnCallSnapshot,
   ClerkingStatus,
   SectionStatus,
 } from '@/types/clerking';
@@ -266,78 +265,45 @@ export async function deleteClerkingNote(noteId: string): Promise<void> {
 // ============================================================================
 
 /**
- * Calculate patient age from date of birth
+ * Extract escalation flags from clerking note
+ * PHASE 0: Reference-only architecture - no more denormalized snapshots
  */
-function calculateAge(dob: string | Date | Timestamp): number {
-  let birthDate: Date;
+function extractEscalationFlags(note: ClerkingNote): string[] {
+  const flags: string[] = [];
 
-  if (dob instanceof Timestamp) {
-    birthDate = dob.toDate();
-  } else if (dob instanceof Date) {
-    birthDate = dob;
-  } else {
-    birthDate = new Date(dob);
+  // Critical labs
+  const criticalLabs = note.investigations?.labs
+    ?.flatMap((panel) => panel.tests.filter((t) => t.isCritical))
+    .filter(Boolean);
+  if (criticalLabs && criticalLabs.length > 0) {
+    flags.push(`Critical labs: ${criticalLabs.length}`);
   }
 
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-    age--;
+  // High severity problems
+  const criticalProblems = note.problemList.filter(
+    (p) => p.isActive && (p.severity === 'critical' || p.severity === 'high')
+  );
+  if (criticalProblems.length > 0) {
+    flags.push(`High-priority issues: ${criticalProblems.length}`);
   }
 
-  return age;
-}
-
-/**
- * Create OnCallSnapshot from a ClerkingNote
- * Filters out undefined values to prevent Firestore errors
- */
-function createOnCallSnapshot(note: ClerkingNote, patient: any | null): OnCallSnapshot {
-  // Handle case where patient is not assigned
-  const patientName = patient
-    ? `${patient.firstName} ${patient.lastName}`
-    : 'Unassigned Patient';
-  const age = patient?.dateOfBirth ? calculateAge(patient.dateOfBirth) : 0;
-  const sex = patient?.gender || 'U';
-
-  // Build snapshot with only defined values
-  const snapshot: any = {
-    patientId: note.patientId,
-    patientName,
-    age,
-    sex,
-    location: note.location || 'Not specified',
-    workingDiagnosis: note.workingDiagnosis,
-    problemList: note.problemList.filter((p) => p.isActive).map((p) => p.title),
-    currentStatus: {
-      criticalLabs: note.investigations?.labs
-        ?.flatMap((panel) => panel.tests.filter((t) => t.isCritical).map((t) => `${t.name}: ${t.value}`))
-        .filter(Boolean) as string[] || [],
-      activeIssues: note.problemList.filter((p) => p.isActive && p.severity === 'high').map((p) => p.title),
-    },
-    tasks: note.plan?.tasks || [],
-    escalationTriggers: note.plan?.monitoring?.escalationTriggers || [],
-    lastUpdated: Timestamp.now(),
-    linkedClerkingNoteId: note.id,
-  };
-
-  // Only add vitals if they exist and have values
-  if (note.examination?.vitals && Object.keys(note.examination.vitals).length > 0) {
-    snapshot.currentStatus.vitals = note.examination.vitals;
+  // Escalation triggers
+  if (note.plan?.monitoring?.escalationTriggers && note.plan.monitoring.escalationTriggers.length > 0) {
+    flags.push(`Escalation triggers: ${note.plan.monitoring.escalationTriggers.length}`);
   }
 
-  return snapshot as OnCallSnapshot;
+  return flags;
 }
 
 /**
  * TRANSACTION: Save clerking note AND add patient to On-Call list
+ * PHASE 0: Reference-only architecture - stores patientId only
  * This is atomic - either both succeed or both fail
  */
 export async function saveClerkingToOnCall(
   noteId: string,
-  userId: string
+  userId: string,
+  userName: string
 ): Promise<{ success: boolean; onCallId?: string; error?: string }> {
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -354,13 +320,12 @@ export async function saveClerkingToOnCall(
         throw new Error('Please assign a patient before saving to On-Call');
       }
 
-      // 2. Get the assigned patient data
+      // 2. Verify patient exists
       const patientRef = doc(db, PATIENTS_COLLECTION, note.patientId);
       const patientSnap = await transaction.get(patientRef);
       if (!patientSnap.exists()) {
         throw new Error('Assigned patient not found');
       }
-      const patient = patientSnap.data();
 
       // 3. Update the clerking note to "signed"
       transaction.update(noteRef, {
@@ -369,27 +334,30 @@ export async function saveClerkingToOnCall(
         updatedAt: Timestamp.now(),
       });
 
-      // 4. Create the On-Call entry
+      // 4. Create the On-Call entry (REFERENCE-ONLY)
       const onCallRef = doc(collection(db, ON_CALL_LIST_COLLECTION));
-      const snapshot = createOnCallSnapshot(note, patient);
 
       // Determine priority based on problem severity
       const hasCritical = note.problemList.some((p) => p.severity === 'critical');
       const hasHigh = note.problemList.some((p) => p.severity === 'high');
       const priority = hasCritical ? 'critical' : hasHigh ? 'high' : 'medium';
 
+      // Extract escalation flags from note
+      const escalationFlags = extractEscalationFlags(note);
+
       const onCallEntry: OnCallListEntry = {
         id: onCallRef.id,
-        snapshot,
+        patientId: note.patientId, // Reference only - no denormalized data
         priority,
+        addedAt: Timestamp.now(),
+        addedBy: userId,
+        escalationFlags,
         isActive: true,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
       };
 
       transaction.set(onCallRef, onCallEntry);
 
-      console.log('✅ Transaction complete: Clerking saved + On-Call entry created');
+      console.log('✅ Transaction complete: Clerking saved + On-Call entry created (reference-only)');
       return { success: true, onCallId: onCallRef.id };
     });
 
@@ -405,12 +373,13 @@ export async function saveClerkingToOnCall(
 
 /**
  * Check if a patient is already in the On-Call list
+ * PHASE 0: Updated to use reference-only architecture
  */
 export async function isPatientInOnCall(patientId: string): Promise<boolean> {
   try {
     const q = query(
       collection(db, ON_CALL_LIST_COLLECTION),
-      where('snapshot.patientId', '==', patientId),
+      where('patientId', '==', patientId), // Reference-only field
       where('isActive', '==', true),
       limit(1)
     );

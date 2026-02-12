@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Patient, LabPanel, CriticalValue } from '@/types'
+import type { PatientState } from '@/types/patientState'
 
 interface PatientStore {
   patients: Patient[]
@@ -23,6 +24,14 @@ interface PatientStore {
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   getFilteredPatients: () => Patient[]
+
+  // NEW (Phase 0): State-based filtering
+  getPatientsByState: (state: PatientState) => Patient[]
+  getPatientsByStates: (states: PatientState[]) => Patient[]
+  getUnstablePatients: () => Patient[]
+  getActivePatients: () => Patient[]
+  getIncomingPatients: () => Patient[]
+  getReadyForDischarge: () => Patient[]
 }
 
 export const usePatientStore = create<PatientStore>()((set, get) => ({
@@ -75,5 +84,36 @@ export const usePatientStore = create<PatientStore>()((set, get) => ({
       const matchesAcuity = filterAcuity === null || p.acuity === filterAcuity
       return matchesSearch && matchesAcuity
     })
+  },
+
+  // NEW (Phase 0): State-based filtering selectors
+  getPatientsByState: (state: PatientState) => {
+    const { patients } = get()
+    return patients.filter((p) => p.state === state)
+  },
+
+  getPatientsByStates: (states: PatientState[]) => {
+    const { patients } = get()
+    return patients.filter((p) => states.includes(p.state))
+  },
+
+  getUnstablePatients: () => {
+    const { patients } = get()
+    return patients.filter((p) => p.state === 'unstable')
+  },
+
+  getActivePatients: () => {
+    const { patients } = get()
+    return patients.filter((p) => p.state === 'active')
+  },
+
+  getIncomingPatients: () => {
+    const { patients } = get()
+    return patients.filter((p) => p.state === 'incoming')
+  },
+
+  getReadyForDischarge: () => {
+    const { patients } = get()
+    return patients.filter((p) => p.state === 'ready_dc')
   },
 }))

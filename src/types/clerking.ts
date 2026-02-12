@@ -311,32 +311,29 @@ export interface ClerkingNote {
 // ON-CALL LIST INTEGRATION
 // ============================================================================
 
-export interface OnCallSnapshot {
-  patientId: string;
-  patientName: string;
-  age: number;
-  sex: string;
-  location: string;
-  workingDiagnosis: string;
-  problemList: string[]; // Just titles
-  currentStatus: {
-    vitals?: Partial<VitalSigns>;
-    criticalLabs?: string[];
-    activeIssues?: string[];
-  };
-  tasks: PlanItem[];
-  escalationTriggers: string[];
-  lastUpdated: Date | Timestamp;
-  linkedClerkingNoteId: string;
-}
+/**
+ * REMOVED: OnCallSnapshot (Phase 0 - denormalized data)
+ * Patient data is now referenced via patientId only
+ * Fetch from patients collection on read instead of duplicating
+ */
 
+/**
+ * OnCallListEntry - Reference-only architecture (Phase 0)
+ * Stores only reference to patient, not full snapshot
+ * This prevents data sync issues and maintains single source of truth
+ */
 export interface OnCallListEntry {
   id: string;
-  snapshot: OnCallSnapshot;
+  patientId: string; // Reference to patient (was snapshot object)
   priority: Priority;
+  addedAt: Date | Timestamp; // When added to on-call list
+  addedBy: string; // User ID who added
+  notes?: string; // Clinician notes about this on-call patient
+  escalationFlags: string[]; // Active concerns/escalations
+  lastReviewedAt?: Date | Timestamp; // Last time reviewed
   isActive: boolean;
-  createdAt: Date | Timestamp;
-  updatedAt: Date | Timestamp;
+  createdAt: Date | Timestamp; // Legacy field for compatibility
+  updatedAt: Date | Timestamp; // Legacy field for compatibility
 }
 
 // ============================================================================

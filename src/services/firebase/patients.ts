@@ -11,10 +11,12 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/config/firebase'
 import type { Patient, PatientFormData } from '@/types'
+import type { PatientState } from '@/types/patientState'
 
 const getPatientsRef = () => collection(db, 'patients')
 
@@ -34,6 +36,14 @@ const safePatient = (id: string, data: Record<string, unknown>): Patient => ({
   attendingPhysician: '',
   team: '',
   createdBy: '',
+  // NEW Phase 0 fields with defaults
+  state: 'incoming' as PatientState,
+  stateChangedAt: Timestamp.now(),
+  stateChangedBy: '',
+  teamId: 'default',
+  assignedClinicians: [],
+  modificationHistory: [],
+  lastModifiedBy: '',
   ...data,
   id,
 } as unknown as Patient)
@@ -110,4 +120,55 @@ export const subscribeToAllPatients = (
     console.error('All patients subscription error:', error)
     callback([])
   })
+}
+
+/**
+ * NEW (Phase 0): Subscribe to patients by state
+ * Team-based access with state filtering
+ */
+export const subscribeToPatientsByState = (
+  teamId: string,
+  userId: string,
+  states: PatientState[],
+  callback: (patients: Patient[]) => void
+): Unsubscribe => {
+  // Note: Firestore 'in' query supports up to 10 values
+  const q = query(
+    getPatientsRef(),
+    where('teamId', '==', teamId),
+    where('state', 'in', states),
+    orderBy('stateChangedAt', 'desc')
+  )
+
+  return onSnapshot(q, (snapshot) => {
+    // Filter by assignedClinicians on client side (array-contains not compatible with 'in')
+    const patients = snapshot.docs
+      .map((doc) => safePatient(doc.id, doc.data()))
+      .filter(p => p.assignedClinicians.includes(userId))
+    callback(patients)
+  }, (error) => {
+    console.error('Patients by state subscription error:', error)
+    callback([])
+  })
+}
+
+/**
+ * NEW (Phase 0): Get patients by state (one-time fetch)
+ */
+export const getPatientsByState = async (
+  teamId: string,
+  userId: string,
+  states: PatientState[]
+): Promise<Patient[]> => {
+  const q = query(
+    getPatientsRef(),
+    where('teamId', '==', teamId),
+    where('state', 'in', states),
+    orderBy('stateChangedAt', 'desc')
+  )
+
+  const snapshot = await getDocs(q)
+  return snapshot.docs
+    .map((doc) => safePatient(doc.id, doc.data()))
+    .filter(p => p.assignedClinicians.includes(userId))
 }

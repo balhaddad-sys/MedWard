@@ -20,6 +20,7 @@ export interface ModeFeatures {
   sortDefault: 'bed' | 'acuity' | 'appointment'
   notifyLevel: 'all' | 'urgent' | 'critical-only'
   compactView: boolean      // Triage-style compact cards
+  shiftView: boolean        // PHASE 2: Action-only landing dashboard (unstable, overdue, critical)
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,7 @@ export const MODES: Record<ClinicalMode, ModeConfig> = {
       sortDefault: 'bed',
       notifyLevel: 'all',
       compactView: false,
+      shiftView: false, // PHASE 2: Not needed for ward round
     },
   },
   acute: {
@@ -76,6 +78,7 @@ export const MODES: Record<ClinicalMode, ModeConfig> = {
       sortDefault: 'acuity',
       notifyLevel: 'critical-only',
       compactView: true,
+      shiftView: true, // PHASE 2: Action-only landing dashboard for on-call
     },
   },
   clerking: {
@@ -97,6 +100,7 @@ export const MODES: Record<ClinicalMode, ModeConfig> = {
       sortDefault: 'acuity',  // Sort by severity
       notifyLevel: 'urgent',  // Moderate notification level
       compactView: false,     // Full detail view for clerking
+      shiftView: false,       // PHASE 2: Not needed for clerking mode
     },
   },
 } as const

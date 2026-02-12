@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/Button'
 import { ACUITY_LEVELS } from '@/config/constants'
 import type { PatientFormData } from '@/types'
 import { validatePatientForm } from '@/utils/validators'
+import { validatePatientSafety } from '@/utils/safetyValidators'
+import { SafetyValidationModal } from '@/components/modals/SafetyValidationModal'
+import type { ValidationResult } from '@/utils/safetyValidators'
 
 interface PatientFormProps {
   initialData?: Partial<PatientFormData>
@@ -37,6 +40,10 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
   const [allergyInput, setAllergyInput] = useState('')
   const [submitAttempted, setSubmitAttempted] = useState(false)
 
+  // PHASE 1: Safety validation modal state
+  const [showSafetyModal, setShowSafetyModal] = useState(false)
+  const [safetyValidation, setSafetyValidation] = useState<ValidationResult | null>(null)
+
   const handleChange = (field: keyof PatientFormData, value: unknown) => {
     setData((prev) => ({ ...prev, [field]: value }))
     if (errors[field]) {
@@ -47,6 +54,8 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitAttempted(true)
+
+    // First, run basic field validation
     const validationErrors = validatePatientForm(data as unknown as Record<string, unknown>)
     if (validationErrors.length > 0) {
       const errMap: Record<string, string> = {}
@@ -54,11 +63,28 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
       setErrors(errMap)
       return
     }
+
+    // PHASE 1: Run safety validation
+    const safetyResult = validatePatientSafety(data)
+
+    // If there are blockers or warnings, show modal
+    if (safetyResult.blockers.length > 0 || safetyResult.warnings.length > 0) {
+      setSafetyValidation(safetyResult)
+      setShowSafetyModal(true)
+      return
+    }
+
+    // If validation passes, proceed with save
+    await performSave()
+  }
+
+  const performSave = async () => {
     setLoading(true)
     try {
       await onSubmit(data)
     } finally {
       setLoading(false)
+      setShowSafetyModal(false)
     }
   }
 
@@ -168,6 +194,17 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
         <Button type="button" variant="secondary" onClick={onCancel} className="min-h-[44px]">Cancel</Button>
         <Button type="submit" loading={loading} className="min-h-[44px]">{initialData ? 'Update Patient' : 'Add Patient'}</Button>
       </div>
+
+      {/* PHASE 1: Safety Validation Modal */}
+      {safetyValidation && (
+        <SafetyValidationModal
+          isOpen={showSafetyModal}
+          validationResult={safetyValidation}
+          onClose={() => setShowSafetyModal(false)}
+          onProceed={safetyValidation.canProceed ? performSave : undefined}
+          title="Patient Safety Validation"
+        />
+      )}
     </form>
   )
 }

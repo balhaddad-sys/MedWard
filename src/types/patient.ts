@@ -1,4 +1,5 @@
 import type { Timestamp } from 'firebase/firestore'
+import type { PatientState, PatientModification } from './patientState'
 
 export interface Patient {
   id: string
@@ -7,7 +8,7 @@ export interface Patient {
   lastName: string
   dateOfBirth: string
   gender: 'male' | 'female' | 'other'
-  wardId: string
+  wardId: string // Legacy field - kept for backwards compatibility
   bedNumber: string
   admissionDate: Timestamp
   expectedDischarge?: Timestamp
@@ -22,9 +23,22 @@ export interface Patient {
   weight?: number
   height?: number
   notes?: string
-  createdBy: string
+  createdBy: string // Legacy field - kept for backwards compatibility
   updatedAt: Timestamp
   createdAt: Timestamp
+
+  // NEW: Patient state management (Phase 0)
+  state: PatientState
+  stateChangedAt: Timestamp
+  stateChangedBy: string
+
+  // NEW: Team-based access control (Phase 0)
+  teamId: string
+  assignedClinicians: string[] // User IDs with access to this patient
+
+  // NEW: Audit trail (Phase 0)
+  modificationHistory: PatientModification[]
+  lastModifiedBy: string
 }
 
 export interface PatientFormData {

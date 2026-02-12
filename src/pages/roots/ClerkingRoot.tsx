@@ -27,6 +27,9 @@ import type {
   Allergy,
   ProblemListItem,
 } from '@/types/clerking';
+import { validateClerkingNote } from '@/utils/safetyValidators';
+import { SafetyValidationModal } from '@/components/modals/SafetyValidationModal';
+import type { ValidationResult } from '@/utils/safetyValidators';
 
 const LOCALSTORAGE_DRAFT_KEY = 'clerking_draft_v3';
 const AUTOSAVE_INTERVAL = 3000;
@@ -40,6 +43,10 @@ export default function ClerkingRoot() {
   const [clerkingNote, setClerkingNote] = useState<Partial<ClerkingNote> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // PHASE 1: Safety validation modal state
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [safetyValidation, setSafetyValidation] = useState<ValidationResult | null>(null);
 
   const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
   const [newPatientData, setNewPatientData] = useState({
@@ -199,17 +206,32 @@ export default function ClerkingRoot() {
       alert('Please assign a patient before saving to On-Call');
       return;
     }
-    if (!clerkingNote?.workingDiagnosis || clerkingNote.workingDiagnosis === 'Assessment pending') {
-      alert('Please add a working diagnosis first');
+
+    // PHASE 1: Run safety validation before signing
+    const safetyResult = validateClerkingNote(clerkingNote);
+
+    // If there are blockers or warnings, show modal
+    if (safetyResult.blockers.length > 0 || safetyResult.warnings.length > 0) {
+      setSafetyValidation(safetyResult);
+      setShowSafetyModal(true);
       return;
     }
+
+    // If validation passes, proceed with save
+    await performSaveToOnCall();
+  }
+
+  async function performSaveToOnCall() {
+    if (!activeNoteId || !user) return;
+
     const confirmed = window.confirm('Add to On-Call list?');
     if (!confirmed) return;
+
     setIsSaving(true);
     try {
       // Flush local changes first so transaction reads the latest patient linkage/content.
-      await updateClerkingNote(activeNoteId, clerkingNote);
-      const result = await saveClerkingToOnCall(activeNoteId, user.id);
+      await updateClerkingNote(activeNoteId, clerkingNote!);
+      const result = await saveClerkingToOnCall(activeNoteId, user.id, user.displayName);
       if (result.success) {
         alert('✅ Added to On-Call!');
         localStorage.removeItem(LOCALSTORAGE_DRAFT_KEY);
@@ -223,6 +245,7 @@ export default function ClerkingRoot() {
       alert(`Failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
       setIsSaving(false);
+      setShowSafetyModal(false);
     }
   }
 
@@ -528,6 +551,17 @@ export default function ClerkingRoot() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PHASE 1: Safety Validation Modal */}
+      {safetyValidation && (
+        <SafetyValidationModal
+          isOpen={showSafetyModal}
+          validationResult={safetyValidation}
+          onClose={() => setShowSafetyModal(false)}
+          onProceed={safetyValidation.canProceed ? performSaveToOnCall : undefined}
+          title="Clerking Note Safety Validation"
+        />
       )}
     </div>
   );
