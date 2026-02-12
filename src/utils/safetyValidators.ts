@@ -26,59 +26,59 @@ export interface ValidationResult {
 
 /**
  * Validate patient safety before save
- * BLOCKERS: No MRN, no name, conflicting code status, missing critical fields
+ * NO BLOCKERS - all fields are optional, only show warnings for best practice
  */
 export function validatePatientSafety(data: Partial<PatientFormData>): ValidationResult {
   const blockers: ValidationIssue[] = [];
   const warnings: ValidationIssue[] = [];
 
-  // BLOCKER: MRN is required
+  // WARNING: MRN recommended
   if (!data.mrn || data.mrn.trim() === '') {
-    blockers.push({
-      level: 'blocker',
+    warnings.push({
+      level: 'warning',
       field: 'mrn',
-      message: 'MRN (Medical Record Number) is required',
-      suggestedFix: 'Enter a valid MRN before saving',
+      message: 'MRN (Medical Record Number) not provided',
+      suggestedFix: 'Consider adding MRN for record identification',
     });
   }
 
-  // BLOCKER: First name is required
+  // WARNING: First name recommended
   if (!data.firstName || data.firstName.trim() === '') {
-    blockers.push({
-      level: 'blocker',
+    warnings.push({
+      level: 'warning',
       field: 'firstName',
-      message: 'First name is required',
-      suggestedFix: 'Enter patient first name',
+      message: 'First name not provided',
+      suggestedFix: 'Consider adding patient first name',
     });
   }
 
-  // BLOCKER: Last name is required
+  // WARNING: Last name recommended
   if (!data.lastName || data.lastName.trim() === '') {
-    blockers.push({
-      level: 'blocker',
+    warnings.push({
+      level: 'warning',
       field: 'lastName',
-      message: 'Last name is required',
-      suggestedFix: 'Enter patient last name',
+      message: 'Last name not provided',
+      suggestedFix: 'Consider adding patient last name',
     });
   }
 
-  // BLOCKER: Date of birth is required
+  // WARNING: Date of birth recommended
   if (!data.dateOfBirth || data.dateOfBirth.trim() === '') {
-    blockers.push({
-      level: 'blocker',
+    warnings.push({
+      level: 'warning',
       field: 'dateOfBirth',
-      message: 'Date of birth is required',
-      suggestedFix: 'Enter patient date of birth',
+      message: 'Date of birth not provided',
+      suggestedFix: 'Consider adding date of birth for age calculation',
     });
   }
 
-  // BLOCKER: Primary diagnosis is required
+  // WARNING: Primary diagnosis recommended
   if (!data.primaryDiagnosis || data.primaryDiagnosis.trim() === '') {
-    blockers.push({
-      level: 'blocker',
+    warnings.push({
+      level: 'warning',
       field: 'primaryDiagnosis',
-      message: 'Primary diagnosis is required',
-      suggestedFix: 'Enter a working diagnosis before saving',
+      message: 'Primary diagnosis not provided',
+      suggestedFix: 'Consider adding a working diagnosis',
     });
   }
 

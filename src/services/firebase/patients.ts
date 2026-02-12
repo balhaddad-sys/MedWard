@@ -73,6 +73,14 @@ export const createPatient = async (data: PatientFormData, userId: string): Prom
     createdBy: userId,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+    // Phase 0: Set default state management fields
+    state: 'incoming',
+    stateChangedAt: serverTimestamp(),
+    stateChangedBy: userId,
+    teamId: 'default',
+    assignedClinicians: [userId],
+    modificationHistory: [],
+    lastModifiedBy: userId,
   })
   return docRef.id
 }
