@@ -293,12 +293,19 @@ function calculateAge(dob: string | Date | Timestamp): number {
 /**
  * Create OnCallSnapshot from a ClerkingNote
  */
-function createOnCallSnapshot(note: ClerkingNote, patient: any): OnCallSnapshot {
+function createOnCallSnapshot(note: ClerkingNote, patient: any | null): OnCallSnapshot {
+  // Handle case where patient is not assigned
+  const patientName = patient
+    ? `${patient.firstName} ${patient.lastName}`
+    : 'Unassigned Patient';
+  const age = patient?.dateOfBirth ? calculateAge(patient.dateOfBirth) : 0;
+  const sex = patient?.gender || 'U';
+
   return {
     patientId: note.patientId,
-    patientName: `${patient.firstName} ${patient.lastName}`,
-    age: calculateAge(patient.dateOfBirth),
-    sex: patient.gender || 'U',
+    patientName,
+    age,
+    sex,
     location: note.location,
     workingDiagnosis: note.workingDiagnosis,
     problemList: note.problemList.filter((p) => p.isActive).map((p) => p.title),
@@ -336,15 +343,16 @@ export async function saveClerkingToOnCall(
 
       const note = noteSnap.data() as ClerkingNote;
 
-      // 2. Get the patient data
-      const patientRef = doc(db, PATIENTS_COLLECTION, note.patientId);
-      const patientSnap = await transaction.get(patientRef);
+      // 2. Get the patient data (if patient is assigned)
+      let patient: any = null;
+      if (note.patientId && note.patientId !== 'unassigned') {
+        const patientRef = doc(db, PATIENTS_COLLECTION, note.patientId);
+        const patientSnap = await transaction.get(patientRef);
 
-      if (!patientSnap.exists()) {
-        throw new Error('Patient not found');
+        if (patientSnap.exists()) {
+          patient = patientSnap.data();
+        }
       }
-
-      const patient = patientSnap.data();
 
       // 3. Update the clerking note to "signed"
       transaction.update(noteRef, {
