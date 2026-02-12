@@ -308,7 +308,7 @@ export function LabEntryForm({ patientId, onComplete, onCancel }: LabEntryFormPr
       </div>
 
       {/* Actions */}
-      <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-4 pt-4 border-t border-ward-border">
+      <div className="flex flex-col sm:flex-row justify-end gap-2 mt-4 pt-4 border-t border-ward-border">
         {onCancel && (
           <Button variant="secondary" onClick={onCancel} className="min-h-[44px]">Cancel</Button>
         )}

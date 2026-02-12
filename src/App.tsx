@@ -99,6 +99,7 @@ function DataSubscriptions() {
   const setPatients = usePatientStore((s) => s.setPatients)
   const setTasks = useTaskStore((s) => s.setTasks)
   const setIsMobile = useUIStore((s) => s.setIsMobile)
+  const firebaseUser = useAuthStore((s) => s.firebaseUser)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -108,17 +109,19 @@ function DataSubscriptions() {
   }, [setIsMobile])
 
   useEffect(() => {
-    const unsubPatients = subscribeToAllPatients((patients) => {
+    if (!firebaseUser) return
+
+    const unsubPatients = subscribeToAllPatients(firebaseUser.uid, (patients) => {
       setPatients(patients)
     })
-    const unsubTasks = subscribeToTasks((tasks) => {
+    const unsubTasks = subscribeToTasks(firebaseUser.uid, (tasks) => {
       setTasks(tasks)
     })
     return () => {
       unsubPatients()
       unsubTasks()
     }
-  }, [setPatients, setTasks])
+  }, [setPatients, setTasks, firebaseUser])
 
   return null
 }

@@ -83,22 +83,22 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <FieldLabel label="MRN" required />
+          <FieldLabel label="MRN" />
           <input className={inputClass('mrn')} value={data.mrn} onChange={(e) => handleChange('mrn', e.target.value)} placeholder="e.g. 123456" />
           <FieldError error={errors.mrn} />
         </div>
         <div>
-          <FieldLabel label="Bed Number" required />
+          <FieldLabel label="Bed Number" />
           <input className={inputClass('bedNumber')} value={data.bedNumber} onChange={(e) => handleChange('bedNumber', e.target.value)} placeholder="e.g. A12, B3, 401" />
           <FieldError error={errors.bedNumber} />
         </div>
         <div>
-          <FieldLabel label="First Name" required />
+          <FieldLabel label="First Name" />
           <input className={inputClass('firstName')} value={data.firstName} onChange={(e) => handleChange('firstName', e.target.value)} placeholder="Patient first name" />
           <FieldError error={errors.firstName} />
         </div>
         <div>
-          <FieldLabel label="Last Name" required />
+          <FieldLabel label="Last Name" />
           <input className={inputClass('lastName')} value={data.lastName} onChange={(e) => handleChange('lastName', e.target.value)} placeholder="Patient last name" />
           <FieldError error={errors.lastName} />
         </div>
@@ -135,7 +135,7 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
         </div>
       </div>
       <div>
-        <FieldLabel label="Primary Diagnosis" required />
+        <FieldLabel label="Primary Diagnosis" />
         <input className={inputClass('primaryDiagnosis')} value={data.primaryDiagnosis} onChange={(e) => handleChange('primaryDiagnosis', e.target.value)} placeholder="e.g. Community-acquired pneumonia" />
         <FieldError error={errors.primaryDiagnosis} />
       </div>
@@ -164,7 +164,7 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
           ))}
         </div>
       </div>
-      <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-ward-border">
+      <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-ward-border">
         <Button type="button" variant="secondary" onClick={onCancel} className="min-h-[44px]">Cancel</Button>
         <Button type="submit" loading={loading} className="min-h-[44px]">{initialData ? 'Update Patient' : 'Add Patient'}</Button>
       </div>

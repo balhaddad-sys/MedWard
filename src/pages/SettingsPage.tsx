@@ -62,11 +62,11 @@ export function SettingsPage() {
             <select
               className="input-field"
               value={settings.defaultMode}
-              onChange={(e) => settings.setDefaultMode(e.target.value as 'ward' | 'acute' | 'clinic')}
+              onChange={(e) => settings.setDefaultMode(e.target.value as 'ward' | 'acute' | 'clerking')}
             >
               <option value="ward">Ward Round — Full patient management</option>
               <option value="acute">On-Call — Acute care, calculators, escalation tools</option>
-              <option value="clinic">Clinic — Outpatient documentation</option>
+              <option value="clerking">Clerking — Structured patient admission workflow</option>
             </select>
             <p className="text-xs text-ward-muted mt-1">This mode will be selected when you first open the app.</p>
           </div>

@@ -7,8 +7,9 @@ import type { ClinicalMode } from '@/config/modes'
 import { triggerHaptic } from '@/utils/haptics'
 import { APP_NAME } from '@/config/constants'
 import { signOut } from '@/services/firebase/auth'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { clsx } from 'clsx'
+import { useClickOutside } from '@/hooks/useClickOutside'
 
 const desktopNav = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -25,6 +26,10 @@ export function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useClickOutside(dropdownRef, () => setShowUserMenu(false), showUserMenu)
 
   const handleSignOut = async () => {
     await signOut()
@@ -32,8 +37,8 @@ export function Header() {
 
   return (
     <header className={clsx(
-      'sticky top-0 z-30 border-b shadow-sm transition-colors duration-300',
-      mode === 'acute' ? 'bg-gray-900 border-gray-700 text-white' : mode === 'clinic' ? 'bg-stone-50 border-stone-200' : 'bg-white border-ward-border'
+      'sticky top-0 z-30 border-b shadow-sm transition-colors duration-300 safe-top safe-x',
+      mode === 'acute' ? 'bg-gray-900 border-gray-700 text-white' : mode === 'clerking' ? 'bg-stone-50 border-stone-200' : 'bg-white border-ward-border'
     )}>
       <div className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 gap-1 sm:gap-2">
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -82,7 +87,7 @@ export function Header() {
           )}>
             <ModeButton id="ward" label="Ward" Icon={ClipboardList} currentMode={mode} setMode={setMode} />
             <ModeButton id="acute" label="On-Call" Icon={Siren} currentMode={mode} setMode={setMode} />
-            <ModeButton id="clinic" label="Clinic" Icon={Stethoscope} currentMode={mode} setMode={setMode} />
+            <ModeButton id="clerking" label="Clerking" Icon={Stethoscope} currentMode={mode} setMode={setMode} />
           </div>
 
           <button className={clsx(
@@ -114,10 +119,18 @@ export function Header() {
               )}
             </button>
 
+            {/* Mobile backdrop - tap to close dropdown */}
+            {showUserMenu && isMobile && (
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowUserMenu(false)}
+              />
+            )}
+
             {showUserMenu && (
               <div
+                ref={dropdownRef}
                 className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-ward-border py-1 animate-fade-in z-50"
-                onMouseLeave={() => setShowUserMenu(false)}
               >
                 <div className="px-4 py-2 border-b border-ward-border">
                   <p className="text-sm font-medium">{user?.displayName}</p>
@@ -154,7 +167,7 @@ function ModeButton({ id, label, Icon, currentMode, setMode }: {
         'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 text-xs font-medium',
         isActive && id === 'ward' && 'text-blue-600 bg-blue-50',
         isActive && id === 'acute' && 'text-amber-500 bg-amber-500/10',
-        isActive && id === 'clinic' && 'text-stone-700 bg-stone-100',
+        isActive && id === 'clerking' && 'text-stone-700 bg-stone-100',
         !isActive && (currentMode === 'acute' ? 'text-gray-500 hover:text-gray-300' : 'text-neutral-400 hover:text-neutral-600')
       )}
     >

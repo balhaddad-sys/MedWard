@@ -13,6 +13,7 @@ let pollingInterval: ReturnType<typeof setInterval> | null = null
 
 export async function updateDataSubscriptions(
   mode: ClinicalMode,
+  userId: string,
   patientId?: string
 ): Promise<void> {
   // Tear down previous subscriptions
@@ -20,7 +21,7 @@ export async function updateDataSubscriptions(
 
   switch (mode) {
     case 'ward':
-      activeSubscriptions.push(subscribeToPatientList())
+      activeSubscriptions.push(subscribeToPatientList(userId))
       break
 
     case 'acute':
@@ -29,7 +30,7 @@ export async function updateDataSubscriptions(
       }
       break
 
-    case 'clinic':
+    case 'clerking':
       if (patientId) {
         activeSubscriptions.push(subscribeToPatientHistory(patientId))
       }
@@ -37,9 +38,9 @@ export async function updateDataSubscriptions(
   }
 }
 
-function subscribeToPatientList(): Subscription {
+function subscribeToPatientList(userId: string): Subscription {
   // Real-time Firestore subscription for ward patient list
-  const unsubscribe: Unsubscribe = subscribeToAllPatients(() => {
+  const unsubscribe: Unsubscribe = subscribeToAllPatients(userId, () => {
     // Patient data flows through App.tsx DataSubscriptions -> Zustand store
   })
 
@@ -71,7 +72,7 @@ function subscribeToVitals(patientId: string, refreshRate: number): Subscription
 }
 
 function subscribeToPatientHistory(patientId: string): Subscription {
-  // Subscribe to full lab history for clinic trend view
+  // Subscribe to full lab history for clerking trend view
   const unsubscribe: Unsubscribe = subscribeToLabs(patientId, () => {
     // Lab data flows through Zustand store
   })

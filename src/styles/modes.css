@@ -73,40 +73,41 @@ body.theme-acute {
 }
 
 /* ===============================================
-   CLINIC MODE - Warm, paper-like, readable
+   CLERKING MODE - Clean, clinical, structured
+   Premium feel with subtle blue clinical tints
    =============================================== */
-body.theme-clinic {
-  --ward-bg: #faf8f6;
+body.theme-clerking {
+  --ward-bg: #f8fafccc;
   --ward-card: #ffffff;
-  --ward-border: #ddd5cc;
-  --ward-text: #2c2c2c;
-  --ward-muted: #8c8c8c;
+  --ward-border: #e1e8ed;
+  --ward-text: #1e293b;
+  --ward-muted: #64748b;
 
-  --bg-primary: #faf8f6;
-  --bg-secondary: #f3f0eb;
-  --bg-tertiary: #ebe5dd;
-  --text-primary: #2c2c2c;
-  --text-secondary: #5c5c5c;
-  --text-muted: #8c8c8c;
-  --border-color: #ddd5cc;
-  --accent-color: #1e40af;
-  --accent-hover: #1e3a8a;
-  --alert-color: #ea580c;
-  --alert-bg: #fff7ed;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  --accent-color: #2563eb;
+  --accent-hover: #1d4ed8;
+  --alert-color: #dc2626;
+  --alert-bg: #fef2f2;
   --success-color: #059669;
   --success-bg: #ecfdf5;
-  --warning-color: #b45309;
-  --warning-bg: #fffbeb;
+  --warning-color: #ea580c;
+  --warning-bg: #fff7ed;
 
-  --font-size-body: 16px;
+  --font-size-body: 15px;
   --font-size-small: 13px;
   --font-size-heading: 20px;
-  --line-height-body: 1.8;
+  --line-height-body: 1.6;
   --spacing-base: 10px;
-  --border-radius: 10px;
+  --border-radius: 8px;
 
-  --animation-duration: 300ms;
-  --animation-easing: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --animation-duration: 200ms;
+  --animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ===============================================
@@ -183,8 +184,14 @@ body.theme-acute .bg-black\/50 {
   background-color: rgba(0, 0, 0, 0.65);
 }
 
-/* Clinic mode: card overrides */
-body.theme-clinic .card {
+/* Clerking mode: card overrides */
+body.theme-clerking .card {
   background-color: #ffffff;
   border-color: var(--ward-border);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* Clerking mode: section navigation styling */
+body.theme-clerking .step-item:hover {
+  background-color: var(--bg-tertiary);
 }

@@ -4,6 +4,7 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
   orderBy,
@@ -52,6 +53,13 @@ export const updateLabPanel = async (
   data: Partial<LabPanel>
 ): Promise<void> => {
   await updateDoc(doc(db, 'patients', patientId, 'labs', labId), data)
+}
+
+export const deleteLabPanel = async (
+  patientId: string,
+  labId: string
+): Promise<void> => {
+  await deleteDoc(doc(db, 'patients', patientId, 'labs', labId))
 }
 
 export const markLabReviewed = async (

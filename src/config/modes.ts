@@ -1,4 +1,4 @@
-export type ClinicalMode = 'ward' | 'acute' | 'clinic'
+export type ClinicalMode = 'ward' | 'acute' | 'clerking'
 
 // ---------------------------------------------------------------------------
 // Feature flags — what each mode can do
@@ -78,25 +78,25 @@ export const MODES: Record<ClinicalMode, ModeConfig> = {
       compactView: true,
     },
   },
-  clinic: {
-    id: 'clinic',
-    label: 'Outpatient Clinic',
-    description: 'Documentation & follow-up',
-    theme: 'theme-clinic',
-    refreshRate: 0,
+  clerking: {
+    id: 'clerking',
+    label: 'Clerking',
+    description: 'Structured patient clerking & admission workflow',
+    theme: 'theme-clerking',
+    refreshRate: 30_000,
     features: {
-      spibar: false,
-      taskEngine: false,
-      escalation: false,
-      calculators: false,
-      timers: false,
-      trendDeck: true,
-      resultsFollowUp: true,
-      smartScribe: true,
-      patientEducation: true,
-      sortDefault: 'appointment',
-      notifyLevel: 'urgent',
-      compactView: false,
+      spibar: true,           // SBAR generation for handover
+      taskEngine: true,       // Task/checklist creation from plan
+      escalation: false,      // Not needed during clerking
+      calculators: true,      // Clinical scores (CURB-65, etc.)
+      timers: false,          // Not needed during clerking
+      trendDeck: true,        // Lab trends important for assessment
+      resultsFollowUp: true,  // Track pending investigations
+      smartScribe: true,      // AI-powered history/assessment drafting
+      patientEducation: false,// Focus on clerking, not education
+      sortDefault: 'acuity',  // Sort by severity
+      notifyLevel: 'urgent',  // Moderate notification level
+      compactView: false,     // Full detail view for clerking
     },
   },
 } as const

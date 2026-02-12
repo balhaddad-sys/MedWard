@@ -80,8 +80,9 @@ export const deleteTask = async (id: string): Promise<void> => {
   await deleteDoc(doc(db, 'tasks', id))
 }
 
-export const subscribeToTasks = (callback: (tasks: Task[]) => void): Unsubscribe => {
-  return onSnapshot(getTasksRef(), (snapshot) => {
+export const subscribeToTasks = (userId: string, callback: (tasks: Task[]) => void): Unsubscribe => {
+  const q = query(getTasksRef(), where('createdBy', '==', userId))
+  return onSnapshot(q, (snapshot) => {
     const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
     callback(tasks)
   }, (error) => {

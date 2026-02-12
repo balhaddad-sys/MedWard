@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
-import { getPatient } from '@/services/firebase/patients'
-import { getLabPanels } from '@/services/firebase/labs'
+import { getPatient, deletePatient } from '@/services/firebase/patients'
+import { getLabPanels, deleteLabPanel } from '@/services/firebase/labs'
 import { createTask, updateTask, completeTask, deleteTask } from '@/services/firebase/tasks'
 import { exportSBARReport } from '@/services/export/pdfExport'
 import { generateSBARReport, type SBARData } from '@/services/ai/sbarGenerator'
@@ -30,6 +31,7 @@ export function usePatientDetail(id: string | undefined) {
   const addToast = useUIStore((s) => s.addToast)
   const taskStoreUpdate = useTaskStore((s) => s.updateTask)
   const taskStoreRemove = useTaskStore((s) => s.removeTask)
+  const navigate = useNavigate()
 
   // SBAR state
   const [sbar, setSbar] = useState<SBARData | null>(null)
@@ -174,6 +176,30 @@ export function usePatientDetail(id: string | undefined) {
     setLabs(updatedLabs)
   }
 
+  const handleDeleteLab = async (labId: string) => {
+    if (!id) return
+    try {
+      await deleteLabPanel(id, labId)
+      await refreshLabs()
+      addToast({ type: 'success', title: 'Lab deleted' })
+    } catch {
+      addToast({ type: 'error', title: 'Failed to delete lab' })
+    }
+  }
+
+  const handleDeletePatient = async () => {
+    if (!id || !patient) return
+    const confirmed = window.confirm(`Are you sure you want to delete patient ${patient.firstName} ${patient.lastName}? This cannot be undone.`)
+    if (!confirmed) return
+    try {
+      await deletePatient(id)
+      addToast({ type: 'success', title: 'Patient deleted' })
+      navigate('/')
+    } catch {
+      addToast({ type: 'error', title: 'Failed to delete patient' })
+    }
+  }
+
   return {
     // State
     patient,
@@ -208,6 +234,8 @@ export function usePatientDetail(id: string | undefined) {
     // Handlers
     handleGenerateSBAR,
     handleAnalyzeLab,
+    handleDeleteLab,
+    handleDeletePatient,
     handleCompleteTask,
     handleDeleteTask,
     cancelDeleteTask,

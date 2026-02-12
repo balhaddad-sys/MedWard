@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Trash2 } from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 import { Badge } from '@/components/ui/Badge'
 import { SafetyRails } from '@/components/features/safety/SafetyRails'
@@ -62,6 +62,9 @@ export function PatientDetailPage() {
         <Badge variant={patient.acuity <= 2 ? 'danger' : patient.acuity === 3 ? 'warning' : 'success'} size="sm">
           {detail.acuityInfo.label}
         </Badge>
+        <button onClick={detail.handleDeletePatient} aria-label="Delete patient" className="p-2 rounded-lg hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
+          <Trash2 className="h-5 w-5" />
+        </button>
       </div>
 
       {/* Critical alerts */}
@@ -78,7 +81,7 @@ export function PatientDetailPage() {
       )}
 
       {detail.activeTab === 'labs' && id && (
-        <LabsTab id={id} labs={detail.labs} showLabEntry={detail.showLabEntry} setShowLabEntry={detail.setShowLabEntry} labEntryMode={detail.labEntryMode} setLabEntryMode={detail.setLabEntryMode} handleAnalyzeLab={detail.handleAnalyzeLab} analyzingLab={detail.analyzingLab} labAnalysis={detail.labAnalysis} refreshLabs={detail.refreshLabs} addToast={detail.addToast} />
+        <LabsTab id={id} labs={detail.labs} showLabEntry={detail.showLabEntry} setShowLabEntry={detail.setShowLabEntry} labEntryMode={detail.labEntryMode} setLabEntryMode={detail.setLabEntryMode} handleAnalyzeLab={detail.handleAnalyzeLab} handleDeleteLab={detail.handleDeleteLab} analyzingLab={detail.analyzingLab} labAnalysis={detail.labAnalysis} refreshLabs={detail.refreshLabs} addToast={detail.addToast} />
       )}
 
       {detail.activeTab === 'tasks' && (

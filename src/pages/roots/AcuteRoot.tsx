@@ -36,6 +36,7 @@ import {
 import { clsx } from 'clsx'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
+import { useUIStore } from '@/stores/uiStore'
 import { triggerHaptic, hapticPatterns } from '@/utils/haptics'
 import { LabResultTable } from '@/components/features/labs/LabResultTable'
 import { getLabPanels } from '@/services/firebase/labs'
@@ -92,6 +93,7 @@ export default function AcuteRoot() {
   const patients = usePatientStore((s) => s.patients)
   const criticalValues = usePatientStore((s) => s.criticalValues)
   const tasks = useTaskStore((s) => s.tasks)
+  const openModal = useUIStore((s) => s.openModal)
   const navigate = useNavigate()
 
   // === WORKSPACE STATE (persisted) ===
@@ -202,13 +204,13 @@ export default function AcuteRoot() {
   }, [workspacePatientIds, loadPatientLabs])
 
   // Resolve workspace patients from the global store, sorted by acuity
+  // On-call patients are those with wardId="on-call" (automatically displayed)
   const workspacePatients = useMemo(
     () =>
-      workspacePatientIds
-        .map((id) => patients.find((p) => p.id === id))
-        .filter(Boolean)
-        .sort((a, b) => (a!.acuity || 5) - (b!.acuity || 5)) as Patient[],
-    [workspacePatientIds, patients]
+      patients
+        .filter((p) => p.wardId === 'on-call')
+        .sort((a, b) => (a.acuity || 5) - (b.acuity || 5)),
+    [patients]
   )
 
   // Get tasks for a specific patient
@@ -622,50 +624,20 @@ export default function AcuteRoot() {
                   setShowHandover(!showHandover)
                 }}
                 className={clsx(
-                  'flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors',
+                  'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors min-h-[44px]',
                   showHandover
                     ? 'bg-blue-600 text-white'
-                    : 'bg-slate-700/60 text-slate-400 hover:text-white'
+                    : 'bg-slate-700/60 text-slate-400 hover:text-white active:bg-slate-700'
                 )}
               >
-                <Clipboard className="w-3 h-3" />
+                <Clipboard className="w-3.5 h-3.5" />
                 Handover
               </button>
             </div>
           </div>
         )}
 
-        <div className="flex items-center gap-2 max-w-4xl mx-auto">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Add patient (name, MRN, bed)..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value)
-                if (e.target.value.length > 0) setShowSearch(true)
-              }}
-              onFocus={() => {
-                if (searchQuery.length >= 2) setShowSearch(true)
-              }}
-              className="w-full bg-slate-900/80 border border-slate-600 rounded-lg py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery('')
-                  setShowSearch(false)
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-white rounded"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
+        <div className="flex items-center justify-center gap-2 max-w-4xl mx-auto">
           {/* Tools Toggle */}
           <button
             onClick={() => {
@@ -691,8 +663,8 @@ export default function AcuteRoot() {
           </button>
         </div>
 
-        {/* Search Results Dropdown */}
-        {showSearch && searchQuery.length >= 2 && (
+        {/* Search Results Dropdown - Hidden since on-call patients display automatically */}
+        {false && showSearch && searchQuery.length >= 2 && (
           <div className="absolute left-0 right-0 top-full bg-slate-800 border-b border-slate-600 shadow-2xl max-h-[50vh] overflow-y-auto z-30">
             <div className="max-w-4xl mx-auto">
               {searchResults.length === 0 ? (
@@ -797,14 +769,14 @@ export default function AcuteRoot() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={copyHandover}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-500 transition-colors min-h-[36px]"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-500 active:bg-blue-700 transition-colors min-h-[44px]"
                   >
                     <Copy className="w-3.5 h-3.5" />
                     Copy All
                   </button>
                   <button
                     onClick={() => setShowHandover(false)}
-                    className="p-1.5 text-slate-400 hover:text-white rounded"
+                    className="p-2 text-slate-400 hover:text-white rounded-lg active:bg-slate-700 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -890,35 +862,35 @@ export default function AcuteRoot() {
                     {/* MAP Calculator */}
                     {activeCalc === 'map' && (
                       <div>
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                          <Calculator className="h-3.5 w-3.5 text-blue-400" />
+                        <h3 className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                          <Calculator className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-blue-400" />
                           Mean Arterial Pressure
                         </h3>
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-2">
                           <input
                             type="number"
                             inputMode="numeric"
                             placeholder="SBP"
                             value={mapSystolic}
                             onChange={(e) => setMapSystolic(e.target.value)}
-                            className="flex-1 bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="flex-1 bg-slate-900/60 text-white border border-slate-600 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center text-sm sm:text-base font-mono focus:ring-2 focus:ring-blue-500 outline-none min-h-[44px]"
                           />
-                          <span className="text-slate-400 font-bold">/</span>
+                          <span className="text-slate-400 font-bold text-sm">/</span>
                           <input
                             type="number"
                             inputMode="numeric"
                             placeholder="DBP"
                             value={mapDiastolic}
                             onChange={(e) => setMapDiastolic(e.target.value)}
-                            className="flex-1 bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                            className="flex-1 bg-slate-900/60 text-white border border-slate-600 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-center text-sm sm:text-base font-mono focus:ring-2 focus:ring-blue-500 outline-none min-h-[44px]"
                           />
                         </div>
                         {mapResult !== null && (
                           <div className="text-center">
-                            <span className="text-2xl font-bold text-blue-400 font-mono">MAP: {mapResult}</span>
-                            <span className="text-xs text-slate-400 ml-2">mmHg</span>
+                            <span className="text-lg sm:text-xl font-bold text-blue-400 font-mono">MAP: {mapResult}</span>
+                            <span className="text-[10px] sm:text-xs text-slate-400 ml-1.5">mmHg</span>
                             {mapResult < 65 && (
-                              <p className="text-red-400 text-xs mt-1 font-bold">LOW — Consider vasopressors</p>
+                              <p className="text-red-400 text-[10px] sm:text-xs mt-1 font-bold">LOW — Consider vasopressors</p>
                             )}
                           </div>
                         )}
@@ -940,7 +912,7 @@ export default function AcuteRoot() {
                         <div className="text-center mt-3 pt-3 border-t border-slate-700">
                           <span
                             className={clsx(
-                              'text-3xl font-bold font-mono',
+                              'text-2xl sm:text-3xl font-bold font-mono',
                               gcsTotal <= 8 ? 'text-red-400' : gcsTotal <= 12 ? 'text-amber-400' : 'text-green-400'
                             )}
                           >
@@ -1014,7 +986,7 @@ export default function AcuteRoot() {
                         <div className="text-center mt-3 pt-3 border-t border-slate-700">
                           <span
                             className={clsx(
-                              'text-3xl font-bold font-mono',
+                              'text-2xl sm:text-3xl font-bold font-mono',
                               news2Total >= 7 ? 'text-red-400' : news2Total >= 5 ? 'text-amber-400' : news2Total >= 1 ? 'text-yellow-400' : 'text-green-400'
                             )}
                           >
@@ -1080,7 +1052,7 @@ export default function AcuteRoot() {
                         <div className="text-center mt-3 pt-3 border-t border-slate-700">
                           <span
                             className={clsx(
-                              'text-3xl font-bold font-mono',
+                              'text-2xl sm:text-3xl font-bold font-mono',
                               curb65Total >= 3 ? 'text-red-400' : curb65Total === 2 ? 'text-amber-400' : 'text-green-400'
                             )}
                           >
@@ -1120,7 +1092,7 @@ export default function AcuteRoot() {
                               placeholder="e.g. 2.10"
                               value={calcCalcium}
                               onChange={(e) => setCalcCalcium(e.target.value)}
-                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-teal-500 outline-none"
+                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-2 sm:px-3 py-2 text-center text-base sm:text-lg font-mono focus:ring-2 focus:ring-teal-500 outline-none min-h-[44px]"
                             />
                           </div>
                           <div>
@@ -1131,14 +1103,14 @@ export default function AcuteRoot() {
                               placeholder="e.g. 35"
                               value={calcAlbumin}
                               onChange={(e) => setCalcAlbumin(e.target.value)}
-                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-teal-500 outline-none"
+                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-2 sm:px-3 py-2 text-center text-base sm:text-lg font-mono focus:ring-2 focus:ring-teal-500 outline-none min-h-[44px]"
                             />
                           </div>
                         </div>
                         {correctedCalcium !== null && (
                           <div className="text-center mt-2">
                             <span className={clsx(
-                              'text-2xl font-bold font-mono',
+                              'text-xl sm:text-2xl font-bold font-mono',
                               parseFloat(correctedCalcium) > 2.65 ? 'text-red-400' :
                               parseFloat(correctedCalcium) < 2.10 ? 'text-amber-400' : 'text-green-400'
                             )}>
@@ -1172,7 +1144,7 @@ export default function AcuteRoot() {
                               placeholder="e.g. 400"
                               value={qtInterval}
                               onChange={(e) => setQtInterval(e.target.value)}
-                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-2 sm:px-3 py-2 text-center text-base sm:text-lg font-mono focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
                             />
                           </div>
                           <div>
@@ -1183,14 +1155,14 @@ export default function AcuteRoot() {
                               placeholder="e.g. 72"
                               value={heartRate}
                               onChange={(e) => setHeartRate(e.target.value)}
-                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-3 py-2 text-center text-lg font-mono focus:ring-2 focus:ring-indigo-500 outline-none"
+                              className="w-full bg-slate-900/60 text-white border border-slate-600 rounded-lg px-2 sm:px-3 py-2 text-center text-base sm:text-lg font-mono focus:ring-2 focus:ring-indigo-500 outline-none min-h-[44px]"
                             />
                           </div>
                         </div>
                         {qtcBazett !== null && (
                           <div className="text-center mt-2">
                             <span className={clsx(
-                              'text-2xl font-bold font-mono',
+                              'text-xl sm:text-2xl font-bold font-mono',
                               qtcBazett > 500 ? 'text-red-400' :
                               qtcBazett > 450 ? 'text-amber-400' : 'text-green-400'
                             )}>
@@ -1390,16 +1362,18 @@ export default function AcuteRoot() {
               <Siren className="w-14 h-14 sm:w-16 sm:h-16 mb-4 opacity-20" />
               <h2 className="text-lg sm:text-xl font-bold uppercase tracking-widest opacity-40">On-Call Console</h2>
               <p className="text-sm opacity-30 mt-2 text-center px-4 max-w-md leading-relaxed">
-                Search above to add patients to your workspace.
-                Critical patients (acuity 1-2) are auto-loaded.
+                No on-call patients yet. Add patients to track during your shift.
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <div className="mt-6">
                 <button
-                  onClick={() => searchInputRef.current?.focus()}
+                  onClick={() => {
+                    triggerHaptic('tap')
+                    openModal('patient-form', { initialData: { wardId: 'on-call' } })
+                  }}
                   className="flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg font-bold text-sm hover:bg-amber-500 transition-colors min-h-[44px]"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Patient
+                  Add On-Call Patient
                 </button>
               </div>
             </div>
@@ -1884,41 +1858,41 @@ function GCSInput({
   const descriptor = GCS_LABELS[label]?.[value] || ''
 
   return (
-    <div className="flex items-center gap-3 bg-slate-900/40 rounded-lg px-3 py-2">
-      <div className="w-20 flex-shrink-0">
-        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">{label}</span>
-        <span className="text-[10px] text-slate-500 block truncate">{descriptor}</span>
+    <div className="flex items-center gap-2 sm:gap-3 bg-slate-900/40 rounded-lg px-2 sm:px-3 py-2">
+      <div className="w-14 sm:w-20 flex-shrink-0">
+        <span className="text-[10px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider block truncate">{label}</span>
+        <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate">{descriptor}</span>
       </div>
-      <div className="flex items-center gap-2 flex-1 justify-center">
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-1 justify-center">
         <button
           onClick={() => {
             triggerHaptic('tap')
             if (value > min) onChange(value - 1)
           }}
           className={clsx(
-            'h-10 w-10 rounded-lg flex items-center justify-center transition-colors min-h-[40px]',
+            'h-9 w-9 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center transition-colors min-h-[40px]',
             value <= min ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-700 text-white hover:bg-slate-600 active:bg-slate-500'
           )}
           disabled={value <= min}
         >
-          <Minus className="h-4 w-4" />
+          <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </button>
-        <span className="text-xl font-bold text-white font-mono w-8 text-center tabular-nums">{value}</span>
+        <span className="text-lg sm:text-xl font-bold text-white font-mono w-7 sm:w-8 text-center tabular-nums">{value}</span>
         <button
           onClick={() => {
             triggerHaptic('tap')
             if (value < max) onChange(value + 1)
           }}
           className={clsx(
-            'h-10 w-10 rounded-lg flex items-center justify-center transition-colors min-h-[40px]',
+            'h-9 w-9 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center transition-colors min-h-[40px]',
             value >= max ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-700 text-white hover:bg-slate-600 active:bg-slate-500'
           )}
           disabled={value >= max}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </button>
       </div>
-      <span className="text-xs text-slate-500 w-8 text-right flex-shrink-0">/{max}</span>
+      <span className="text-[10px] sm:text-xs text-slate-500 w-6 sm:w-8 text-right flex-shrink-0">/{max}</span>
     </div>
   )
 }

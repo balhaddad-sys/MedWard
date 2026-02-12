@@ -85,6 +85,115 @@
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-x {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .safe-all {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  /* Skeleton Loader Animations for Premium AI Experience */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .skeleton {
+    background: #f0f2f5;
+    background-image: linear-gradient(
+      90deg,
+      #f0f2f5 25%,
+      #e6e8eb 50%,
+      #f0f2f5 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+
+  .skeleton-text {
+    height: 14px;
+    width: 80%;
+  }
+
+  .skeleton-text-short {
+    height: 14px;
+    width: 40%;
+  }
+
+  .skeleton-chip {
+    height: 24px;
+    width: 60px;
+    display: inline-block;
+    border-radius: 12px;
+    margin-right: 4px;
+  }
+
+  .skeleton-card {
+    height: 80px;
+    width: 100%;
+    border-radius: 8px;
+  }
+
+  .ai-panel-loading {
+    padding: 16px;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+  }
+
+  /* Typing cursor effect for typewriter animation */
+  .typing-active::after {
+    content: '|';
+    animation: blink 1s infinite;
+    margin-left: 2px;
+  }
+
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  /* Status chips for section navigation */
+  .step-item {
+    @apply relative flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer
+           transition-all duration-200;
+  }
+
+  .step-item[data-status="complete"]::after {
+    content: "✓";
+    @apply ml-2 text-green-600 font-bold;
+  }
+
+  .step-item[data-status="warning"]::after {
+    content: "!";
+    @apply ml-2 text-amber-600 font-bold;
+    animation: pulse 2s infinite;
+  }
+
+  .step-item[data-status="incomplete"]::after {
+    content: "○";
+    @apply ml-2 text-gray-400;
+  }
+
+  .step-item:hover {
+    @apply bg-ward-border;
+  }
+
+  /* Loading pulse for buttons */
+  .loading-pulse {
+    @apply animate-pulse pointer-events-none opacity-60;
+  }
 }
 
 @layer utilities {

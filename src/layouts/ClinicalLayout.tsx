@@ -30,7 +30,8 @@ import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { signOut } from '@/services/firebase/auth'
 import { APP_NAME } from '@/config/constants'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
+import { useClickOutside } from '@/hooks/useClickOutside'
 
 export default function ClinicalLayout() {
   const { mode, isTransitioning } = useClinicalMode()
@@ -42,6 +43,10 @@ export default function ClinicalLayout() {
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useClickOutside(dropdownRef, () => setShowUserMenu(false), showUserMenu)
 
   const notificationCount = useMemo(() => {
     const unackedCriticals = criticalValues.filter((cv) => !cv.acknowledgedAt).length
@@ -79,7 +84,7 @@ export default function ClinicalLayout() {
           'h-14 flex items-center justify-between px-3 sm:px-4 border-b shrink-0 transition-colors duration-300 z-30',
           mode === 'ward' && 'bg-white border-neutral-200',
           mode === 'acute' && 'bg-gray-900 border-gray-700 text-white',
-          mode === 'clinic' && 'bg-stone-50 border-stone-200'
+          mode === 'clerking' && 'bg-stone-50 border-stone-200'
         )}
       >
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -111,7 +116,7 @@ export default function ClinicalLayout() {
                 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider',
                 mode === 'ward' && 'bg-blue-100 text-blue-700',
                 mode === 'acute' && 'bg-amber-500 text-white',
-                mode === 'clinic' && 'bg-stone-200 text-stone-700'
+                mode === 'clerking' && 'bg-stone-200 text-stone-700'
               )}
             >
               {mode === 'ward' ? 'Ward' : mode === 'acute' ? 'On-Call' : 'Clinic'}
@@ -174,10 +179,18 @@ export default function ClinicalLayout() {
               )}
             </button>
 
+            {/* Mobile backdrop - tap to close dropdown */}
+            {showUserMenu && isMobile && (
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowUserMenu(false)}
+              />
+            )}
+
             {showUserMenu && (
               <div
+                ref={dropdownRef}
                 className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-ward-border py-1 animate-fade-in z-50"
-                onMouseLeave={() => setShowUserMenu(false)}
               >
                 <div className="px-4 py-2 border-b border-ward-border">
                   <p className="text-sm font-medium text-ward-text">
@@ -361,7 +374,7 @@ export default function ClinicalLayout() {
             >
               <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />
               <ModeNavButton id="acute" label="On-Call" Icon={Siren} />
-              <ModeNavButton id="clinic" label="Clinic" Icon={Stethoscope} />
+              <ModeNavButton id="clerking" label="Clinic" Icon={Stethoscope} />
             </div>
           </nav>
         </>
@@ -392,7 +405,7 @@ function ModeNavButton({
         'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 touch text-xs font-medium',
         isActive && id === 'ward' && 'text-blue-600 bg-blue-50',
         isActive && id === 'acute' && 'text-amber-500 bg-amber-500/10',
-        isActive && id === 'clinic' && 'text-stone-700 bg-stone-100',
+        isActive && id === 'clerking' && 'text-stone-700 bg-stone-100',
         !isActive &&
           (mode === 'acute' ? 'text-gray-500 hover:text-gray-300' : 'text-neutral-400 hover:text-neutral-600')
       )}

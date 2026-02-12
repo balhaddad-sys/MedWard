@@ -7,6 +7,7 @@ import { ToastContainer } from '@/components/ui/Toast'
 import { useUIStore } from '@/stores/uiStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
+import { useAuthStore } from '@/stores/authStore'
 import { subscribeToAllPatients } from '@/services/firebase/patients'
 import { subscribeToTasks } from '@/services/firebase/tasks'
 
@@ -15,6 +16,7 @@ export function AppShell() {
   const setIsMobile = useUIStore((s) => s.setIsMobile)
   const setPatients = usePatientStore((s) => s.setPatients)
   const setTasks = useTaskStore((s) => s.setTasks)
+  const firebaseUser = useAuthStore((s) => s.firebaseUser)
   const isMobileRef = useRef(isMobile)
 
   useEffect(() => {
@@ -33,13 +35,15 @@ export function AppShell() {
 
   // Load data from Firestore on mount
   useEffect(() => {
+    if (!firebaseUser) return
+
     // Real-time patient subscription
-    const unsubPatients = subscribeToAllPatients((patients) => {
+    const unsubPatients = subscribeToAllPatients(firebaseUser.uid, (patients) => {
       setPatients(patients)
     })
 
     // Real-time task subscription
-    const unsubTasks = subscribeToTasks((tasks) => {
+    const unsubTasks = subscribeToTasks(firebaseUser.uid, (tasks) => {
       setTasks(tasks)
     })
 
@@ -47,7 +51,7 @@ export function AppShell() {
       unsubPatients()
       unsubTasks()
     }
-  }, [setPatients, setTasks])
+  }, [setPatients, setTasks, firebaseUser])
 
   return (
     <div className="min-h-screen bg-ward-bg">

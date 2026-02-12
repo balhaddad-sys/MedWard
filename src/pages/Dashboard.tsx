@@ -1,12 +1,12 @@
 import { useClinicalMode } from '@/context/useClinicalMode'
 import WardRoot from '@/pages/roots/WardRoot'
 import AcuteRoot from '@/pages/roots/AcuteRoot'
-import ClinicRoot from '@/pages/roots/ClinicRoot'
+import ClerkingRoot from '@/pages/roots/ClerkingRoot'
 
 export function Dashboard() {
   const { mode } = useClinicalMode()
 
   if (mode === 'acute') return <AcuteRoot />
-  if (mode === 'clinic') return <ClinicRoot />
+  if (mode === 'clerking') return <ClerkingRoot />
   return <WardRoot />
 }

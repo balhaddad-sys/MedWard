@@ -40,17 +40,14 @@ service cloud.firestore {
     match /patients/{patientId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated()
-                    && request.resource.data.keys().hasAll(['name', 'acuity'])
-                    && isValidString(request.resource.data.name, 200)
                     && request.resource.data.acuity is int
                     && request.resource.data.acuity >= 1
                     && request.resource.data.acuity <= 5;
       allow update: if isAuthenticated()
-                    && request.resource.data.name is string
                     && request.resource.data.acuity is int
                     && request.resource.data.acuity >= 1
                     && request.resource.data.acuity <= 5;
-      allow delete: if isAdminOrClinician();
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
 
       // Labs subcollection
       match /labs/{labId} {
@@ -65,7 +62,7 @@ service cloud.firestore {
                       && request.resource.data.values is list;
         allow update: if isAuthenticated()
                       && request.resource.data.status in ['pending', 'resulted', 'reviewed'];
-        allow delete: if isAdminOrClinician();
+        allow delete: if isAuthenticated() && get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid;
       }
 
       // History subcollection (patient medical history)
@@ -75,7 +72,7 @@ service cloud.firestore {
                       && request.resource.data.keys().hasAll(['patientId', 'updatedBy'])
                       && isValidString(request.resource.data.patientId, 200)
                       && request.resource.data.updatedBy == request.auth.uid;
-        allow delete: if isAdminOrClinician();
+        allow delete: if isAuthenticated() && get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid;
       }
 
       // Notes subcollection
@@ -87,7 +84,7 @@ service cloud.firestore {
         allow update: if isAuthenticated()
                       && request.resource.data.content is string
                       && request.resource.data.content.size() <= 10000;
-        allow delete: if isAdminOrClinician();
+        allow delete: if isAuthenticated() && get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid;
       }
     }
 
@@ -104,7 +101,7 @@ service cloud.firestore {
                     && request.resource.data.title.size() <= 500
                     && request.resource.data.priority in ['critical', 'high', 'medium', 'low']
                     && request.resource.data.status in ['pending', 'in_progress', 'completed', 'cancelled'];
-      allow delete: if isAdminOrClinician();
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
     }
 
     // Audit log - append only (immutable records)
@@ -121,6 +118,33 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read: if isAuthenticated();
       allow write: if hasRole('admin');
+    }
+
+    // Clerking Notes collection
+    match /clerking_notes/{noteId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && request.resource.data.keys().hasAll(['patientId', 'authorId', 'status', 'workingDiagnosis'])
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.status in ['draft', 'signed', 'amended']
+                    && isValidString(request.resource.data.workingDiagnosis, 500);
+      allow update: if isAuthenticated()
+                    && (resource.data.authorId == request.auth.uid || isAdminOrClinician())
+                    && request.resource.data.status in ['draft', 'signed', 'amended'];
+      allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+    }
+
+    // On-Call List collection
+    match /on_call_list/{entryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && request.resource.data.keys().hasAll(['snapshot', 'priority', 'isActive'])
+                    && request.resource.data.priority in ['low', 'medium', 'high', 'critical']
+                    && request.resource.data.isActive is bool;
+      allow update: if isAuthenticated()
+                    && request.resource.data.priority in ['low', 'medium', 'high', 'critical']
+                    && request.resource.data.isActive is bool;
+      allow delete: if isAuthenticated();
     }
 
     // Deny access to any other collections

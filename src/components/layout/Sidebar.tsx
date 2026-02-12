@@ -66,18 +66,18 @@ const NOTIFY_LABELS: Record<string, string> = {
 const MODE_META: Record<ClinicalMode, { icon: React.ElementType; label: string; shortLabel: string; color: string }> = {
   ward: { icon: ClipboardList, label: 'Ward Round', shortLabel: 'Ward', color: 'blue' },
   acute: { icon: Siren, label: 'On-Call', shortLabel: 'Acute', color: 'amber' },
-  clinic: { icon: Stethoscope, label: 'Clinic', shortLabel: 'Clinic', color: 'stone' },
+  clerking: { icon: Stethoscope, label: 'Clerking', shortLabel: 'Clerk', color: 'stone' },
 }
 
 const NAV_ITEMS = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
-  { path: '/patients', icon: Users, label: 'Patients', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[], countKey: 'patients' as const },
-  { path: '/tasks', icon: CheckSquare, label: 'Tasks', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[], countKey: 'tasks' as const },
-  { path: '/labs', icon: FlaskConical, label: 'Labs', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[], countKey: 'criticalLabs' as const },
-  { path: '/handover', icon: ArrowRightLeft, label: 'Handover', modes: ['ward', 'acute'] as ClinicalMode[] },
-  { path: '/ai', icon: Bot, label: 'AI Assistant', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
-  { path: '/drugs', icon: Pill, label: 'Drug Info', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
-  { path: '/settings', icon: Settings, label: 'Settings', modes: ['ward', 'acute', 'clinic'] as ClinicalMode[] },
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
+  { path: '/patients', icon: Users, label: 'Patients', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'patients' as const },
+  { path: '/tasks', icon: CheckSquare, label: 'Tasks', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'tasks' as const },
+  { path: '/labs', icon: FlaskConical, label: 'Labs', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'criticalLabs' as const },
+  { path: '/handover', icon: ArrowRightLeft, label: 'Handover', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
+  { path: '/ai', icon: Bot, label: 'AI Assistant', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
+  { path: '/drugs', icon: Pill, label: 'Drug Info', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
+  { path: '/settings', icon: Settings, label: 'Settings', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
 ]
 
 export function Sidebar() {
@@ -104,7 +104,7 @@ export function Sidebar() {
         'w-60 min-h-0 flex flex-col border-r flex-shrink-0 transition-colors duration-300',
         mode === 'ward' && 'bg-white border-neutral-200',
         mode === 'acute' && 'bg-gray-900 border-gray-700',
-        mode === 'clinic' && 'bg-stone-50 border-stone-200'
+        mode === 'clerking' && 'bg-stone-50 border-stone-200'
       )}
     >
       {/* Mode Switcher */}
@@ -144,7 +144,7 @@ export function Sidebar() {
           'flex rounded-lg p-0.5 gap-0.5',
           isDark ? 'bg-gray-800' : 'bg-neutral-100'
         )}>
-          {(['ward', 'acute', 'clinic'] as ClinicalMode[]).map((modeId) => {
+          {(['ward', 'acute', 'clerking'] as ClinicalMode[]).map((modeId) => {
             const meta = MODE_META[modeId]
             const Icon = meta.icon
             const isActive = mode === modeId
@@ -163,7 +163,7 @@ export function Sidebar() {
                   'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-all',
                   isActive && modeId === 'ward' && 'bg-blue-600 text-white shadow-sm',
                   isActive && modeId === 'acute' && 'bg-amber-500 text-white shadow-sm',
-                  isActive && modeId === 'clinic' && 'bg-stone-600 text-white shadow-sm',
+                  isActive && modeId === 'clerking' && 'bg-stone-600 text-white shadow-sm',
                   !isActive && isDark && 'text-slate-500 hover:text-slate-300',
                   !isActive && !isDark && 'text-neutral-400 hover:text-neutral-600',
                   disabled && 'opacity-30 cursor-not-allowed'
@@ -200,10 +200,10 @@ export function Sidebar() {
                 'flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-[13px] font-medium transition-colors group',
                 isActive && mode === 'ward' && 'bg-blue-50 text-blue-700',
                 isActive && mode === 'acute' && 'bg-amber-500/15 text-amber-400',
-                isActive && mode === 'clinic' && 'bg-stone-100 text-stone-700',
+                isActive && mode === 'clerking' && 'bg-stone-100 text-stone-700',
                 !isActive && mode === 'ward' && 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700',
                 !isActive && mode === 'acute' && 'text-slate-500 hover:text-slate-300 hover:bg-white/5',
-                !isActive && mode === 'clinic' && 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
+                !isActive && mode === 'clerking' && 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
               )}
               aria-current={isActive ? 'page' : undefined}
             >

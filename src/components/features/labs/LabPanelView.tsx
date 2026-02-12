@@ -6,9 +6,10 @@ import type { LabPanel } from '@/types'
 interface LabPanelViewProps {
   panels: LabPanel[]
   onReview?: (panelId: string) => void
+  onDelete?: (panelId: string) => void
 }
 
-export function LabPanelView({ panels, onReview }: LabPanelViewProps) {
+export function LabPanelView({ panels, onReview, onDelete }: LabPanelViewProps) {
   const categories = [...new Set(panels.map((p) => p.category))]
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || 'all')
 
@@ -31,7 +32,12 @@ export function LabPanelView({ panels, onReview }: LabPanelViewProps) {
           <p className="text-center text-ward-muted py-8">No lab results</p>
         ) : (
           filtered.map((panel) => (
-            <LabPanelComponent key={panel.id} panel={panel} onReview={onReview ? () => onReview(panel.id) : undefined} />
+            <LabPanelComponent
+              key={panel.id}
+              panel={panel}
+              onReview={onReview ? () => onReview(panel.id) : undefined}
+              onDelete={onDelete ? () => onDelete(panel.id) : undefined}
+            />
           ))
         )}
       </div>

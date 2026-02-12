@@ -80,9 +80,15 @@ export const deletePatient = async (id: string): Promise<void> => {
 
 export const subscribeToPatients = (
   wardId: string,
+  userId: string,
   callback: (patients: Patient[]) => void
 ): Unsubscribe => {
-  const q = query(getPatientsRef(), where('wardId', '==', wardId), orderBy('bedNumber'))
+  const q = query(
+    getPatientsRef(),
+    where('createdBy', '==', userId),
+    where('wardId', '==', wardId),
+    orderBy('bedNumber')
+  )
   return onSnapshot(q, (snapshot) => {
     const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
@@ -93,9 +99,11 @@ export const subscribeToPatients = (
 }
 
 export const subscribeToAllPatients = (
+  userId: string,
   callback: (patients: Patient[]) => void
 ): Unsubscribe => {
-  return onSnapshot(getPatientsRef(), (snapshot) => {
+  const q = query(getPatientsRef(), where('createdBy', '==', userId))
+  return onSnapshot(q, (snapshot) => {
     const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
   }, (error) => {

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { LabEntryForm } from '@/components/features/labs/LabEntryForm'
 import { LabUploader } from '@/components/features/labs/LabUploader'
-import { LabPanelView } from '@/components/features/labs/LabPanelView'
+import { EnhancedLabPanelView } from '@/components/features/labs/EnhancedLabPanelView'
 import type { LabPanel, LabAIAnalysis } from '@/types'
 
 interface LabsTabProps {
@@ -15,6 +15,7 @@ interface LabsTabProps {
   labEntryMode: 'manual' | 'upload'
   setLabEntryMode: (mode: 'manual' | 'upload') => void
   handleAnalyzeLab: (panelId: string) => void
+  handleDeleteLab: (panelId: string) => void
   analyzingLab: boolean
   labAnalysis: LabAIAnalysis | null
   refreshLabs: () => Promise<void>
@@ -29,6 +30,7 @@ export function LabsTab({
   labEntryMode,
   setLabEntryMode,
   handleAnalyzeLab,
+  handleDeleteLab,
   analyzingLab,
   labAnalysis,
   refreshLabs,
@@ -114,7 +116,7 @@ export function LabsTab({
         </Card>
       ) : (
         <>
-          <LabPanelView panels={labs} onReview={handleAnalyzeLab} />
+          <EnhancedLabPanelView panels={labs} onReview={handleAnalyzeLab} onDelete={handleDeleteLab} />
           {analyzingLab && (
             <Card>
               <CardContent>
