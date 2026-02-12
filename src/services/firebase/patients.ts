@@ -68,21 +68,30 @@ export const getPatient = async (id: string): Promise<Patient | null> => {
 }
 
 export const createPatient = async (data: PatientFormData, userId: string): Promise<string> => {
-  const docRef = await addDoc(getPatientsRef(), {
-    ...data,
-    createdBy: userId,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    // Phase 0: Set default state management fields
-    state: 'incoming',
-    stateChangedAt: serverTimestamp(),
-    stateChangedBy: userId,
-    teamId: 'default',
-    assignedClinicians: [userId],
-    modificationHistory: [],
-    lastModifiedBy: userId,
-  })
-  return docRef.id
+  console.log('Creating patient with data:', data);
+  console.log('User ID:', userId);
+
+  try {
+    const docRef = await addDoc(getPatientsRef(), {
+      ...data,
+      createdBy: userId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      // Phase 0: Set default state management fields
+      state: 'incoming',
+      stateChangedAt: serverTimestamp(),
+      stateChangedBy: userId,
+      teamId: 'default',
+      assignedClinicians: [userId],
+      modificationHistory: [],
+      lastModifiedBy: userId,
+    });
+    console.log('✅ Patient created successfully:', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('❌ Error creating patient:', error);
+    throw error;
+  }
 }
 
 export const updatePatient = async (id: string, data: Partial<PatientFormData>): Promise<void> => {
