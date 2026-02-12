@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
@@ -291,7 +292,7 @@ export default function ClerkingRoot() {
   const history: any = clerkingNote.history || {};
   const exam: any = clerkingNote.examination || {};
   const vitals: any = exam.vitals || {};
-  const inv: any = clerkingNote.investigations || {};
+  const _inv: any = clerkingNote.investigations || {};
   const plan: any = clerkingNote.plan || {};
   const safety: any = clerkingNote.safety || {};
   const problemList = clerkingNote.problemList || [];

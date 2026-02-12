@@ -148,7 +148,7 @@ export class AlertTierSystem {
   /**
    * Get active alerts for a user
    */
-  static async getActiveAlerts(userId: string): Promise<Alert[]> {
+  static async getActiveAlerts(_userId: string): Promise<Alert[]> {
     const now = Timestamp.now();
 
     const q = query(

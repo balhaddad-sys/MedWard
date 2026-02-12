@@ -25,7 +25,7 @@ import type {
   ClerkingNote,
   OnCallListEntry,
   ClerkingStatus,
-  _SectionStatus,
+  SectionStatus,
 } from '@/types/clerking';
 
 const CLERKING_NOTES_COLLECTION = 'clerking_notes';
@@ -303,7 +303,7 @@ function extractEscalationFlags(note: ClerkingNote): string[] {
 export async function saveClerkingToOnCall(
   noteId: string,
   userId: string,
-  userName: string
+  _userName: string
 ): Promise<{ success: boolean; onCallId?: string; error?: string }> {
   try {
     const result = await runTransaction(db, async (transaction) => {

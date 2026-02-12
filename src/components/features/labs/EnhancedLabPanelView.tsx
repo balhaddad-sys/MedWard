@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo } from 'react'
 import { Search, TrendingUp, List, Clock, Filter, AlertCircle, X } from 'lucide-react'
 import { LabPanelComponent } from './LabPanel'

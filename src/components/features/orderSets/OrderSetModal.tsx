@@ -15,7 +15,7 @@ import type { OrderSet, OrderSetItem } from '@/types/orderSet';
 interface OrderSetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  _patientId: string;
+  patientId: string;
   patientName: string;
   bedNumber: string;
   onCreateTasks: (orderSetId: string, selectedItems: OrderSetItem[]) => Promise<void>;
@@ -24,7 +24,7 @@ interface OrderSetModalProps {
 export function OrderSetModal({
   isOpen,
   onClose,
-  patientId,
+  patientId: _patientId,
   patientName,
   bedNumber,
   onCreateTasks,

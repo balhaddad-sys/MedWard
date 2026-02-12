@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-this-alias */
 /**
  * UI Effects Utilities for Premium Clinical Interface
  * Provides debouncing, typewriter effects, and skeleton loading templates

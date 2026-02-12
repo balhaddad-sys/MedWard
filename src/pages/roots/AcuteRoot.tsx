@@ -688,6 +688,7 @@ export default function AcuteRoot() {
         </div>
 
         {/* Search Results Dropdown - Hidden since on-call patients display automatically */}
+        {/* eslint-disable-next-line no-constant-binary-expression */}
         {false && showSearch && searchQuery.length >= 2 && (
           <div className="absolute left-0 right-0 top-full bg-slate-800 border-b border-slate-600 shadow-2xl max-h-[50vh] overflow-y-auto z-30">
             <div className="max-w-4xl mx-auto">

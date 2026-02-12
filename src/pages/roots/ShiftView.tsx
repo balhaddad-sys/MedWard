@@ -26,8 +26,8 @@ import type { LabPanel } from '@/types';
 export default function ShiftView() {
   const user = useAuthStore((s) => s.user);
   const [unstablePatients, setUnstablePatients] = useState<Patient[]>([]);
-  const [_overdueTasks, _setOverdueTasks] = useState<Task[]>([]);
-  const [_criticalLabs, _setCriticalLabs] = useState<LabPanel[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
+  const [criticalLabs, setCriticalLabs] = useState<LabPanel[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
