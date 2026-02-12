@@ -114,13 +114,9 @@ describe('validatePatientForm', () => {
     expect(errors).toHaveLength(0)
   })
 
-  it('returns errors for missing required fields', () => {
+  it('returns no errors for missing fields (all fields optional)', () => {
     const errors = validatePatientForm({})
-    expect(errors.length).toBeGreaterThanOrEqual(4)
-    expect(errors.map((e) => e.field)).toContain('mrn')
-    expect(errors.map((e) => e.field)).toContain('firstName')
-    expect(errors.map((e) => e.field)).toContain('lastName')
-    expect(errors.map((e) => e.field)).toContain('primaryDiagnosis')
+    expect(errors).toHaveLength(0)
   })
 
   it('returns error for invalid MRN', () => {
