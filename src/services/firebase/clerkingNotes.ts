@@ -353,6 +353,8 @@ export async function saveClerkingToOnCall(
         addedBy: userId,
         escalationFlags,
         isActive: true,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
       };
 
       transaction.set(onCallRef, onCallEntry);

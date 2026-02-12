@@ -9,6 +9,7 @@ export interface User {
   role: UserRole
   department: string
   wardIds: string[]
+  teamId?: string // NEW: Phase 0 team-based access
   preferences: UserPreferences
   createdAt: Timestamp
   lastLoginAt: Timestamp

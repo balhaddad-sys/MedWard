@@ -33,7 +33,7 @@ export class MetricsTracker {
     shiftType?: 'ward' | 'acute' | 'clerking';
     metadata?: Record<string, unknown>;
   }): Promise<string> {
-    const metric: Omit<PerformanceMetric, 'id' | 'timestamp'> = {
+    const metric: Omit<PerformanceMetric, 'id'> = {
       metricType: params.metricType,
       value: params.value,
       userId: params.userId,

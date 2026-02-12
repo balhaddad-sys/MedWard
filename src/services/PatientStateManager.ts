@@ -7,7 +7,8 @@
 
 import { Timestamp } from 'firebase/firestore';
 import type { Patient } from '@/types/patient';
-import type { PatientState, StateTransitionResult, ALLOWED_STATE_TRANSITIONS } from '@/types/patientState';
+import type { PatientState, StateTransitionResult } from '@/types/patientState';
+import { ALLOWED_STATE_TRANSITIONS } from '@/types/patientState';
 import { updatePatient } from './firebase/patients';
 
 export class PatientStateManager {

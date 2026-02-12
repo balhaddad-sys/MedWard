@@ -27,7 +27,7 @@ export class AuditLogger {
     changes?: { field: string; oldValue: unknown; newValue: unknown }[];
     metadata?: Record<string, unknown>;
   }): Promise<string> {
-    const entry: Omit<AuditLogEntry, 'id' | 'timestamp'> = {
+    const entry: Omit<AuditLogEntry, 'id'> = {
       action: params.action,
       userId: params.userId,
       userName: params.userName,

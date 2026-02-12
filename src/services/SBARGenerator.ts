@@ -125,11 +125,11 @@ export class SBARGenerator {
 
     // Critical labs
     const criticalLabs = labs.filter((lab) =>
-      lab.values?.some((v) => v.isCritical)
+      lab.values?.some((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
     );
     if (criticalLabs.length > 0) {
       const criticalValues = criticalLabs
-        .flatMap((lab) => lab.values?.filter((v) => v.isCritical) || [])
+        .flatMap((lab) => lab.values?.filter((v) => v.flag === 'critical_low' || v.flag === 'critical_high') || [])
         .map((v) => `${v.name}: ${v.value}${v.unit}`)
         .slice(0, 3);
 
@@ -232,11 +232,11 @@ export class SBARGenerator {
 
     // Critical labs
     const criticalLabs = labs.filter((lab) =>
-      lab.values?.some((v) => v.isCritical)
+      lab.values?.some((v) => v.flag === 'critical_low' || v.flag === 'critical_high')
     );
     if (criticalLabs.length > 0) {
       const criticalValues = criticalLabs
-        .flatMap((lab) => lab.values?.filter((v) => v.isCritical) || [])
+        .flatMap((lab) => lab.values?.filter((v) => v.flag === 'critical_low' || v.flag === 'critical_high') || [])
         .map((v) => `${v.name}: ${v.value}${v.unit}`)
         .slice(0, 5);
       sections.push(`⚠️ Critical results: ${criticalValues.join(', ')}`);

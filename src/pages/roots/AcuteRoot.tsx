@@ -139,7 +139,7 @@ export default function AcuteRoot() {
   // Subscribe to on-call list and auto-add patients
   useEffect(() => {
     const unsubscribe = subscribeToOnCallList((entries) => {
-      const onCallPatientIds = entries.map((entry) => entry.snapshot.patientId);
+      const onCallPatientIds = entries.map((entry) => entry.patientId); // Phase 0: Reference only, no snapshot
       setWorkspacePatientIds((prev) => {
         // Merge on-call patients with existing workspace
         const merged = new Set([...prev, ...onCallPatientIds]);

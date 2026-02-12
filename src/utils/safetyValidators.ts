@@ -193,7 +193,7 @@ export function validateClerkingNote(note: Partial<ClerkingNote>): ValidationRes
   }
 
   // WARNING: History incomplete
-  if (!note.history || !note.history.presentingComplaintDetails) {
+  if (!note.history || !note.history.historyOfPresentingIllness) {
     warnings.push({
       level: 'warning',
       field: 'history',
@@ -237,13 +237,13 @@ export function validateClerkingNote(note: Partial<ClerkingNote>): ValidationRes
 
   // WARNING: Safety checklist incomplete
   if (
-    !note.safety?.deepVeinThrombosis ||
-    note.safety.deepVeinThrombosis === 'not_assessed'
+    !note.safety?.vteProph ||
+    !note.safety.vteProph.considered
   ) {
     warnings.push({
       level: 'warning',
-      field: 'safety.dvt',
-      message: 'DVT prophylaxis not assessed',
+      field: 'safety.vteProph',
+      message: 'VTE prophylaxis not assessed',
       suggestedFix: 'Complete VTE risk assessment',
     });
   }

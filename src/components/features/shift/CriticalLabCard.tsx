@@ -25,8 +25,8 @@ export function CriticalLabCard({ lab, onReview }: CriticalLabCardProps) {
     onReview();
   };
 
-  // Extract critical values
-  const criticalValues = lab.values?.filter((v) => v.isCritical) || [];
+  // Extract critical values (flag is critical_low or critical_high)
+  const criticalValues = lab.values?.filter((v) => v.flag === 'critical_low' || v.flag === 'critical_high') || [];
 
   return (
     <div className="bg-white rounded-lg border-2 border-red-300 shadow-sm hover:shadow-md transition-shadow p-4">
@@ -58,9 +58,9 @@ export function CriticalLabCard({ lab, onReview }: CriticalLabCardProps) {
                     <span className="text-red-800 font-medium">{value.name}:</span>
                     <span className="text-red-700 font-semibold">
                       {value.value} {value.unit}
-                      {value.referenceRange && (
+                      {(value.referenceMin !== undefined || value.referenceMax !== undefined) && (
                         <span className="text-xs text-red-600 ml-2">
-                          (Ref: {value.referenceRange})
+                          (Ref: {value.referenceMin ?? ''}-{value.referenceMax ?? ''})
                         </span>
                       )}
                     </span>
