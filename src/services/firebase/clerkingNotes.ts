@@ -292,6 +292,7 @@ function calculateAge(dob: string | Date | Timestamp): number {
 
 /**
  * Create OnCallSnapshot from a ClerkingNote
+ * Filters out undefined values to prevent Firestore errors
  */
 function createOnCallSnapshot(note: ClerkingNote, patient: any | null): OnCallSnapshot {
   // Handle case where patient is not assigned
@@ -301,19 +302,19 @@ function createOnCallSnapshot(note: ClerkingNote, patient: any | null): OnCallSn
   const age = patient?.dateOfBirth ? calculateAge(patient.dateOfBirth) : 0;
   const sex = patient?.gender || 'U';
 
-  return {
+  // Build snapshot with only defined values
+  const snapshot: any = {
     patientId: note.patientId,
     patientName,
     age,
     sex,
-    location: note.location,
+    location: note.location || 'Not specified',
     workingDiagnosis: note.workingDiagnosis,
     problemList: note.problemList.filter((p) => p.isActive).map((p) => p.title),
     currentStatus: {
-      vitals: note.examination?.vitals,
       criticalLabs: note.investigations?.labs
         ?.flatMap((panel) => panel.tests.filter((t) => t.isCritical).map((t) => `${t.name}: ${t.value}`))
-        .filter(Boolean) as string[],
+        .filter(Boolean) as string[] || [],
       activeIssues: note.problemList.filter((p) => p.isActive && p.severity === 'high').map((p) => p.title),
     },
     tasks: note.plan?.tasks || [],
@@ -321,6 +322,13 @@ function createOnCallSnapshot(note: ClerkingNote, patient: any | null): OnCallSn
     lastUpdated: Timestamp.now(),
     linkedClerkingNoteId: note.id,
   };
+
+  // Only add vitals if they exist and have values
+  if (note.examination?.vitals && Object.keys(note.examination.vitals).length > 0) {
+    snapshot.currentStatus.vitals = note.examination.vitals;
+  }
+
+  return snapshot as OnCallSnapshot;
 }
 
 /**
