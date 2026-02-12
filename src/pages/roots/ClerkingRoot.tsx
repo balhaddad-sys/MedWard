@@ -25,10 +25,13 @@ import {
   AlertTriangle,
   Pill,
   Heart,
+  UserPlus,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { debounce } from '@/utils/uiEffects';
+import { createPatient } from '@/services/firebase/patients';
 import {
   createClerkingNote,
   updateClerkingNote,
@@ -100,6 +103,17 @@ export default function ClerkingRoot() {
 
   const [clerkingNote, setClerkingNote] = useState<Partial<ClerkingNote> | null>(null);
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+
+  // New patient creation
+  const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
+  const [newPatientData, setNewPatientData] = useState({
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    gender: 'M' as 'M' | 'F' | 'Other',
+    mrn: '',
+    bedNumber: '',
+  });
 
   useEffect(() => {
     loadDraftFromLocalStorage();
@@ -229,7 +243,15 @@ export default function ClerkingRoot() {
   }
 
   async function handleSaveToOnCall() {
-    if (!activeNoteId) return;
+    if (!activeNoteId) {
+      alert('No active clerking note. Please start clerking first.');
+      return;
+    }
+
+    if (!user) {
+      alert('You must be logged in.');
+      return;
+    }
 
     const confirmed = window.confirm(
       'Add this patient to On-Call list?\n\nThey will appear in On-Call Mode for quick follow-up & overnight tasks.'
@@ -240,18 +262,71 @@ export default function ClerkingRoot() {
     setIsSaving(true);
 
     try {
-      const result = await saveClerkingToOnCall(activeNoteId, user!.id);
+      console.log('Saving to On-Call:', { activeNoteId, userId: user.id });
+      const result = await saveClerkingToOnCall(activeNoteId, user.id);
+      console.log('Result:', result);
 
       if (result.success) {
         alert('✅ Patient added to On-Call list!');
         localStorage.removeItem(LOCALSTORAGE_DRAFT_KEY);
         navigate('/dashboard');
       } else {
-        alert(`❌ Failed: ${result.error}`);
+        alert(`❌ Failed: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('❌ Save to On-Call failed:', error);
-      alert('Failed to save. Please try again.');
+      alert(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleCreateNewPatient() {
+    if (!newPatientData.firstName || !newPatientData.lastName) {
+      alert('First name and last name are required');
+      return;
+    }
+
+    if (!user) {
+      alert('You must be logged in');
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const patientId = await createPatient({
+        ...newPatientData,
+        wardId: user.wardIds?.[0] || 'default-ward',
+        admissionDate: new Date(),
+        status: 'active' as const,
+        assignedDoctorId: user.id,
+        assignedNurseId: '',
+        allergies: [],
+        medications: [],
+        notes: '',
+        acuity: 3,
+        primaryDiagnosis: '',
+        diagnoses: [],
+        codeStatus: 'full' as const,
+        attendingPhysician: '',
+        team: '',
+      } as any, user.id);
+
+      setSelectedPatientId(patientId);
+      setShowNewPatientDialog(false);
+      setNewPatientData({
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
+        gender: 'M',
+        mrn: '',
+        bedNumber: '',
+      });
+      alert('✅ Patient created successfully!');
+    } catch (error) {
+      console.error('Failed to create patient:', error);
+      alert('Failed to create patient. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -322,19 +397,29 @@ export default function ClerkingRoot() {
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Patient (optional)
               </label>
-              <select
-                value={selectedPatientId}
-                onChange={(e) => setSelectedPatientId(e.target.value)}
-                className="input-field"
-              >
-                <option value="">Select a patient or skip...</option>
-                {patients.map((patient) => (
-                  <option key={patient.id} value={patient.id}>
-                    {patient.firstName} {patient.lastName} - {patient.mrn} - Bed{' '}
-                    {patient.bedNumber}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={selectedPatientId}
+                  onChange={(e) => setSelectedPatientId(e.target.value)}
+                  className="input-field flex-1"
+                >
+                  <option value="">Select a patient or skip...</option>
+                  {patients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.firstName} {patient.lastName} - {patient.mrn} - Bed{' '}
+                      {patient.bedNumber}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowNewPatientDialog(true)}
+                  className="btn-secondary flex items-center gap-2 px-4 whitespace-nowrap"
+                  title="Create new patient"
+                >
+                  <UserPlus size={16} />
+                  <span className="hidden sm:inline">New</span>
+                </button>
+              </div>
             </div>
 
             <div>
@@ -388,6 +473,122 @@ export default function ClerkingRoot() {
               {isSaving ? 'Creating...' : 'Start Clerking'}
             </button>
           </div>
+
+          {/* New Patient Dialog */}
+          {showNewPatientDialog && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+              <div className="card p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-slate-900">Create New Patient</h2>
+                  <button
+                    onClick={() => setShowNewPatientDialog(false)}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        First Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newPatientData.firstName}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, firstName: e.target.value })}
+                        className="input-field"
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Last Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={newPatientData.lastName}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, lastName: e.target.value })}
+                        className="input-field"
+                        placeholder="Doe"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      value={newPatientData.dateOfBirth}
+                      onChange={(e) => setNewPatientData({ ...newPatientData, dateOfBirth: e.target.value })}
+                      className="input-field"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Gender
+                    </label>
+                    <select
+                      value={newPatientData.gender}
+                      onChange={(e) => setNewPatientData({ ...newPatientData, gender: e.target.value as any })}
+                      className="input-field"
+                    >
+                      <option value="M">Male</option>
+                      <option value="F">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        MRN
+                      </label>
+                      <input
+                        type="text"
+                        value={newPatientData.mrn}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, mrn: e.target.value })}
+                        className="input-field"
+                        placeholder="123456"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Bed Number
+                      </label>
+                      <input
+                        type="text"
+                        value={newPatientData.bedNumber}
+                        onChange={(e) => setNewPatientData({ ...newPatientData, bedNumber: e.target.value })}
+                        className="input-field"
+                        placeholder="12A"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <button
+                      onClick={() => setShowNewPatientDialog(false)}
+                      className="btn-secondary flex-1"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleCreateNewPatient}
+                      disabled={isSaving || !newPatientData.firstName || !newPatientData.lastName}
+                      className={clsx('btn-primary flex-1', isSaving && 'loading-pulse')}
+                    >
+                      {isSaving ? 'Creating...' : 'Create Patient'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
