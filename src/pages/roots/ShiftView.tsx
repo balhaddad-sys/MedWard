@@ -17,12 +17,10 @@ import {
   Shield,
   ChevronRight,
   ChevronDown,
-  ChevronUp,
   Clipboard,
   Plus,
   Siren,
   Wrench,
-  RefreshCw,
 } from 'lucide-react'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { clsx } from 'clsx'
-import { Timer, Play, Pause, RotateCcw, Plus, X, Clock } from 'lucide-react'
+import { Play, Pause, RotateCcw, Plus, X, Clock } from 'lucide-react'
 import { triggerHaptic } from '@/utils/haptics'
 
 export interface AcuteTimer {
@@ -11,13 +11,6 @@ export interface AcuteTimer {
   isRunning: boolean
   elapsed: number
   patientId?: string
-}
-
-interface TimerPanelProps {
-  timers: AcuteTimer[]
-  onTimerUpdate: (timerId: string, timer: Partial<AcuteTimer>) => void
-  onTimerAdd: (timer: Omit<AcuteTimer, 'id' | 'startedAt' | 'isRunning' | 'elapsed'>) => void
-  onTimerRemove: (timerId: string) => void
 }
 
 const PRESET_TIMERS = [
@@ -44,63 +37,85 @@ function isOverdue(elapsed: number, target: number): boolean {
   return elapsed > target
 }
 
-export function TimerPanel({
-  timers,
-  onTimerUpdate,
-  onTimerAdd,
-  onTimerRemove,
-}: TimerPanelProps) {
+/**
+ * Self-contained timer panel with internal state management.
+ * Supports preset timers and custom timer creation.
+ */
+export function TimerPanel() {
+  const [timers, setTimers] = useState<AcuteTimer[]>([])
   const [customLabel, setCustomLabel] = useState('')
   const [customMinutes, setCustomMinutes] = useState('15')
   const [showCustomInput, setShowCustomInput] = useState(false)
 
+  const updateTimer = useCallback((timerId: string, updates: Partial<AcuteTimer>) => {
+    setTimers((prev) => prev.map((t) => (t.id === timerId ? { ...t, ...updates } : t)))
+  }, [])
+
+  const addTimer = useCallback((timer: { label: string; targetMs: number }) => {
+    const newTimer: AcuteTimer = {
+      id: `timer-${Date.now()}`,
+      label: timer.label,
+      targetMs: timer.targetMs,
+      startedAt: null,
+      isRunning: false,
+      elapsed: 0,
+    }
+    setTimers((prev) => [...prev, newTimer])
+  }, [])
+
+  const removeTimer = useCallback((timerId: string) => {
+    setTimers((prev) => prev.filter((t) => t.id !== timerId))
+  }, [])
+
   // Update elapsed times every second
   useEffect(() => {
     const interval = setInterval(() => {
-      const now = Date.now()
-      timers.forEach((timer) => {
-        if (timer.isRunning && timer.startedAt) {
-          const newElapsed = now - timer.startedAt
-          onTimerUpdate(timer.id, { elapsed: newElapsed })
-
-          // Haptic feedback when overdue
-          if (!isOverdue(timer.elapsed, timer.targetMs) && isOverdue(newElapsed, timer.targetMs)) {
-            triggerHaptic('warning')
+      setTimers((prev) => {
+        let changed = false
+        const updated = prev.map((timer) => {
+          if (timer.isRunning && timer.startedAt) {
+            const newElapsed = Date.now() - timer.startedAt
+            if (!isOverdue(timer.elapsed, timer.targetMs) && isOverdue(newElapsed, timer.targetMs)) {
+              triggerHaptic('warning')
+            }
+            changed = true
+            return { ...timer, elapsed: newElapsed }
           }
-        }
+          return timer
+        })
+        return changed ? updated : prev
       })
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [timers, onTimerUpdate])
+  }, [])
 
-  const handleStartStop = (timerId: string, isRunning: boolean) => {
+  const handleStartStop = useCallback((timerId: string, isRunning: boolean) => {
     triggerHaptic('tap')
-    const now = Date.now()
-    const timer = timers.find((t) => t.id === timerId)
-    if (!timer) return
-
     if (isRunning) {
-      // Stop
-      onTimerUpdate(timerId, { isRunning: false })
+      updateTimer(timerId, { isRunning: false })
     } else {
-      // Start
-      const startedAt = timer.startedAt || now
-      onTimerUpdate(timerId, { isRunning: true, startedAt })
+      setTimers((prev) =>
+        prev.map((t) =>
+          t.id === timerId
+            ? { ...t, isRunning: true, startedAt: t.startedAt || Date.now() }
+            : t
+        )
+      )
     }
-  }
+  }, [updateTimer])
 
-  const handleReset = (timerId: string) => {
+  const handleReset = useCallback((timerId: string) => {
     triggerHaptic('tick')
-    onTimerUpdate(timerId, { isRunning: false, elapsed: 0, startedAt: null })
-  }
+    updateTimer(timerId, { isRunning: false, elapsed: 0, startedAt: null })
+  }, [updateTimer])
 
   const handleAddCustomTimer = () => {
     const minutes = Number.parseInt(customMinutes, 10)
     if (!customLabel.trim() || isNaN(minutes) || minutes <= 0) return
 
     triggerHaptic('success')
-    onTimerAdd({
+    addTimer({
       label: customLabel,
       targetMs: minutes * 60 * 1000,
     })
@@ -108,14 +123,6 @@ export function TimerPanel({
     setCustomLabel('')
     setCustomMinutes('15')
     setShowCustomInput(false)
-  }
-
-  const handleAddPreset = (minutes: number) => {
-    triggerHaptic('tap')
-    onTimerAdd({
-      label: `Timer ${minutes}min`,
-      targetMs: minutes * 60 * 1000,
-    })
   }
 
   const isCustomTimerValid = customLabel.trim() && !Number.isNaN(Number.parseInt(customMinutes, 10)) && Number.parseInt(customMinutes, 10) > 0
@@ -191,7 +198,7 @@ export function TimerPanel({
                 </button>
 
                 <button
-                  onClick={() => onTimerRemove(timer.id)}
+                  onClick={() => removeTimer(timer.id)}
                   className="flex items-center justify-center px-3 py-2 rounded-lg font-medium bg-slate-700 hover:bg-red-700 text-slate-300 hover:text-white transition-colors"
                 >
                   <X className="h-4 w-4" />
@@ -202,6 +209,13 @@ export function TimerPanel({
         })}
       </div>
 
+      {/* Empty state */}
+      {timers.length === 0 && !showCustomInput && (
+        <div className="text-center py-6 text-slate-500 text-sm">
+          No active timers. Add a preset or custom timer below.
+        </div>
+      )}
+
       {/* Add Preset Timer */}
       <div className="border-t border-slate-700 pt-4">
         <p className="text-xs font-semibold text-slate-400 mb-2 uppercase">Quick Presets</p>
@@ -211,7 +225,7 @@ export function TimerPanel({
               key={preset.label}
               onClick={() => {
                 triggerHaptic('tap')
-                onTimerAdd({
+                addTimer({
                   label: preset.label,
                   targetMs: preset.minutes * 60 * 1000,
                 })

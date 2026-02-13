@@ -13,6 +13,44 @@ interface GCSResult {
   color: string
 }
 
+function StepperButton({
+  label,
+  min,
+  max,
+  value,
+  onChange,
+}: {
+  label: string
+  min: number
+  max: number
+  value: number
+  onChange: (v: number) => void
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-200 mb-2">{label}</label>
+      <div className="flex items-center gap-3 bg-slate-900/60 border border-slate-600 rounded-lg p-3 min-h-[44px]">
+        <button
+          onClick={() => onChange(Math.max(min, value - 1))}
+          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors"
+        >
+          −
+        </button>
+        <div className="flex-1 text-center">
+          <div className="text-2xl font-bold text-white">{value}</div>
+          <div className="text-xs text-slate-400">({min}−{max})</div>
+        </div>
+        <button
+          onClick={() => onChange(Math.min(max, value + 1))}
+          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function GCSCalculator() {
   const [eye, setEye] = useState<number>(1)
   const [verbal, setVerbal] = useState<number>(1)
@@ -58,42 +96,6 @@ export function GCSCalculator() {
   }
 
   const result = calculateResult()
-
-  const StepperButton = ({
-    label,
-    min,
-    max,
-    value,
-    onChange,
-  }: {
-    label: string
-    min: number
-    max: number
-    value: number
-    onChange: (v: number) => void
-  }) => (
-    <div>
-      <label className="block text-sm font-medium text-slate-200 mb-2">{label}</label>
-      <div className="flex items-center gap-3 bg-slate-900/60 border border-slate-600 rounded-lg p-3 min-h-[44px]">
-        <button
-          onClick={() => onChange(Math.max(min, value - 1))}
-          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors"
-        >
-          −
-        </button>
-        <div className="flex-1 text-center">
-          <div className="text-2xl font-bold text-white">{value}</div>
-          <div className="text-xs text-slate-400">({min}−{max})</div>
-        </div>
-        <button
-          onClick={() => onChange(Math.min(max, value + 1))}
-          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded font-semibold transition-colors"
-        >
-          +
-        </button>
-      </div>
-    </div>
-  )
 
   return (
     <CalculatorShell

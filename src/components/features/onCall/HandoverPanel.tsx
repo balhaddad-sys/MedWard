@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { Clipboard, Copy, X, Check } from 'lucide-react'
 import { triggerHaptic } from '@/utils/haptics'
@@ -138,12 +138,11 @@ export function HandoverPanel({
   onClose,
 }: HandoverPanelProps) {
   const [copied, setCopied] = useState(false)
-  const [handoverText, setHandoverText] = useState('')
 
-  useEffect(() => {
-    const text = buildHandoverText(patients, getPatientTasks, getPatientCriticals, getPatientNotes)
-    setHandoverText(text)
-  }, [patients, getPatientTasks, getPatientCriticals, getPatientNotes])
+  const handoverText = useMemo(
+    () => buildHandoverText(patients, getPatientTasks, getPatientCriticals, getPatientNotes),
+    [patients, getPatientTasks, getPatientCriticals, getPatientNotes]
+  )
 
   const handleCopyAll = async () => {
     try {

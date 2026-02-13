@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Check, Square, Copy, X, Clock } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { OrderSet } from '@/types/orderSet'
@@ -18,19 +18,10 @@ export function ProtocolModal({
   onClose,
   onCreateTasks,
 }: ProtocolModalProps) {
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(
+    () => new Set(protocol.items.filter((item) => item.isPreChecked).map((item) => item.id))
+  )
   const [copied, setCopied] = useState(false)
-
-  // Initialize pre-checked items
-  useEffect(() => {
-    const preChecked = new Set<string>()
-    protocol.items.forEach((item) => {
-      if (item.isPreChecked) {
-        preChecked.add(item.id)
-      }
-    })
-    setCheckedItems(preChecked)
-  }, [protocol])
 
   // Group items by category
   const itemsByCategory = protocol.items.reduce(

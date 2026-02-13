@@ -37,6 +37,35 @@ const ScoreButton = ({
   </button>
 )
 
+function ScoreSection({
+  title,
+  options,
+  value,
+  onChange,
+}: {
+  title: string
+  options: Array<{ label: string; value: number }>
+  value: number | null
+  onChange: (v: number) => void
+}) {
+  return (
+    <div className="mb-6">
+      <h3 className="text-sm font-semibold text-slate-200 mb-3">{title}</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {options.map((opt) => (
+          <ScoreButton
+            key={opt.value}
+            label={opt.label}
+            value={opt.value}
+            selected={value === opt.value}
+            onClick={() => onChange(opt.value)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function NEWS2Calculator() {
   const [respRate, setRespRate] = useState<number | null>(null)
   const [spo2Scale1, setSpo2Scale1] = useState<number | null>(null)
@@ -93,33 +122,6 @@ export function NEWS2Calculator() {
   }
 
   const result = calculateResult()
-
-  const ScoreSection = ({
-    title,
-    options,
-    value,
-    onChange,
-  }: {
-    title: string
-    options: Array<{ label: string; value: number }>
-    value: number | null
-    onChange: (v: number) => void
-  }) => (
-    <div className="mb-6">
-      <h3 className="text-sm font-semibold text-slate-200 mb-3">{title}</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {options.map((opt) => (
-          <ScoreButton
-            key={opt.value}
-            label={opt.label}
-            value={opt.value}
-            selected={value === opt.value}
-            onClick={() => onChange(opt.value)}
-          />
-        ))}
-      </div>
-    </div>
-  )
 
   return (
     <CalculatorShell

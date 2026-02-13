@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Search, User, Calculator, Shield, Pill, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { Patient } from '@/types'
@@ -37,6 +37,26 @@ export function GlobalSearch({
 
   // Build search index from patients
   const fuse = buildUnifiedSearchIndex(patients)
+
+  const handleSelectResult = useCallback((result: SearchResult) => {
+    const patient = patients.find(
+      (p) => p.id === result.id && result.type === 'patient'
+    )
+
+    if (patient) {
+      onSelectPatient(patient)
+    } else if (result.type === 'calculator') {
+      onSelectCalculator(result.id)
+    } else if (result.type === 'protocol') {
+      onSelectProtocol(result.id)
+    } else if (result.type === 'drug') {
+      onSelectDrug(result.name)
+    }
+
+    setQuery('')
+    setResults([])
+    setIsOpen(false)
+  }, [patients, onSelectPatient, onSelectCalculator, onSelectProtocol, onSelectDrug])
 
   // Handle search with debounce
   useEffect(() => {
@@ -95,7 +115,7 @@ export function GlobalSearch({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, results, selectedIndex])
+  }, [isOpen, results, selectedIndex, handleSelectResult])
 
   // Handle click outside
   useEffect(() => {
@@ -112,26 +132,6 @@ export function GlobalSearch({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  const handleSelectResult = (result: SearchResult) => {
-    const patient = patients.find(
-      (p) => p.id === result.id && result.type === 'patient'
-    )
-
-    if (patient) {
-      onSelectPatient(patient)
-    } else if (result.type === 'calculator') {
-      onSelectCalculator(result.id)
-    } else if (result.type === 'protocol') {
-      onSelectProtocol(result.id)
-    } else if (result.type === 'drug') {
-      onSelectDrug(result.name)
-    }
-
-    setQuery('')
-    setResults([])
-    setIsOpen(false)
-  }
 
   const getTypeIcon = (type: SearchResult['type']) => {
     const iconProps = 'w-4 h-4'
@@ -239,7 +239,7 @@ export function GlobalSearch({
                         </div>
 
                         {/* Type results */}
-                        {typeResults.map((result, idx) => {
+                        {typeResults.map((result) => {
                           const resultIndex =
                             results.findIndex((r) => r.id === result.id)
 
