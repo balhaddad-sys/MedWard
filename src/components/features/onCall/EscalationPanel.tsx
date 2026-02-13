@@ -14,7 +14,7 @@ interface EscalationLevel {
 }
 
 interface EscalationPanelProps {
-  onEscalate: (level: 'senior' | 'icu' | 'met') => void
+  onEscalate?: (level: 'senior' | 'icu' | 'met') => void
 }
 
 const ESCALATION_LEVELS: EscalationLevel[] = [
@@ -49,7 +49,7 @@ const ESCALATION_LEVELS: EscalationLevel[] = [
 
 export function EscalationPanel({ onEscalate }: EscalationPanelProps) {
   const [confirming, setConfirming] = useState<'senior' | 'icu' | 'met' | null>(null)
-  const [confirmTimeout, setConfirmTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [confirmTimeout, setConfirmTimeout] = useState<ReturnType<typeof setTimeout> | null>(null)
 
   const handleEscalateClick = (level: 'senior' | 'icu' | 'met') => {
     triggerHaptic('tap')
@@ -57,7 +57,7 @@ export function EscalationPanel({ onEscalate }: EscalationPanelProps) {
     if (confirming === level) {
       // Second tap - execute
       triggerHaptic('escalation')
-      onEscalate(level)
+      onEscalate?.(level)
       setConfirming(null)
       if (confirmTimeout) clearTimeout(confirmTimeout)
       setConfirmTimeout(null)

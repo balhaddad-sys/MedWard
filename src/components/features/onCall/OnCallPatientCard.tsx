@@ -131,7 +131,7 @@ export function OnCallPatientCard({
       className={clsx(
         'rounded-lg border transition-all',
         'bg-slate-800/60 border-slate-700',
-        acuity <= 2 && 'border-l-4 border-l-red-500',
+        patient.acuity <= 2 && 'border-l-4 border-l-red-500',
         patient.acuity === 3 && 'border-l-4 border-l-amber-500',
         patient.acuity >= 4 && 'border-l-4 border-l-green-500',
         expanded && 'ring-1 ring-slate-600'

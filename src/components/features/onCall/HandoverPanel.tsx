@@ -2,20 +2,13 @@ import { useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { Clipboard, Copy, X, Check } from 'lucide-react'
 import { triggerHaptic } from '@/utils/haptics'
-import type { Patient } from '@/types'
+import type { Patient, CriticalValue } from '@/types'
 import type { Task } from '@/types/task'
 
 export interface QuickNote {
   patientId: string
   text: string
   timestamp: number
-}
-
-export interface CriticalValue {
-  patientId: string
-  labName: string
-  value: string
-  unit: string
 }
 
 interface HandoverPanelProps {
