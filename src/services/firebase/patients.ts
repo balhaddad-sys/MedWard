@@ -68,8 +68,8 @@ export const getPatient = async (id: string): Promise<Patient | null> => {
 }
 
 export const createPatient = async (data: PatientFormData, userId: string): Promise<string> => {
-  console.log('Creating patient with data:', data);
-  console.log('User ID:', userId);
+  console.log('🔍 Creating patient with data:', data);
+  console.log('🔍 User ID:', userId);
 
   try {
     // Clean up data: convert empty strings to undefined, keep arrays and numbers as-is
@@ -93,7 +93,12 @@ export const createPatient = async (data: PatientFormData, userId: string): Prom
       }
     });
 
-    const docRef = await addDoc(getPatientsRef(), {
+    // Ensure acuity is always a number (default to 3 if missing)
+    if (!cleanData.acuity || typeof cleanData.acuity !== 'number') {
+      cleanData.acuity = 3;
+    }
+
+    const patientData: Record<string, unknown> = {
       ...cleanData,
       createdBy: userId,
       createdAt: serverTimestamp(),
@@ -106,11 +111,21 @@ export const createPatient = async (data: PatientFormData, userId: string): Prom
       assignedClinicians: [userId],
       modificationHistory: [],
       lastModifiedBy: userId,
-    });
+    };
+
+    console.log('📤 Sending to Firestore (fields):', Object.keys(patientData));
+    console.log('📤 acuity type:', typeof patientData.acuity, 'value:', patientData.acuity);
+    console.log('📤 state value:', patientData.state);
+
+    const docRef = await addDoc(getPatientsRef(), patientData);
     console.log('✅ Patient created successfully:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('❌ Error creating patient:', error);
+    if (error instanceof Error) {
+      console.error('❌ Error message:', error.message);
+      console.error('❌ Error name:', error.name);
+    }
     throw error;
   }
 }

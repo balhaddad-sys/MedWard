@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
-      "Bash(firebase deploy:*)"
+      "Bash(firebase deploy:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix patient saving by cleaning empty string fields\n\n- Filter out empty strings before sending to Firestore\n- Keep arrays \\(allergies, diagnoses\\) even if empty\n- Keep numbers \\(acuity\\) as-is\n- Only send fields with actual values\n- Apply same cleaning to both create and update operations\n\nFixes issue where empty form fields prevented patient creation\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)"
     ]
   }
 }
