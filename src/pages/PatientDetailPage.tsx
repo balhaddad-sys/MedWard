@@ -3,6 +3,7 @@ import { ArrowLeft, AlertTriangle, Trash2 } from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 import { Badge } from '@/components/ui/Badge'
 import { SafetyRails } from '@/components/features/safety/SafetyRails'
+import { OrderSetModal } from '@/components/features/orderSets/OrderSetModal'
 import { formatPatientName, formatAge } from '@/utils/formatters'
 import { usePatientDetail } from './patient-detail/usePatientDetail'
 import { OverviewTab } from './patient-detail/OverviewTab'
@@ -85,11 +86,23 @@ export function PatientDetailPage() {
       )}
 
       {detail.activeTab === 'tasks' && (
-        <TasksTab id={id} showTaskForm={detail.showTaskForm} setShowTaskForm={detail.setShowTaskForm} editingTask={detail.editingTask} setEditingTask={detail.setEditingTask} handleTaskSubmit={detail.handleTaskSubmit} handleCompleteTask={detail.handleCompleteTask} handleDeleteTask={detail.handleDeleteTask} deletingTaskId={detail.deletingTaskId} cancelDeleteTask={detail.cancelDeleteTask} pendingTasks={detail.pendingTasks} completedTasks={detail.completedTasks} patientTasks={detail.patientTasks} />
+        <TasksTab id={id} showTaskForm={detail.showTaskForm} setShowTaskForm={detail.setShowTaskForm} editingTask={detail.editingTask} setEditingTask={detail.setEditingTask} handleTaskSubmit={detail.handleTaskSubmit} handleCompleteTask={detail.handleCompleteTask} handleDeleteTask={detail.handleDeleteTask} deletingTaskId={detail.deletingTaskId} cancelDeleteTask={detail.cancelDeleteTask} pendingTasks={detail.pendingTasks} completedTasks={detail.completedTasks} patientTasks={detail.patientTasks} setShowOrderSetModal={detail.setShowOrderSetModal} />
       )}
 
       {detail.activeTab === 'sbar' && (
         <SBARTab sbar={detail.sbar} generatingSbar={detail.generatingSbar} handleGenerateSBAR={detail.handleGenerateSBAR} handleExportSBAR={detail.handleExportSBAR} />
+      )}
+
+      {/* PHASE 4: Order Set Modal */}
+      {detail.showOrderSetModal && patient && id && (
+        <OrderSetModal
+          isOpen={detail.showOrderSetModal}
+          onClose={() => detail.setShowOrderSetModal(false)}
+          patientId={id}
+          patientName={formatPatientName(patient.firstName, patient.lastName)}
+          bedNumber={patient.bedNumber}
+          onCreateTasks={detail.handleCreateOrderSetTasks}
+        />
       )}
     </div>
   )

@@ -42,6 +42,9 @@ export function usePatientDetail(id: string | undefined) {
   const [analyzingLab, setAnalyzingLab] = useState(false)
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
 
+  // PHASE 4: Order sets
+  const [showOrderSetModal, setShowOrderSetModal] = useState(false)
+
   useEffect(() => {
     if (!id) return
 
@@ -200,6 +203,52 @@ export function usePatientDetail(id: string | undefined) {
     }
   }
 
+  // PHASE 4: Handle order set task creation
+  const handleCreateOrderSetTasks = async (orderSetId: string, items: any[]) => {
+    if (!firebaseUser || !patient || !id) return
+    const userName = user?.displayName || 'Unknown'
+
+    try {
+      // Create all selected tasks in batch
+      for (const item of items) {
+        const dueDate = new Date()
+        // Set due time based on timing
+        if (item.timing === 'STAT') {
+          dueDate.setMinutes(dueDate.getMinutes() + 15)
+        } else if (item.timing === '1hr') {
+          dueDate.setHours(dueDate.getHours() + 1)
+        } else if (item.timing === '4hr') {
+          dueDate.setHours(dueDate.getHours() + 4)
+        } else if (item.timing === '24hr') {
+          dueDate.setHours(dueDate.getHours() + 24)
+        }
+
+        const taskData: TaskFormData = {
+          patientId: id,
+          title: item.title,
+          description: item.description + (item.notes ? `\n\nNotes: ${item.notes}` : ''),
+          category: item.category,
+          priority: item.priority,
+          assignedTo: firebaseUser.uid,
+          dueAt: dueDate.toISOString(),
+          notes: `Created from order set: ${orderSetId}`,
+        }
+
+        await createTask(taskData, firebaseUser.uid, userName)
+      }
+
+      addToast({
+        type: 'success',
+        title: `Created ${items.length} task${items.length > 1 ? 's' : ''}`,
+        message: `Order set tasks created successfully`
+      })
+    } catch (error) {
+      console.error('Failed to create order set tasks:', error)
+      addToast({ type: 'error', title: 'Failed to create tasks' })
+      throw error
+    }
+  }
+
   return {
     // State
     patient,
@@ -230,6 +279,7 @@ export function usePatientDetail(id: string | undefined) {
     setLabEntryMode,
     setShowTaskForm,
     setEditingTask,
+    setShowOrderSetModal,
 
     // Handlers
     handleGenerateSBAR,
@@ -241,7 +291,11 @@ export function usePatientDetail(id: string | undefined) {
     cancelDeleteTask,
     handleTaskSubmit,
     handleExportSBAR,
+    handleCreateOrderSetTasks,
     refreshLabs,
     addToast,
+
+    // PHASE 4: Order sets
+    showOrderSetModal,
   }
 }

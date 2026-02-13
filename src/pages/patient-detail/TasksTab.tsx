@@ -1,4 +1,4 @@
-import { Plus, CheckCircle } from 'lucide-react'
+import { Plus, CheckCircle, Zap } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { TaskForm } from '@/components/features/tasks/TaskForm'
@@ -19,6 +19,7 @@ interface TasksTabProps {
   pendingTasks: Task[]
   completedTasks: Task[]
   patientTasks: Task[]
+  setShowOrderSetModal?: (show: boolean) => void
 }
 
 export function TasksTab({
@@ -35,11 +36,23 @@ export function TasksTab({
   pendingTasks,
   completedTasks,
   patientTasks,
+  setShowOrderSetModal,
 }: TasksTabProps) {
   return (
     <div className="space-y-4">
       {!showTaskForm && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {setShowOrderSetModal && (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Zap className="h-4 w-4" />}
+              onClick={() => setShowOrderSetModal(true)}
+              className="min-h-[44px]"
+            >
+              Order Sets
+            </Button>
+          )}
           <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => { setEditingTask(null); setShowTaskForm(true) }} className="min-h-[44px]">
             Add Task
           </Button>

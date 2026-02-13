@@ -12,6 +12,9 @@ import {
   Trash2,
   AlertTriangle,
   Pill,
+  FileText,
+  Activity,
+  Target,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { usePatientStore } from '@/stores/patientStore';
@@ -30,6 +33,9 @@ import type {
 import { validateClerkingNote } from '@/utils/safetyValidators';
 import { SafetyValidationModal } from '@/components/modals/SafetyValidationModal';
 import type { ValidationResult } from '@/utils/safetyValidators';
+import { ClerkingProgress } from '@/components/features/clerking/ClerkingProgress';
+import { ClerkingSection } from '@/components/features/clerking/ClerkingSection';
+import { ClerkingQuickSave } from '@/components/features/clerking/ClerkingQuickSave';
 
 const LOCALSTORAGE_DRAFT_KEY = 'clerking_draft_v3';
 const AUTOSAVE_INTERVAL = 3000;
@@ -47,6 +53,9 @@ export default function ClerkingRoot() {
   // PHASE 1: Safety validation modal state
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [safetyValidation, setSafetyValidation] = useState<ValidationResult | null>(null);
+
+  // PHASE 3: 60-second clerking state
+  const [startTime, setStartTime] = useState<Date>(new Date());
 
   const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
   const [newPatientData, setNewPatientData] = useState({
@@ -146,6 +155,7 @@ export default function ClerkingRoot() {
       };
       setClerkingNote(newNote);
       setActiveNoteId(noteId);
+      setStartTime(new Date()); // PHASE 3: Start timer
       saveDraft();
     } catch (e) {
       console.error('Failed to start:', e);
@@ -257,6 +267,23 @@ export default function ClerkingRoot() {
     setActiveNoteId(null);
   }
 
+  // PHASE 3: Quick save for 60-second clerking workflow
+  async function handleQuickSave() {
+    if (!activeNoteId || !clerkingNote) return;
+    setIsSaving(true);
+    try {
+      await updateClerkingNote(activeNoteId, clerkingNote);
+      setLastSaved(new Date());
+      saveDraft();
+      alert('✅ Draft saved! You can continue editing later.');
+    } catch (e) {
+      console.error('Quick save failed:', e);
+      alert('❌ Failed to save draft');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function update(changes: Partial<ClerkingNote>) {
     setClerkingNote((prev) => ({ ...prev, ...changes }));
   }
@@ -299,6 +326,32 @@ export default function ClerkingRoot() {
 
   const selectedPatient = patients.find((p) => p.id === clerkingNote.patientId);
 
+  // PHASE 3: Calculate completion percentage
+  const calculateCompletion = (): number => {
+    let completed = 0;
+    let total = 8;
+    if (clerkingNote.patientId && clerkingNote.patientId !== 'unassigned') completed++;
+    if (clerkingNote.presentingComplaint) completed++;
+    if (clerkingNote.workingDiagnosis) completed++;
+    if (vitals.heartRate || vitals.bloodPressureSystolic) completed++;
+    if (history.historyOfPresentingIllness) completed++;
+    if (exam.systemsNote) completed++;
+    if (plan.managementPlan) completed++;
+    if (safety.codeStatus) completed++;
+    return Math.round((completed / total) * 100);
+  };
+
+  // PHASE 3: Check if minimum required fields are complete for quick save
+  const isQuickSaveReady = !!(
+    clerkingNote.patientId &&
+    clerkingNote.patientId !== 'unassigned' &&
+    clerkingNote.presentingComplaint &&
+    clerkingNote.workingDiagnosis &&
+    (vitals.heartRate || vitals.bloodPressureSystolic)
+  );
+
+  const completionPercentage = calculateCompletion();
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Sticky Header */}
@@ -328,6 +381,13 @@ export default function ClerkingRoot() {
 
       {/* Main Form */}
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        {/* PHASE 3: Progress Tracker */}
+        <ClerkingProgress
+          startTime={startTime}
+          targetSeconds={60}
+          completionPercentage={completionPercentage}
+        />
+
         {/* Patient */}
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
@@ -371,87 +431,106 @@ export default function ClerkingRoot() {
           </div>
         </div>
 
-        {/* History */}
-        <div className="card p-4 space-y-4">
-          <h2 className="font-semibold text-slate-900">History</h2>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">History of Presenting Illness</label>
-            <textarea value={history.historyOfPresentingIllness || ''} onChange={(e) => update({ history: { ...history, historyOfPresentingIllness: e.target.value } })} placeholder="SOCRATES / detailed history..." className="input-field" rows={4} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Past Medical History</label>
-            <textarea value={history.pastMedicalHistory?.join('\n') || ''} onChange={(e) => update({ history: { ...history, pastMedicalHistory: e.target.value.split('\n').filter((s: string) => s.trim()) } })} placeholder="One per line..." className="input-field" rows={3} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Medications</label>
-            <div className="space-y-2">
-              {history.medications?.map((med: Medication, i: number) => (
-                <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded text-sm">
-                  <Pill className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  <span className="flex-1">{med.name} {med.dose} {med.frequency}</span>
-                  <button onClick={() => update({ history: { ...history, medications: history.medications?.filter((_: any, idx: number) => idx !== i) } })} className="text-red-600">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-              <AddMedicationRow history={history} update={update} />
+        {/* PHASE 3: History (Collapsible - Optional) */}
+        <ClerkingSection
+          title="History"
+          icon={<FileText className="w-5 h-5" />}
+          isRequired={false}
+          isComplete={!!(history.historyOfPresentingIllness && history.pastMedicalHistory?.length)}
+          defaultExpanded={false}
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">History of Presenting Illness</label>
+              <textarea value={history.historyOfPresentingIllness || ''} onChange={(e) => update({ history: { ...history, historyOfPresentingIllness: e.target.value } })} placeholder="SOCRATES / detailed history..." className="input-field" rows={4} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Past Medical History</label>
+              <textarea value={history.pastMedicalHistory?.join('\n') || ''} onChange={(e) => update({ history: { ...history, pastMedicalHistory: e.target.value.split('\n').filter((s: string) => s.trim()) } })} placeholder="One per line..." className="input-field" rows={3} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Medications</label>
+              <div className="space-y-2">
+                {history.medications?.map((med: Medication, i: number) => (
+                  <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded text-sm">
+                    <Pill className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                    <span className="flex-1">{med.name} {med.dose} {med.frequency}</span>
+                    <button onClick={() => update({ history: { ...history, medications: history.medications?.filter((_: any, idx: number) => idx !== i) } })} className="text-red-600">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <AddMedicationRow history={history} update={update} />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Allergies</label>
+              <div className="space-y-2">
+                {history.allergies?.map((allergy: Allergy, i: number) => (
+                  <div key={i} className="flex items-center gap-2 p-2 bg-red-50 rounded text-sm border border-red-200">
+                    <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                    <span className="flex-1">{allergy.substance} → {allergy.reaction}</span>
+                    <button onClick={() => update({ history: { ...history, allergies: history.allergies?.filter((_: any, idx: number) => idx !== i) } })} className="text-red-600">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <AddAllergyRow history={history} update={update} />
+              </div>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Allergies</label>
-            <div className="space-y-2">
-              {history.allergies?.map((allergy: Allergy, i: number) => (
-                <div key={i} className="flex items-center gap-2 p-2 bg-red-50 rounded text-sm border border-red-200">
-                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  <span className="flex-1">{allergy.substance} → {allergy.reaction}</span>
-                  <button onClick={() => update({ history: { ...history, allergies: history.allergies?.filter((_: any, idx: number) => idx !== i) } })} className="text-red-600">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-              <AddAllergyRow history={history} update={update} />
-            </div>
-          </div>
-        </div>
+        </ClerkingSection>
 
-        {/* Examination */}
-        <div className="card p-4 space-y-4">
-          <h2 className="font-semibold text-slate-900">Examination</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">HR (bpm)</label>
-              <input type="number" value={vitals.heartRate || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, heartRate: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
+        {/* PHASE 3: Examination (Collapsible - Optional for detailed findings) */}
+        <ClerkingSection
+          title="Examination & Vitals"
+          icon={<Activity className="w-5 h-5" />}
+          isRequired={false}
+          isComplete={!!(vitals.heartRate && vitals.bloodPressureSystolic && exam.systemsNote)}
+          defaultExpanded={true}
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">HR (bpm)</label>
+                <input type="number" value={vitals.heartRate || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, heartRate: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">BP Sys</label>
+                <input type="number" value={vitals.bloodPressureSystolic || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, bloodPressureSystolic: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">BP Dia</label>
+                <input type="number" value={vitals.bloodPressureDiastolic || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, bloodPressureDiastolic: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">RR</label>
+                <input type="number" value={vitals.respiratoryRate || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, respiratoryRate: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Temp (°C)</label>
+                <input type="number" step="0.1" value={vitals.temperature || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, temperature: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">SpO2 (%)</label>
+                <input type="number" value={vitals.oxygenSaturation || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, oxygenSaturation: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
+              </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">BP Sys</label>
-              <input type="number" value={vitals.bloodPressureSystolic || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, bloodPressureSystolic: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">BP Dia</label>
-              <input type="number" value={vitals.bloodPressureDiastolic || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, bloodPressureDiastolic: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">RR</label>
-              <input type="number" value={vitals.respiratoryRate || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, respiratoryRate: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">Temp (°C)</label>
-              <input type="number" step="0.1" value={vitals.temperature || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, temperature: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">SpO2 (%)</label>
-              <input type="number" value={vitals.oxygenSaturation || ''} onChange={(e) => update({ examination: { ...exam, vitals: { ...vitals, oxygenSaturation: Number(e.target.value), timestamp: new Date() } } as any })} className="input-field" />
+              <label className="block text-sm font-medium text-slate-700 mb-1">Examination Findings</label>
+              <textarea value={(exam.systemsNote as string) || ''} onChange={(e) => update({ examination: { ...exam, systemsNote: e.target.value } as any })} placeholder="General appearance, systems examination..." className="input-field" rows={4} />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Examination Findings</label>
-            <textarea value={(exam.systemsNote as string) || ''} onChange={(e) => update({ examination: { ...exam, systemsNote: e.target.value } as any })} placeholder="General appearance, systems examination..." className="input-field" rows={4} />
-          </div>
-        </div>
+        </ClerkingSection>
 
-        {/* Assessment */}
-        <div className="card p-4 space-y-4">
-          <h2 className="font-semibold text-slate-900">Assessment</h2>
+        {/* PHASE 3: Assessment (Collapsible - Optional) */}
+        <ClerkingSection
+          title="Assessment & Problem List"
+          icon={<Target className="w-5 h-5" />}
+          isRequired={false}
+          isComplete={problemList.length > 0}
+          defaultExpanded={false}
+        >
           <div className="space-y-2">
             {problemList.map((problem: ProblemListItem, i: number) => (
               <div key={problem.id} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
@@ -470,7 +549,7 @@ export default function ClerkingRoot() {
             ))}
             <AddProblemRow problemList={problemList} update={update} />
           </div>
-        </div>
+        </ClerkingSection>
 
         {/* Plan */}
         <div className="card p-4 space-y-4">
@@ -504,6 +583,14 @@ export default function ClerkingRoot() {
           </div>
         </div>
       </div>
+
+      {/* PHASE 3: Quick Save Floating Button */}
+      <ClerkingQuickSave
+        isVisible={isQuickSaveReady && !isSaving}
+        onQuickSave={handleQuickSave}
+        isSaving={isSaving}
+        completionPercentage={completionPercentage}
+      />
 
       {/* Patient Dialog */}
       {showNewPatientDialog && (
