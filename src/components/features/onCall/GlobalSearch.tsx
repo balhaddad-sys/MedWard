@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Search, Pill, X } from 'lucide-react'
+import { SearchIcon, PillIcon, CloseIcon } from '@/components/icons/MedicalIcons'
 import { clsx } from 'clsx'
 import type { Patient } from '@/types'
 import {
@@ -133,7 +133,7 @@ export function GlobalSearch({
       case 'protocol':
         return <SyringeIcon className="w-4 h-4" />
       case 'drug':
-        return <Pill className="w-4 h-4" />
+        return <PillIcon className="w-4 h-4" />
     }
   }
 
@@ -174,7 +174,7 @@ export function GlobalSearch({
         <div className="relative">
           {/* Search input */}
           <div className="flex items-center bg-slate-800/60 border border-slate-600/50 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-amber-500/50 focus-within:ring-1 focus-within:ring-amber-500/30 focus-within:shadow-[0_0_12px_rgba(245,158,11,0.1)] transition-all">
-            <Search className="w-5 h-5 text-slate-400 mr-2 flex-shrink-0" />
+            <SearchIcon className="w-5 h-5 text-slate-400 mr-2 flex-shrink-0" />
             <input
               ref={searchInputRef}
               type="text"
@@ -188,7 +188,7 @@ export function GlobalSearch({
                 onClick={() => handleQueryChange('')}
                 className="ml-2 text-slate-400 hover:text-slate-200"
               >
-                <X className="w-4 h-4" />
+                <CloseIcon className="w-4 h-4" />
               </button>
             )}
           </div>

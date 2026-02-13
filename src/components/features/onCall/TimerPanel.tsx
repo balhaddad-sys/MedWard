@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { clsx } from 'clsx'
-import { Play, Pause, RotateCcw, Plus, X } from 'lucide-react'
+import { PlayIcon, PauseIcon, ResetIcon, PlusIcon, CloseIcon } from '@/components/icons/MedicalIcons'
 import { triggerHaptic } from '@/utils/haptics'
 import { StopwatchIcon } from '@/components/icons/MedicalIcons'
 
@@ -229,12 +229,12 @@ export function TimerPanel() {
                 >
                   {timer.isRunning ? (
                     <>
-                      <Pause className="h-4 w-4" />
+                      <PauseIcon className="h-4 w-4" />
                       Pause
                     </>
                   ) : (
                     <>
-                      <Play className="h-4 w-4" />
+                      <PlayIcon className="h-4 w-4" />
                       Start
                     </>
                   )}
@@ -244,14 +244,14 @@ export function TimerPanel() {
                   onClick={() => handleReset(timer.id)}
                   className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-medium bg-slate-700/60 hover:bg-slate-600/60 text-white transition-colors"
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <ResetIcon className="h-4 w-4" />
                 </button>
 
                 <button
                   onClick={() => removeTimer(timer.id)}
                   className="flex items-center justify-center px-3 py-2 rounded-xl font-medium bg-slate-700/40 hover:bg-red-900/40 text-slate-300 hover:text-red-300 transition-colors"
                 >
-                  <X className="h-4 w-4" />
+                  <CloseIcon className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -297,7 +297,7 @@ export function TimerPanel() {
           onClick={() => setShowCustomInput(!showCustomInput)}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-slate-700/50 bg-slate-800/40 hover:bg-slate-700/40 text-slate-300 font-medium transition-all"
         >
-          <Plus className="h-4 w-4" />
+          <PlusIcon className="h-4 w-4" />
           Custom Timer
         </button>
 

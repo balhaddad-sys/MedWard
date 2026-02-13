@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { X } from 'lucide-react'
+import { CloseIcon } from '@/components/icons/MedicalIcons'
 
 export interface CalculatorShellProps {
   title: string
@@ -35,7 +35,7 @@ export function CalculatorShell({
             className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors flex-shrink-0 ml-4"
             aria-label="Close"
           >
-            <X className="h-5 w-5" />
+            <CloseIcon className="h-5 w-5" />
           </button>
         )}
       </div>

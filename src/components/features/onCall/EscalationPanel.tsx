@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Phone, Siren, AlertTriangle, Check } from 'lucide-react'
+import { PhoneCallIcon, SirenIcon, WarningTriangleIcon, CheckIcon } from '@/components/icons/MedicalIcons'
 import { triggerHaptic } from '@/utils/haptics'
 
 interface EscalationLevel {
@@ -20,7 +20,7 @@ interface EscalationPanelProps {
 const ESCALATION_LEVELS: EscalationLevel[] = [
   {
     id: 'senior',
-    icon: Phone,
+    icon: PhoneCallIcon,
     label: 'Call Senior',
     description: 'Request senior review',
     colorBorder: 'border-amber-500/40',
@@ -29,7 +29,7 @@ const ESCALATION_LEVELS: EscalationLevel[] = [
   },
   {
     id: 'icu',
-    icon: Siren,
+    icon: SirenIcon,
     label: 'ICU / Outreach',
     description: 'ICU outreach or step-up',
     colorBorder: 'border-orange-500/40',
@@ -38,7 +38,7 @@ const ESCALATION_LEVELS: EscalationLevel[] = [
   },
   {
     id: 'met',
-    icon: AlertTriangle,
+    icon: WarningTriangleIcon,
     label: 'MET / Code Blue',
     description: 'Medical emergency team',
     colorBorder: 'border-red-500/40',
@@ -104,7 +104,7 @@ export function EscalationPanel({ onEscalate }: EscalationPanelProps) {
               escalation.colorText,
             )}>
               {isConfirming ? (
-                <Check className="h-5 w-5" />
+                <CheckIcon className="h-5 w-5" />
               ) : (
                 <Icon className={clsx('h-5 w-5', escalation.id === 'met' && 'h-6 w-6')} />
               )}

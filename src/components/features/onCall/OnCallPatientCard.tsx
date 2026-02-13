@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
 import {
-  ChevronDown,
-  ChevronUp,
-  X,
-  Copy,
-  Check,
-  MessageSquare,
-  FileText,
-  AlertTriangle,
-  Activity,
-  ExternalLink,
-} from 'lucide-react'
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CloseIcon,
+  CopyIcon,
+  CheckIcon,
+  NoteIcon,
+  FileListIcon,
+  WarningTriangleIcon,
+  HeartbeatIcon,
+  ExternalLinkIcon,
+} from '@/components/icons/MedicalIcons'
 import { triggerHaptic } from '@/utils/haptics'
 import type { Patient } from '@/types'
 import type { Task } from '@/types/task'
@@ -175,9 +175,9 @@ export function OnCallPatientCard({
 
             <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-700/40 text-slate-400 ml-1">
               {expanded ? (
-                <ChevronUp className="h-4 w-4" />
+                <ChevronUpIcon className="h-4 w-4" />
               ) : (
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDownIcon className="h-4 w-4" />
               )}
             </div>
           </div>
@@ -189,7 +189,7 @@ export function OnCallPatientCard({
             {/* Patient Details */}
             <div className="space-y-2">
               <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                <Activity className="h-4 w-4" />
+                <HeartbeatIcon className="h-4 w-4" />
                 Details
               </h4>
               <div className="space-y-1 text-sm text-slate-300 ml-6">
@@ -217,7 +217,7 @@ export function OnCallPatientCard({
             {totalTasks > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
+                  <FileListIcon className="h-4 w-4" />
                   Tasks
                 </h4>
                 <div className="grid grid-cols-4 gap-2 ml-6">
@@ -253,7 +253,7 @@ export function OnCallPatientCard({
             {labData && (
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4" />
+                  <WarningTriangleIcon className="h-4 w-4" />
                   Lab Data
                 </h4>
                 <div className="ml-6">{labData}</div>
@@ -263,7 +263,7 @@ export function OnCallPatientCard({
             {/* Quick Notes */}
             <div className="space-y-2">
               <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
+                <NoteIcon className="h-4 w-4" />
                 Notes ({patientNotes.length})
               </h4>
               <div className="ml-6 space-y-2">
@@ -287,7 +287,7 @@ export function OnCallPatientCard({
                           }}
                           className="flex-shrink-0 p-1 rounded hover:bg-red-900/30 text-slate-500 hover:text-red-400 transition-colors"
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <CloseIcon className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     ))}
@@ -313,12 +313,12 @@ export function OnCallPatientCard({
               >
                 {copiedSbar ? (
                   <>
-                    <Check className="h-4 w-4" />
+                    <CheckIcon className="h-4 w-4" />
                     Copied SBAR
                   </>
                 ) : (
                   <>
-                    <Copy className="h-4 w-4" />
+                    <CopyIcon className="h-4 w-4" />
                     Copy SBAR
                   </>
                 )}
@@ -328,7 +328,7 @@ export function OnCallPatientCard({
                 onClick={handleNavigate}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium bg-blue-600/90 hover:bg-blue-600 text-white transition-colors"
               >
-                <ExternalLink className="h-4 w-4" />
+                <ExternalLinkIcon className="h-4 w-4" />
                 View Full Profile
               </button>
 
@@ -340,7 +340,7 @@ export function OnCallPatientCard({
                   }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium bg-slate-700/40 hover:bg-red-900/30 text-slate-300 hover:text-red-300 transition-colors"
                 >
-                  <X className="h-4 w-4" />
+                  <CloseIcon className="h-4 w-4" />
                   Remove from Workspace
                 </button>
               ) : (
@@ -348,7 +348,7 @@ export function OnCallPatientCard({
                   onClick={handleRemove}
                   className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium bg-red-900/50 border border-red-700/50 hover:bg-red-900 text-red-300 transition-colors"
                 >
-                  <AlertTriangle className="h-4 w-4" />
+                  <WarningTriangleIcon className="h-4 w-4" />
                   Confirm Remove
                 </button>
               )}
