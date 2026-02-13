@@ -39,7 +39,6 @@ import { CalculatorShell } from '@/components/features/calculators/CalculatorShe
 import { CALCULATORS } from '@/components/features/calculators/calculatorRegistry'
 import { ORDER_SETS } from '@/config/orderSets'
 import type { OrderSet } from '@/types/orderSet'
-import { BottomSheet } from '@/components/ui/BottomSheet'
 import {
   StethoscopeIcon,
   SyringeIcon,
@@ -132,15 +131,6 @@ export default function ShiftView() {
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null)
   const [activeProtocol, setActiveProtocol] = useState<OrderSet | null>(null)
   const [showHandover, setShowHandover] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-
-  // Mobile detection
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640)
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
 
   // Persist workspace
   useEffect(() => { saveWorkspace(workspacePatientIds) }, [workspacePatientIds])
@@ -479,20 +469,17 @@ export default function ShiftView() {
             />
           </div>
 
-          {/* Desktop tools toggle */}
-          {!isMobile && (
-            <button
-              onClick={() => { triggerHaptic('tap'); setShowTools(!showTools) }}
-              className={clsx(
-                'relative flex items-center justify-center p-2.5 rounded-xl border transition-all min-h-[42px] min-w-[42px]',
-                showTools
-                  ? 'bg-amber-600 border-amber-500 text-white shadow-[0_0_12px_rgba(245,158,11,0.2)]'
-                  : 'bg-slate-700/60 border-slate-600/40 text-slate-300 hover:bg-slate-700'
-              )}
-            >
-              <Wrench className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            onClick={() => { triggerHaptic('tap'); setShowTools(!showTools) }}
+            className={clsx(
+              'relative flex items-center justify-center p-2.5 rounded-xl border transition-all min-h-[42px] min-w-[42px]',
+              showTools
+                ? 'bg-amber-600 border-amber-500 text-white shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                : 'bg-slate-700/60 border-slate-600/40 text-slate-300 hover:bg-slate-700'
+            )}
+          >
+            <Wrench className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -552,8 +539,8 @@ export default function ShiftView() {
             </div>
           )}
 
-          {/* DESKTOP TOOLS PANEL */}
-          {showTools && !isMobile && (
+          {/* TOOLS PANEL */}
+          {showTools && (
             <div className="mb-4 glass-card rounded-xl overflow-hidden animate-fade-in">
               <div className="p-3 pb-0">
                 {toolTabBar}
@@ -620,34 +607,6 @@ export default function ShiftView() {
           )}
         </div>
       </div>
-
-      {/* MOBILE FAB */}
-      {isMobile && (
-        <button
-          onClick={() => { triggerHaptic('tap'); setShowTools(true) }}
-          className={clsx(
-            'fixed bottom-6 right-4 z-30 w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg',
-            'bg-amber-600 text-white active:scale-[0.92]',
-            'shadow-[0_4px_20px_rgba(245,158,11,0.3)]'
-          )}
-        >
-          <Wrench className="w-5 h-5" />
-        </button>
-      )}
-
-      {/* MOBILE BOTTOM SHEET TOOLS */}
-      {isMobile && (
-        <BottomSheet
-          isOpen={showTools}
-          onClose={() => setShowTools(false)}
-          title="Tools"
-        >
-          <div className="px-3 pb-2">
-            {toolTabBar}
-          </div>
-          {toolContent}
-        </BottomSheet>
-      )}
 
       {/* Protocol Modal */}
       {activeProtocol && (
