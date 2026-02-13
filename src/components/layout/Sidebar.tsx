@@ -14,6 +14,7 @@ import {
   Lock,
   Unlock,
   Circle,
+  Phone,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useClinicalMode } from '@/context/useClinicalMode'
@@ -71,6 +72,8 @@ const MODE_META: Record<ClinicalMode, { icon: React.ElementType; label: string; 
 
 const NAV_ITEMS = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
+  { path: '/clerking', icon: Stethoscope, label: 'Clerking', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
+  { path: '/on-call', icon: Phone, label: 'On-Call List', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
   { path: '/patients', icon: Users, label: 'Patients', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'patients' as const },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'tasks' as const },
   { path: '/labs', icon: FlaskConical, label: 'Labs', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'criticalLabs' as const },
