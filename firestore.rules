@@ -183,6 +183,25 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // AI Cache — managed exclusively by Cloud Functions (server-side)
+    // Clients cannot read or write directly; only the aiGateway function
+    // interacts with this collection via admin SDK (bypasses rules).
+    match /ai_cache/{cacheId} {
+      allow read, write: if false;
+    }
+
+    // AI Audit — immutable request log (medico-legal compliance)
+    // Admins can read for monitoring; writes are server-only via admin SDK.
+    match /ai_audit/{auditId} {
+      allow read: if hasRole('admin');
+      allow write: if false;
+    }
+
+    // Rate Limits — managed by Cloud Functions
+    match /rateLimits/{limitId} {
+      allow read, write: if false;
+    }
+
     // Deny access to any other collections
     match /{document=**} {
       allow read, write: if false;
