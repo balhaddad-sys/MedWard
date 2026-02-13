@@ -132,13 +132,6 @@
       ]
     },
     {
-      "collectionGroup": "ai_cache",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "ttlAt", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "ai_audit",
       "queryScope": "COLLECTION",
       "fields": [
