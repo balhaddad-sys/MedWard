@@ -28,6 +28,12 @@ export interface OrderSetItem {
   notes?: string;
 }
 
+export interface ClinicalSource {
+  name: string;       // e.g., "NICE CG95"
+  url: string;        // Direct link to guideline
+  publisher: string;  // e.g., "NICE", "UpToDate", "Medscape"
+}
+
 export interface OrderSet {
   id: string;
   name: string;
@@ -37,5 +43,6 @@ export interface OrderSet {
   color: string; // Tailwind color class
   items: OrderSetItem[];
   estimatedDuration: string; // e.g., "2-4 hours"
-  clinicalGuideline?: string; // Link or reference to guideline
+  clinicalGuideline?: string; // Short reference name
+  sources?: ClinicalSource[]; // Verified clinical references
 }
