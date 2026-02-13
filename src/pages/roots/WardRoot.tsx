@@ -5,6 +5,7 @@ import {
   Filter,
   Plus,
   ChevronRight,
+  ChevronDown,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -27,6 +28,30 @@ import { SwipeableRow } from '@/components/ui/SwipeableRow'
 import { ACUITY_LEVELS } from '@/config/constants'
 import type { Patient, Task } from '@/types'
 
+/** Natural sort comparator — handles "Ward 2" < "Ward 10" correctly */
+function naturalCompare(a: string, b: string): number {
+  const ax: (string | number)[] = []
+  const bx: (string | number)[] = []
+  a.replace(/(\d+)|(\D+)/g, (_, n, s) => { ax.push(n ? +n : s); return '' })
+  b.replace(/(\d+)|(\D+)/g, (_, n, s) => { bx.push(n ? +n : s); return '' })
+  for (let i = 0; i < Math.max(ax.length, bx.length); i++) {
+    const ai = ax[i] ?? ''
+    const bi = bx[i] ?? ''
+    if (typeof ai === 'number' && typeof bi === 'number') {
+      if (ai !== bi) return ai - bi
+    } else {
+      const cmp = String(ai).localeCompare(String(bi))
+      if (cmp !== 0) return cmp
+    }
+  }
+  return 0
+}
+
+function getWardLabel(wardId: string): string {
+  if (!wardId || wardId === 'default') return 'Unassigned'
+  return wardId
+}
+
 export default function WardRoot() {
   const patients = usePatientStore((s) => s.patients)
   const criticalValues = usePatientStore((s) => s.criticalValues)
@@ -39,6 +64,7 @@ export default function WardRoot() {
   const [filterAcuity, setFilterAcuity] = useState<number | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [activeSection, setActiveSection] = useState<'patients' | 'tasks' | 'results'>('patients')
+  const [collapsedWards, setCollapsedWards] = useState<Set<string>>(new Set())
 
   // === COMPUTED DATA ===
   const criticalPatients = useMemo(
@@ -54,14 +80,46 @@ export default function WardRoot() {
         (p) =>
           `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
           p.mrn?.toLowerCase().includes(q) ||
-          p.bedNumber?.toLowerCase().includes(q)
+          p.bedNumber?.toLowerCase().includes(q) ||
+          p.wardId?.toLowerCase().includes(q)
       )
     }
     if (filterAcuity !== null) {
       filtered = filtered.filter((p) => p.acuity === filterAcuity)
     }
-    return [...filtered].sort((a, b) => (a.acuity ?? 5) - (b.acuity ?? 5))
+    return filtered
   }, [patients, searchQuery, filterAcuity])
+
+  // Group patients by ward
+  const patientsByWard = useMemo(() => {
+    const groups = new Map<string, Patient[]>()
+    for (const p of filteredPatients) {
+      const key = getWardLabel(p.wardId)
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(p)
+    }
+    // Sort patients within each ward by bed number
+    for (const [, wardPatients] of groups) {
+      wardPatients.sort((a, b) => naturalCompare(a.bedNumber || '', b.bedNumber || ''))
+    }
+    // Sort ward keys naturally, but put "Unassigned" last
+    const sortedEntries = [...groups.entries()].sort((a, b) => {
+      if (a[0] === 'Unassigned') return 1
+      if (b[0] === 'Unassigned') return -1
+      return naturalCompare(a[0], b[0])
+    })
+    return sortedEntries
+  }, [filteredPatients])
+
+  const toggleWard = useCallback((wardName: string) => {
+    triggerHaptic('tap')
+    setCollapsedWards((prev) => {
+      const next = new Set(prev)
+      if (next.has(wardName)) next.delete(wardName)
+      else next.add(wardName)
+      return next
+    })
+  }, [])
 
   const urgentTasks = useMemo(
     () =>
@@ -178,13 +236,13 @@ export default function WardRoot() {
         ))}
       </div>
 
-      {/* Patient List */}
+      {/* Patient List — Grouped by Ward */}
       {activeSection === 'patients' && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ward-muted" />
-              <input type="text" placeholder="Search by name, MRN, or bed..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="input-field pl-9 pr-8 text-sm" />
+              <input type="text" placeholder="Search by name, MRN, bed, or ward..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="input-field pl-9 pr-8 text-sm" />
               {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-ward-muted hover:text-ward-text" aria-label="Clear"><X className="h-3.5 w-3.5" /></button>}
             </div>
             <button onClick={() => { triggerHaptic('tap'); setShowFilters(!showFilters) }} className={clsx('p-2.5 rounded-lg border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch', showFilters ? 'border-primary-300 bg-primary-50 text-primary-600' : 'border-ward-border text-ward-muted hover:bg-gray-50')}>
@@ -208,36 +266,73 @@ export default function WardRoot() {
 
           {filteredPatients.length > 0 && (
             <div className="flex items-center justify-between text-xs text-ward-muted">
-              <span>{filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'}{(searchQuery || filterAcuity !== null) && ' matching filters'}</span>
+              <span>{filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'} in {patientsByWard.length} {patientsByWard.length === 1 ? 'ward' : 'wards'}{(searchQuery || filterAcuity !== null) && ' matching filters'}</span>
               {(searchQuery || filterAcuity !== null) && <button onClick={() => { setSearchQuery(''); setFilterAcuity(null); setShowFilters(false) }} className="text-primary-600 font-medium">Clear</button>}
             </div>
           )}
 
-          <div className="space-y-1">
-            {filteredPatients.length === 0 ? (
-              <div className="text-center py-12 text-ward-muted">
-                {searchQuery || filterAcuity !== null ? (
-                  <>
-                    <Search className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm font-medium">No patients match</p>
-                    <button onClick={() => { setSearchQuery(''); setFilterAcuity(null); setShowFilters(false) }} className="text-xs text-primary-600 font-medium mt-1">Clear filters</button>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                    <p className="text-sm font-medium">No patients on the ward</p>
-                    <button onClick={() => { triggerHaptic('tap'); openModal('patient-form') }} className="inline-flex items-center gap-1.5 px-4 py-2 mt-3 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"><Plus className="h-4 w-4" /> Add Patient</button>
-                  </>
-                )}
-              </div>
-            ) : (
-              filteredPatients.map((patient) => (
-                <WardPatientRow key={patient.id} patient={patient} taskCount={patientTaskCounts[patient.id] || 0} hasCritical={patientsWithCriticals.has(patient.id)}
-                  onTap={() => { triggerHaptic('tap'); navigate(`/patients/${patient.id}`) }}
-                  onEdit={() => handleEditPatient(patient)} onDelete={() => handleDeletePatient(patient.id)} />
-              ))
-            )}
-          </div>
+          {filteredPatients.length === 0 ? (
+            <div className="text-center py-12 text-ward-muted">
+              {searchQuery || filterAcuity !== null ? (
+                <>
+                  <Search className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm font-medium">No patients match</p>
+                  <button onClick={() => { setSearchQuery(''); setFilterAcuity(null); setShowFilters(false) }} className="text-xs text-primary-600 font-medium mt-1">Clear filters</button>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm font-medium">No patients on the ward</p>
+                  <button onClick={() => { triggerHaptic('tap'); openModal('patient-form') }} className="inline-flex items-center gap-1.5 px-4 py-2 mt-3 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"><Plus className="h-4 w-4" /> Add Patient</button>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {patientsByWard.map(([wardName, wardPatients]) => {
+                const isCollapsed = collapsedWards.has(wardName)
+                return (
+                  <div key={wardName} className="border border-ward-border rounded-xl overflow-hidden bg-white">
+                    {/* Ward Header */}
+                    <button
+                      onClick={() => toggleWard(wardName)}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors touch"
+                    >
+                      {isCollapsed ? (
+                        <ChevronRight className="h-4 w-4 text-ward-muted flex-shrink-0" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-ward-muted flex-shrink-0" />
+                      )}
+                      <span className="text-sm font-bold text-ward-text">{wardName}</span>
+                      <span className="text-[10px] font-bold bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">
+                        {wardPatients.length}
+                      </span>
+                      {wardPatients.some((p) => p.acuity <= 2) && (
+                        <AlertTriangle className="h-3.5 w-3.5 text-red-500 ml-auto flex-shrink-0" />
+                      )}
+                    </button>
+
+                    {/* Patient Rows */}
+                    {!isCollapsed && (
+                      <div className="divide-y divide-gray-100">
+                        {wardPatients.map((patient) => (
+                          <WardPatientRow
+                            key={patient.id}
+                            patient={patient}
+                            taskCount={patientTaskCounts[patient.id] || 0}
+                            hasCritical={patientsWithCriticals.has(patient.id)}
+                            onTap={() => { triggerHaptic('tap'); navigate(`/patients/${patient.id}`) }}
+                            onEdit={() => handleEditPatient(patient)}
+                            onDelete={() => handleDeletePatient(patient.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -327,7 +422,7 @@ function WardPatientRow({ patient, taskCount, hasCritical, onTap, onEdit, onDele
 
   return (
     <SwipeableRow rightActions={rightActions}>
-      <button onClick={onTap} className={clsx('w-full flex items-center gap-3 p-3 bg-white border rounded-lg hover:bg-gray-50 transition-all text-left touch', hasCritical ? 'border-red-300 bg-red-50/30' : 'border-ward-border')}>
+      <button onClick={onTap} className={clsx('w-full flex items-center gap-3 p-3 bg-white hover:bg-gray-50 transition-all text-left touch', hasCritical && 'bg-red-50/30')}>
         <div className={clsx('h-2.5 w-2.5 rounded-full flex-shrink-0', acuityColor)} />
         <div className="w-10 text-xs font-mono font-bold text-ward-text flex-shrink-0">{patient.bedNumber || '—'}</div>
         <div className="flex-1 min-w-0">

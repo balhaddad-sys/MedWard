@@ -15,7 +15,7 @@ interface PatientFormProps {
 
 const defaultData: PatientFormData = {
   mrn: '', firstName: '', lastName: '', dateOfBirth: '',
-  gender: 'male', wardId: 'default', bedNumber: '', acuity: 3,
+  gender: 'male', wardId: '', bedNumber: '', acuity: 3,
   primaryDiagnosis: '', diagnoses: [], allergies: [],
   codeStatus: 'full', attendingPhysician: '', team: '',
 }
@@ -140,6 +140,10 @@ export function PatientForm({ initialData, onSubmit, onCancel }: PatientFormProp
             <option value="female">Female</option>
             <option value="other">Other</option>
           </select>
+        </div>
+        <div>
+          <FieldLabel label="Ward" />
+          <input className="input-field" value={data.wardId} onChange={(e) => handleChange('wardId', e.target.value)} placeholder="e.g. Ward 10" />
         </div>
         <div>
           <FieldLabel label="Acuity" />
