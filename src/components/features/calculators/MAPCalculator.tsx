@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Heart } from 'lucide-react'
+import { BloodPressureIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface MAPResult {
@@ -53,7 +53,7 @@ export function MAPCalculator() {
   return (
     <CalculatorShell
       title="Mean Arterial Pressure (MAP)"
-      icon={<Heart className="h-6 w-6" />}
+      icon={<BloodPressureIcon className="h-6 w-6" />}
       iconColor="text-red-400"
       description="Calculate MAP from systolic and diastolic blood pressure"
     >

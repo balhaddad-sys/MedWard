@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Zap } from 'lucide-react'
+import { LungsIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface CURB65Result {
@@ -102,7 +102,7 @@ export function CURB65Calculator() {
   return (
     <CalculatorShell
       title="CURB-65 Score (Pneumonia severity)"
-      icon={<Zap className="h-6 w-6" />}
+      icon={<LungsIcon className="h-6 w-6" />}
       iconColor="text-yellow-400"
       description="5-point community-acquired pneumonia risk stratification"
     >

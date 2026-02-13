@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Heart } from 'lucide-react'
+import { HeartRhythmIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface CHA2DS2VASc_Result {
@@ -196,7 +196,7 @@ export function CHA2DS2VASc() {
   return (
     <CalculatorShell
       title="CHA₂DS₂-VASc Score (Atrial fibrillation stroke risk)"
-      icon={<Heart className="h-6 w-6" />}
+      icon={<HeartRhythmIcon className="h-6 w-6" />}
       iconColor="text-red-400"
       description="Assess anticoagulation need in atrial fibrillation"
     >

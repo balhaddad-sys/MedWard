@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Brain } from 'lucide-react'
+import { BrainIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface GCSResult {
@@ -100,7 +100,7 @@ export function GCSCalculator() {
   return (
     <CalculatorShell
       title="Glasgow Coma Scale (GCS)"
-      icon={<Brain className="h-6 w-6" />}
+      icon={<BrainIcon className="h-6 w-6" />}
       iconColor="text-purple-400"
       description="Assess level of consciousness"
     >

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Droplet } from 'lucide-react'
+import { FlaskIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface CorrectedCalciumResult {
@@ -54,7 +54,7 @@ export function CorrectedCalciumCalculator() {
   return (
     <CalculatorShell
       title="Corrected Serum Calcium"
-      icon={<Droplet className="h-6 w-6" />}
+      icon={<FlaskIcon className="h-6 w-6" />}
       iconColor="text-cyan-400"
       description="Adjust total calcium for albumin levels (Payne formula)"
     >

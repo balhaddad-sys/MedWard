@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Activity } from 'lucide-react'
+import { LightningIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface QTcResult {
@@ -55,7 +55,7 @@ export function QTcCalculator() {
   return (
     <CalculatorShell
       title="Corrected QT Interval (QTc)"
-      icon={<Activity className="h-6 w-6" />}
+      icon={<LightningIcon className="h-6 w-6" />}
       iconColor="text-pink-400"
       description="Calculate QTc using Bazett formula (Bazett's correction)"
     >

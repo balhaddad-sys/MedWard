@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Wind } from 'lucide-react'
+import { BloodClotIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface WellsScoreResult {
@@ -95,7 +95,7 @@ export function WellsScore() {
   return (
     <CalculatorShell
       title="Wells Score (Pulmonary embolism risk)"
-      icon={<Wind className="h-6 w-6" />}
+      icon={<BloodClotIcon className="h-6 w-6" />}
       iconColor="text-blue-400"
       description="Predict probability of pulmonary embolism"
     >

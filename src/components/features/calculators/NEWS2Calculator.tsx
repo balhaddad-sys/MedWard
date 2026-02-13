@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { AlertCircle } from 'lucide-react'
+import { HeartbeatIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface NEWS2Result {
@@ -126,7 +126,7 @@ export function NEWS2Calculator() {
   return (
     <CalculatorShell
       title="NEWS2 Score (National Early Warning Score)"
-      icon={<AlertCircle className="h-6 w-6" />}
+      icon={<HeartbeatIcon className="h-6 w-6" />}
       iconColor="text-orange-400"
       description="Calculate 7-parameter clinical deterioration score"
     >

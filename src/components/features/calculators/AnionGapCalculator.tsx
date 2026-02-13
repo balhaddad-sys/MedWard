@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Beaker } from 'lucide-react'
+import { FlaskIcon } from '@/components/icons/MedicalIcons'
 import { CalculatorShell } from './CalculatorShell'
 
 interface AnionGapResult {
@@ -82,7 +82,7 @@ export function AnionGapCalculator() {
   return (
     <CalculatorShell
       title="Anion Gap Calculator"
-      icon={<Beaker className="h-6 w-6" />}
+      icon={<FlaskIcon className="h-6 w-6" />}
       iconColor="text-emerald-400"
       description="Calculate anion gap from electrolytes (and corrected AG if albumin provided)"
     >
