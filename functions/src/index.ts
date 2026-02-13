@@ -7,4 +7,3 @@ export { generateSBAR } from "./ai/generateSBAR";
 export { clinicalChat } from "./ai/clinicalChat";
 export { generateHandover } from "./ai/generateHandover";
 export { analyzeLabImage } from "./ai/analyzeLabImage";
-export { summarizePatientHistory } from "./ai/summarizePatientHistory";
