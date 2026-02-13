@@ -414,7 +414,7 @@ export default function ClerkingRoot() {
           )}
         </div>
 
-        {/* Overview */}
+        {/* Overview + Plan (combined for easy access) */}
         <div className="card p-4 space-y-4">
           <h2 className="font-semibold text-slate-900">Overview</h2>
           <div>
@@ -428,6 +428,14 @@ export default function ClerkingRoot() {
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Working Diagnosis</label>
             <input type="text" value={clerkingNote.workingDiagnosis || ''} onChange={(e) => update({ workingDiagnosis: e.target.value })} placeholder="e.g., Pneumonia" className="input-field" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Management Plan</label>
+            <textarea value={plan.managementPlan || ''} onChange={(e) => update({ plan: { ...plan, managementPlan: e.target.value } as any })} placeholder="Treatment, medications, interventions..." className="input-field" rows={3} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Disposition</label>
+            <input type="text" value={plan.disposition || ''} onChange={(e) => update({ plan: { ...plan, disposition: e.target.value } as any })} placeholder="Admit / Discharge / Observation..." className="input-field" />
           </div>
         </div>
 
@@ -550,19 +558,6 @@ export default function ClerkingRoot() {
             <AddProblemRow problemList={problemList} update={update} />
           </div>
         </ClerkingSection>
-
-        {/* Plan */}
-        <div className="card p-4 space-y-4">
-          <h2 className="font-semibold text-slate-900">Plan</h2>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Management Plan</label>
-            <textarea value={plan.managementPlan || ''} onChange={(e) => update({ plan: { ...plan, managementPlan: e.target.value } as any })} placeholder="Treatment, medications, interventions..." className="input-field" rows={4} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Disposition</label>
-            <input type="text" value={plan.disposition || ''} onChange={(e) => update({ plan: { ...plan, disposition: e.target.value } as any })} placeholder="Admit / Discharge / Observation..." className="input-field" />
-          </div>
-        </div>
 
         {/* Safety */}
         <div className="card p-4 space-y-4">
