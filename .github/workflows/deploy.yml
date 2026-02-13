@@ -1,0 +1,119 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# CD — Continuous Deployment
+#
+# Runs AFTER the CI workflow succeeds on the main branch.
+# Deploys in order:
+#   1. Firebase Hosting  (frontend SPA)
+#   2. Firestore rules + indexes + Storage rules
+#   3. Cloud Functions   (requires Blaze plan)
+#
+# Secrets required (GitHub → Settings → Secrets):
+#   FIREBASE_SERVICE_ACCOUNT  — JSON service account key
+#   VITE_FIREBASE_*           — Firebase config for frontend build
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Never cancel an in-progress deploy
+
+env:
+  NODE_VERSION: "20"
+  PROJECT_ID: medward-pro
+
+jobs:
+  # Only deploy if CI passed
+  deploy:
+    name: Deploy to Firebase
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    environment:
+      name: production
+      url: https://medward-pro.web.app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # ── Build frontend ────────────────────────────────
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+
+      # ── Build Cloud Functions ─────────────────────────
+      - name: Install Cloud Functions dependencies
+        run: npm ci
+        working-directory: functions
+
+      - name: Build Cloud Functions
+        run: npm run build
+        working-directory: functions
+
+      # ── Write service account key ─────────────────────
+      - name: Write service account key
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa-key.json"
+
+      # ── Deploy Hosting ────────────────────────────────
+      - name: Deploy Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: ${{ env.PROJECT_ID }}
+
+      # ── Deploy Firestore + Storage rules ──────────────
+      - name: Deploy Firestore rules, indexes & Storage rules
+        run: |
+          npx firebase-tools deploy \
+            --only firestore,storage \
+            --project ${{ env.PROJECT_ID }} \
+            --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
+
+      # ── Deploy Cloud Functions ────────────────────────
+      - name: Deploy Cloud Functions
+        run: |
+          npx firebase-tools deploy \
+            --only functions \
+            --project ${{ env.PROJECT_ID }} \
+            --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
+
+      # ── Clean up ──────────────────────────────────────
+      - name: Remove service account key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa-key.json"
+
+  # ── Notify on failure ────────────────────────────────
+  notify-failure:
+    name: CI Failed — Skip Deploy
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Log failure
+        run: echo "::error::CI workflow failed — deployment skipped. Fix CI before merging."
