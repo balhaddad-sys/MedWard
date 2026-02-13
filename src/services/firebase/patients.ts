@@ -193,7 +193,8 @@ export const subscribeToUserPatients = (
   userId: string,
   callback: (patients: Patient[]) => void
 ): Unsubscribe => {
-  const q = query(getPatientsRef(), where('createdBy', '==', userId), orderBy('bedNumber'))
+  // Remove orderBy to avoid requiring composite index - sorting done client-side
+  const q = query(getPatientsRef(), where('createdBy', '==', userId))
   return onSnapshot(q, (snapshot) => {
     const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
