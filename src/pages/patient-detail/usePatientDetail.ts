@@ -12,6 +12,7 @@ import { generateSBARReport, type SBARData } from '@/services/ai/sbarGenerator'
 import { analyzeLabPanel } from '@/services/ai/labAnalysis'
 import { ACUITY_LEVELS } from '@/config/constants'
 import type { Patient, LabPanel, LabAIAnalysis, Task, TaskFormData } from '@/types'
+import type { OrderSetItem } from '@/types/orderSet'
 
 export function usePatientDetail(id: string | undefined) {
   const [patient, setPatient] = useState<Patient | null>(null)
@@ -204,7 +205,7 @@ export function usePatientDetail(id: string | undefined) {
   }
 
   // PHASE 4: Handle order set task creation
-  const handleCreateOrderSetTasks = async (orderSetId: string, items: any[]) => {
+  const handleCreateOrderSetTasks = async (orderSetId: string, items: OrderSetItem[]) => {
     if (!firebaseUser || !patient || !id) return
     const userName = user?.displayName || 'Unknown'
 

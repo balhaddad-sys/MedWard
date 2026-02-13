@@ -329,7 +329,7 @@ export default function ClerkingRoot() {
   // PHASE 3: Calculate completion percentage
   const calculateCompletion = (): number => {
     let completed = 0;
-    let total = 8;
+    const total = 8;
     if (clerkingNote.patientId && clerkingNote.patientId !== 'unassigned') completed++;
     if (clerkingNote.presentingComplaint) completed++;
     if (clerkingNote.workingDiagnosis) completed++;
