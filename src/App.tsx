@@ -20,7 +20,6 @@ const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 const ShiftView = lazy(() => import('@/pages/roots/ShiftView'))
 const ClerkingRoot = lazy(() => import('@/pages/roots/ClerkingRoot'))
-const AcuteRoot = lazy(() => import('@/pages/roots/AcuteRoot'))
 
 import { HIPAADisclaimer } from '@/components/HIPAADisclaimer'
 import { useAuthStore } from '@/stores/authStore'
@@ -220,9 +219,9 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/patients" element={<Dashboard />} />
               <Route path="/patients/:id" element={<Suspense fallback={<PageLoader />}><PatientDetailPage /></Suspense>} />
+              <Route path="/on-call" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
               <Route path="/shift" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
               <Route path="/clerking" element={<Suspense fallback={<PageLoader />}><ClerkingRoot /></Suspense>} />
-              <Route path="/on-call" element={<Suspense fallback={<PageLoader />}><AcuteRoot /></Suspense>} />
               <Route path="/tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
               <Route path="/handover" element={<Suspense fallback={<PageLoader />}><HandoverPage /></Suspense>} />
               <Route path="/ai" element={<Suspense fallback={<PageLoader />}><AIAssistantPage /></Suspense>} />

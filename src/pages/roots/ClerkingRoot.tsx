@@ -36,6 +36,8 @@ import type { ValidationResult } from '@/utils/safetyValidators';
 import { ClerkingProgress } from '@/components/features/clerking/ClerkingProgress';
 import { ClerkingSection } from '@/components/features/clerking/ClerkingSection';
 import { ClerkingQuickSave } from '@/components/features/clerking/ClerkingQuickSave';
+import { ComplaintSelector } from '@/components/features/clerking/ComplaintSelector';
+import { PMHAutocomplete } from '@/components/features/clerking/PMHAutocomplete';
 
 const LOCALSTORAGE_DRAFT_KEY = 'clerking_draft_v3';
 const AUTOSAVE_INTERVAL = 3000;
@@ -57,6 +59,7 @@ export default function ClerkingRoot() {
   // PHASE 3: 60-second clerking state
   const [startTime, setStartTime] = useState<Date>(new Date());
 
+  const [selectedComplaintTemplate, setSelectedComplaintTemplate] = useState<import('@/config/complaintTemplates').ComplaintTemplate | null>(null);
   const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
   const [newPatientData, setNewPatientData] = useState({
     firstName: '',
@@ -422,6 +425,42 @@ export default function ClerkingRoot() {
             <input type="text" value={clerkingNote.location || ''} onChange={(e) => update({ location: e.target.value })} placeholder="ED Bed 12" className="input-field" />
           </div>
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Quick Complaint Template</label>
+            <div className="bg-slate-100 rounded-lg p-2">
+              <ComplaintSelector
+                currentComplaint={selectedComplaintTemplate?.complaint}
+                onSelect={(template) => {
+                  setSelectedComplaintTemplate(template);
+                  if (template.complaint !== 'Custom') {
+                    update({ presentingComplaint: template.complaint });
+                  }
+                }}
+              />
+            </div>
+            {selectedComplaintTemplate && selectedComplaintTemplate.redFlags.length > 0 && (
+              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-xs font-semibold text-red-700 mb-1 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" /> Red Flags
+                </p>
+                <ul className="text-xs text-red-600 space-y-0.5">
+                  {selectedComplaintTemplate.redFlags.map((flag, i) => (
+                    <li key={i}>• {flag}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {selectedComplaintTemplate && selectedComplaintTemplate.promptFields.length > 0 && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs font-semibold text-blue-700 mb-1">History Prompts</p>
+                <ul className="text-xs text-blue-600 space-y-0.5">
+                  {selectedComplaintTemplate.promptFields.map((prompt, i) => (
+                    <li key={i}>• {prompt}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+          <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Presenting Complaint</label>
             <textarea value={clerkingNote.presentingComplaint || ''} onChange={(e) => update({ presentingComplaint: e.target.value })} placeholder="Chief complaint..." className="input-field" rows={2} />
           </div>
@@ -454,7 +493,21 @@ export default function ClerkingRoot() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Past Medical History</label>
-              <textarea value={history.pastMedicalHistory?.join('\n') || ''} onChange={(e) => update({ history: { ...history, pastMedicalHistory: e.target.value.split('\n').filter((s: string) => s.trim()) } })} placeholder="One per line..." className="input-field" rows={3} />
+              <div className="bg-slate-100 rounded-lg p-2">
+                <PMHAutocomplete
+                  selectedConditions={history.pastMedicalHistory || []}
+                  onAdd={(condition) => {
+                    const current = history.pastMedicalHistory || [];
+                    if (!current.includes(condition)) {
+                      update({ history: { ...history, pastMedicalHistory: [...current, condition] } });
+                    }
+                  }}
+                  onRemove={(condition) => {
+                    const current = history.pastMedicalHistory || [];
+                    update({ history: { ...history, pastMedicalHistory: current.filter((c: string) => c !== condition) } });
+                  }}
+                />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Medications</label>

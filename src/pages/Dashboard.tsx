@@ -10,11 +10,11 @@ export function Dashboard() {
   const { mode } = useClinicalMode()
   const navigate = useNavigate()
 
-  // PHASE 2: Route to Shift View if enabled for current mode
+  // Route to On-Call Dashboard if enabled for current mode
   useEffect(() => {
     const modeConfig = MODES[mode]
     if (modeConfig.features.shiftView) {
-      navigate('/shift', { replace: true })
+      navigate('/on-call', { replace: true })
     }
   }, [mode, navigate])
 
