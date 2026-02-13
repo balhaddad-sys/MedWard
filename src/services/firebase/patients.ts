@@ -72,8 +72,29 @@ export const createPatient = async (data: PatientFormData, userId: string): Prom
   console.log('User ID:', userId);
 
   try {
+    // Clean up data: convert empty strings to undefined, keep arrays and numbers as-is
+    const cleanData: Record<string, unknown> = {};
+    Object.entries(data).forEach(([key, value]) => {
+      // Keep arrays (allergies, diagnoses) even if empty
+      if (Array.isArray(value)) {
+        cleanData[key] = value;
+      }
+      // Keep numbers (acuity)
+      else if (typeof value === 'number') {
+        cleanData[key] = value;
+      }
+      // Convert empty strings to undefined (will be omitted by Firestore)
+      else if (typeof value === 'string' && value.trim() === '') {
+        // Skip empty strings - don't add to cleanData
+      }
+      // Keep non-empty strings
+      else if (value !== undefined && value !== null) {
+        cleanData[key] = value;
+      }
+    });
+
     const docRef = await addDoc(getPatientsRef(), {
-      ...data,
+      ...cleanData,
       createdBy: userId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -95,8 +116,22 @@ export const createPatient = async (data: PatientFormData, userId: string): Prom
 }
 
 export const updatePatient = async (id: string, data: Partial<PatientFormData>): Promise<void> => {
+  // Clean up data: convert empty strings to undefined
+  const cleanData: Record<string, unknown> = {};
+  Object.entries(data).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      cleanData[key] = value;
+    } else if (typeof value === 'number') {
+      cleanData[key] = value;
+    } else if (typeof value === 'string' && value.trim() === '') {
+      // Skip empty strings
+    } else if (value !== undefined && value !== null) {
+      cleanData[key] = value;
+    }
+  });
+
   await updateDoc(doc(db, 'patients', id), {
-    ...data,
+    ...cleanData,
     updatedAt: serverTimestamp(),
   })
 }
