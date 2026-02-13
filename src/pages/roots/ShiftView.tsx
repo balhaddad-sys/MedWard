@@ -14,6 +14,8 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { getPatientsByState } from '@/services/firebase/patients';
+import { getOverdueTasks } from '@/services/firebase/tasks';
+import { getCriticalUnreviewedLabs } from '@/services/firebase/labs';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { UnstablePatientCard } from '@/components/features/shift/UnstablePatientCard';
 import { OverdueTaskCard } from '@/components/features/shift/OverdueTaskCard';
@@ -26,8 +28,8 @@ import type { LabPanel } from '@/types';
 export default function ShiftView() {
   const user = useAuthStore((s) => s.user);
   const [unstablePatients, setUnstablePatients] = useState<Patient[]>([]);
-  const [overdueTasks, _setOverdueTasks] = useState<Task[]>([]);
-  const [criticalLabs, _setCriticalLabs] = useState<LabPanel[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
+  const [criticalLabs, setCriticalLabs] = useState<LabPanel[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,13 +50,13 @@ export default function ShiftView() {
       );
       setUnstablePatients(unstable);
 
-      // TODO Phase 0.2: Load overdue tasks
-      // const tasks = await getOverdueTasks(user.id);
-      // setOverdueTasks(tasks);
+      // Load overdue tasks
+      const tasks = await getOverdueTasks(user.id);
+      setOverdueTasks(tasks);
 
-      // TODO Phase 2: Load critical labs
-      // const labs = await getCriticalUnreviewedLabs(user.id);
-      // setCriticalLabs(labs);
+      // Load critical unreviewed labs
+      const labs = await getCriticalUnreviewedLabs(user.id, user.teamId || 'default');
+      setCriticalLabs(labs);
     } catch (error) {
       console.error('Failed to load action items:', error);
     } finally {

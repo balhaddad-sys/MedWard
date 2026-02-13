@@ -6,6 +6,8 @@
  */
 
 import { Clock, User, Check } from 'lucide-react';
+import { acknowledgeTask } from '@/services/firebase/tasks';
+import { useAuthStore } from '@/stores/authStore';
 import type { Task } from '@/types/task';
 
 interface OverdueTaskCardProps {
@@ -14,11 +16,16 @@ interface OverdueTaskCardProps {
 }
 
 export function OverdueTaskCard({ task, onAcknowledge }: OverdueTaskCardProps) {
+  const user = useAuthStore((s) => s.user);
+
   const handleAcknowledge = async () => {
-    // TODO Phase 0.2: Call acknowledgeTask service
-    // await acknowledgeTask(task.id, userId);
-    console.log('Acknowledge task:', task.id);
-    onAcknowledge();
+    if (!user) return;
+    try {
+      await acknowledgeTask(task.id, user.id);
+      onAcknowledge();
+    } catch (error) {
+      console.error('Failed to acknowledge task:', error);
+    }
   };
 
   const priorityConfig = {

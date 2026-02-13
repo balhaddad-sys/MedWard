@@ -18,6 +18,7 @@ const DrugInfoPage = lazy(() => import('@/pages/DrugInfoPage').then(m => ({ defa
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })))
 const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
+const ShiftView = lazy(() => import('@/pages/roots/ShiftView'))
 
 import { HIPAADisclaimer } from '@/components/HIPAADisclaimer'
 import { useAuthStore } from '@/stores/authStore'
@@ -217,6 +218,7 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/patients" element={<Dashboard />} />
               <Route path="/patients/:id" element={<Suspense fallback={<PageLoader />}><PatientDetailPage /></Suspense>} />
+              <Route path="/shift" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
               <Route path="/tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
               <Route path="/handover" element={<Suspense fallback={<PageLoader />}><HandoverPage /></Suspense>} />
               <Route path="/ai" element={<Suspense fallback={<PageLoader />}><AIAssistantPage /></Suspense>} />

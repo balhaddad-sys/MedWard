@@ -127,3 +127,44 @@ export const getCriticalLabs = async (wardId: string): Promise<LabPanel[]> => {
   }
   return criticalLabs
 }
+
+/**
+ * NEW (Phase 2): Get critical unreviewed labs for user's assigned patients
+ * Returns lab panels with critical values that haven't been reviewed
+ */
+export const getCriticalUnreviewedLabs = async (userId: string, teamId: string): Promise<LabPanel[]> => {
+  // Get all patients assigned to this user
+  const patientsQ = query(
+    collection(db, 'patients'),
+    where('teamId', '==', teamId),
+    where('assignedClinicians', 'array-contains', userId)
+  )
+  const patientsSnap = await getDocs(patientsQ)
+  const criticalUnreviewedLabs: LabPanel[] = []
+
+  // For each patient, get unreviewed critical labs
+  for (const patDoc of patientsSnap.docs) {
+    const labsQ = query(
+      collection(db, 'patients', patDoc.id, 'labs'),
+      where('status', '==', 'resulted'), // Resulted but not reviewed
+      orderBy('resultedAt', 'desc'),
+      limit(5) // Most recent 5 labs per patient
+    )
+    const labsSnap = await getDocs(labsQ)
+
+    for (const labDoc of labsSnap.docs) {
+      const lab = safeLabPanel(labDoc.id, { ...labDoc.data(), patientId: patDoc.id })
+
+      // Check if lab has critical values AND is not reviewed
+      const hasCritical = (lab.values ?? []).some(
+        (v) => v.flag === 'critical_low' || v.flag === 'critical_high'
+      )
+
+      if (hasCritical && !lab.reviewedAt) {
+        criticalUnreviewedLabs.push(lab)
+      }
+    }
+  }
+
+  return criticalUnreviewedLabs
+}
