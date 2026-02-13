@@ -183,12 +183,12 @@ export function validateClerkingNote(note: Partial<ClerkingNote>): ValidationRes
   }
 
   // BLOCKER: Plan must be documented
-  if (!note.plan || !note.plan.tasks || note.plan.tasks.length === 0) {
+  if (!note.plan?.managementPlan || note.plan.managementPlan.trim() === '') {
     blockers.push({
       level: 'blocker',
       field: 'plan',
-      message: 'Management plan is required (at least one task)',
-      suggestedFix: 'Document the management plan with tasks',
+      message: 'Management plan is required',
+      suggestedFix: 'Document the management plan (treatment, medications, interventions)',
     });
   }
 

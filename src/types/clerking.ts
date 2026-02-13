@@ -214,6 +214,8 @@ export interface ConsultRequest {
 }
 
 export interface PlanData {
+  managementPlan: string;
+  disposition: string;
   monitoring: MonitoringPlan;
   fluids: FluidPlan;
   medications: PlanItem[];
