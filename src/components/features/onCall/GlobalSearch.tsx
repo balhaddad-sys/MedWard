@@ -58,15 +58,15 @@ export function GlobalSearch({
     setIsOpen(false)
   }, [patients, onSelectPatient, onSelectCalculator, onSelectProtocol, onSelectDrug])
 
-  // Handle search with debounce
-  useEffect(() => {
+  // Handle query change with debounced search
+  const handleQueryChange = useCallback((newQuery: string) => {
+    setQuery(newQuery)
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
     }
-
-    if (query.length >= 2) {
+    if (newQuery.length >= 2) {
       debounceRef.current = setTimeout(() => {
-        const searchResults = search(fuse, query, 10)
+        const searchResults = search(fuse, newQuery, 10)
         setResults(searchResults)
         setIsOpen(true)
         setSelectedIndex(0)
@@ -75,7 +75,7 @@ export function GlobalSearch({
       setResults([])
       setIsOpen(false)
     }
-  }, [query, fuse])
+  }, [fuse])
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -191,16 +191,12 @@ export function GlobalSearch({
               type="text"
               placeholder="Search patients, protocols, tools... (Cmd+K)"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => handleQueryChange(e.target.value)}
               className="flex-1 bg-transparent outline-none text-slate-100 placeholder-slate-400 text-sm"
             />
             {query && (
               <button
-                onClick={() => {
-                  setQuery('')
-                  setResults([])
-                  setIsOpen(false)
-                }}
+                onClick={() => handleQueryChange('')}
                 className="ml-2 text-slate-400 hover:text-slate-200"
               >
                 <X className="w-4 h-4" />
