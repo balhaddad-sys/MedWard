@@ -14,14 +14,6 @@
  *           semantic cache and goes straight to Claude).
  */
 
-import { defineString } from "firebase-functions/params";
-
-// GCP project ID — auto-detected in Cloud Functions, configurable for local dev
-const gcpProject = defineString("GCP_PROJECT", {
-  default: "",
-  description: "GCP project ID for Vertex AI API calls",
-});
-
 const EMBEDDING_MODEL = "text-embedding-004";
 const EMBEDDING_DIMENSION = 768;
 const VERTEX_API_BASE = "https://us-central1-aiplatform.googleapis.com/v1";
@@ -49,7 +41,12 @@ export async function embedText(text: string): Promise<number[] | null> {
     const tokenData = await tokenRes.json();
     const accessToken: string = tokenData.access_token;
 
-    const projectId = gcpProject.value() || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+    // GCLOUD_PROJECT is auto-set by the Cloud Functions runtime.
+    // FIREBASE_CONFIG (JSON) also contains projectId as a fallback.
+    const projectId =
+      process.env.GCLOUD_PROJECT ||
+      process.env.GCP_PROJECT ||
+      (process.env.FIREBASE_CONFIG ? JSON.parse(process.env.FIREBASE_CONFIG).projectId : "");
     if (!projectId) {
       console.warn("embedText: no GCP project ID configured — skipping semantic cache");
       return null;
