@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Search, User, Calculator, Shield, Pill, X } from 'lucide-react'
+import { Search, Pill, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { Patient } from '@/types'
 import {
@@ -7,6 +7,7 @@ import {
   search,
   type SearchResult,
 } from '@/services/SearchService'
+import { BedPatientIcon, StethoscopeIcon, SyringeIcon } from '@/components/icons/MedicalIcons'
 
 interface GlobalSearchProps {
   patients: Patient[]
@@ -16,10 +17,6 @@ interface GlobalSearchProps {
   onSelectDrug: (drugName: string) => void
 }
 
-/**
- * Global search bar component with results dropdown
- * Supports fuzzy search across patients, calculators, protocols, and drugs
- */
 export function GlobalSearch({
   patients,
   onSelectPatient,
@@ -35,7 +32,6 @@ export function GlobalSearch({
   const dropdownRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  // Build search index from patients
   const fuse = buildUnifiedSearchIndex(patients)
 
   const handleSelectResult = useCallback((result: SearchResult) => {
@@ -58,7 +54,6 @@ export function GlobalSearch({
     setIsOpen(false)
   }, [patients, onSelectPatient, onSelectCalculator, onSelectProtocol, onSelectDrug])
 
-  // Handle query change with debounced search
   const handleQueryChange = useCallback((newQuery: string) => {
     setQuery(newQuery)
     if (debounceRef.current) {
@@ -77,16 +72,13 @@ export function GlobalSearch({
     }
   }, [fuse])
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl+K to focus
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         searchInputRef.current?.focus()
       }
 
-      // Navigation in dropdown
       if (!isOpen) return
 
       switch (e.key) {
@@ -117,7 +109,6 @@ export function GlobalSearch({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, results, selectedIndex, handleSelectResult])
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -134,16 +125,15 @@ export function GlobalSearch({
   }, [])
 
   const getTypeIcon = (type: SearchResult['type']) => {
-    const iconProps = 'w-4 h-4'
     switch (type) {
       case 'patient':
-        return <User className={iconProps} />
+        return <BedPatientIcon className="w-4 h-4" />
       case 'calculator':
-        return <Calculator className={iconProps} />
+        return <StethoscopeIcon className="w-4 h-4" />
       case 'protocol':
-        return <Shield className={iconProps} />
+        return <SyringeIcon className="w-4 h-4" />
       case 'drug':
-        return <Pill className={iconProps} />
+        return <Pill className="w-4 h-4" />
     }
   }
 
@@ -160,7 +150,6 @@ export function GlobalSearch({
     }
   }
 
-  // Group results by type
   const groupedResults = results.reduce(
     (acc, result) => {
       if (!acc[result.type]) {
@@ -180,16 +169,16 @@ export function GlobalSearch({
   ]
 
   return (
-    <div className="sticky top-0 z-50 px-4 py-3 bg-slate-800 border-b border-slate-700">
-      <div className="max-w-6xl mx-auto">
+    <div className="relative">
+      <div>
         <div className="relative">
           {/* Search input */}
-          <div className="flex items-center bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+          <div className="flex items-center bg-slate-800/60 border border-slate-600/50 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-amber-500/50 focus-within:ring-1 focus-within:ring-amber-500/30 focus-within:shadow-[0_0_12px_rgba(245,158,11,0.1)] transition-all">
             <Search className="w-5 h-5 text-slate-400 mr-2 flex-shrink-0" />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search patients, protocols, tools... (Cmd+K)"
+              placeholder="Search patients, protocols, tools..."
               value={query}
               onChange={(e) => handleQueryChange(e.target.value)}
               className="flex-1 bg-transparent outline-none text-slate-100 placeholder-slate-400 text-sm"
@@ -208,11 +197,11 @@ export function GlobalSearch({
           {isOpen && (
             <div
               ref={dropdownRef}
-              className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-lg max-h-96 overflow-y-auto"
+              className="absolute top-full left-0 right-0 mt-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700/60 rounded-xl shadow-2xl max-h-96 overflow-y-auto z-50"
             >
               {results.length === 0 ? (
                 <div className="px-4 py-8 text-center text-slate-400 text-sm">
-                  No results found for "{query}"
+                  No results found for &quot;{query}&quot;
                 </div>
               ) : (
                 <div>
@@ -229,12 +218,10 @@ export function GlobalSearch({
 
                     return (
                       <div key={type}>
-                        {/* Type header */}
-                        <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase bg-slate-700/50 sticky top-0">
+                        <div className="px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-800/60 sticky top-0 backdrop-blur-sm">
                           {typeLabels[type]}
                         </div>
 
-                        {/* Type results */}
                         {typeResults.map((result) => {
                           const resultIndex =
                             results.findIndex((r) => r.id === result.id)
@@ -244,14 +231,13 @@ export function GlobalSearch({
                               key={result.id}
                               onClick={() => handleSelectResult(result)}
                               className={clsx(
-                                'w-full px-4 py-3 text-left border-b border-slate-700 last:border-b-0 transition-colors',
+                                'w-full px-4 py-3 text-left border-b border-slate-700/40 last:border-b-0 transition-colors',
                                 resultIndex === selectedIndex
-                                  ? 'bg-blue-900/50'
-                                  : 'hover:bg-slate-700/50'
+                                  ? 'bg-amber-500/10'
+                                  : 'hover:bg-slate-800/60'
                               )}
                             >
                               <div className="flex items-start gap-3">
-                                {/* Icon */}
                                 <div
                                   className={clsx(
                                     'flex-shrink-0 mt-1',
@@ -261,7 +247,6 @@ export function GlobalSearch({
                                   {getTypeIcon(result.type)}
                                 </div>
 
-                                {/* Content */}
                                 <div className="flex-1 min-w-0">
                                   <div className="text-sm font-medium text-slate-100 truncate">
                                     {result.name}
@@ -272,13 +257,12 @@ export function GlobalSearch({
                                     </div>
                                   )}
                                   {result.category && (
-                                    <div className="inline-block mt-1 px-2 py-1 bg-slate-700 rounded text-xs text-slate-300">
+                                    <div className="inline-block mt-1 px-2 py-0.5 bg-slate-700/50 rounded-full text-[10px] text-slate-300">
                                       {result.category}
                                     </div>
                                   )}
                                 </div>
 
-                                {/* MRN and bed for patients */}
                                 {result.type === 'patient' && (
                                   <div className="flex-shrink-0 text-right">
                                     {result.mrn && (
@@ -306,10 +290,9 @@ export function GlobalSearch({
           )}
         </div>
 
-        {/* Keyboard hint */}
         {!query && !isOpen && (
-          <div className="mt-2 text-xs text-slate-500 text-right">
-            Press Cmd+K to search
+          <div className="mt-1.5 text-[10px] text-slate-500 text-right hidden sm:block">
+            Cmd+K to search
           </div>
         )}
       </div>

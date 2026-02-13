@@ -9,8 +9,8 @@ interface EscalationLevel {
   label: string
   description: string
   colorBorder: string
-  colorBg: string
   colorText: string
+  gradient: string
 }
 
 interface EscalationPanelProps {
@@ -23,27 +23,27 @@ const ESCALATION_LEVELS: EscalationLevel[] = [
     icon: Phone,
     label: 'Call Senior',
     description: 'Request senior review',
-    colorBorder: 'border-amber-500/50',
-    colorBg: 'bg-amber-600/20',
+    colorBorder: 'border-amber-500/40',
     colorText: 'text-amber-300',
+    gradient: 'linear-gradient(135deg, rgba(120,85,15,0.2) 0%, rgba(50,40,10,0.25) 100%)',
   },
   {
     id: 'icu',
     icon: Siren,
     label: 'ICU / Outreach',
     description: 'ICU outreach or step-up',
-    colorBorder: 'border-orange-500/50',
-    colorBg: 'bg-orange-600/20',
+    colorBorder: 'border-orange-500/40',
     colorText: 'text-orange-300',
+    gradient: 'linear-gradient(135deg, rgba(124,45,18,0.25) 0%, rgba(50,25,10,0.3) 100%)',
   },
   {
     id: 'met',
     icon: AlertTriangle,
     label: 'MET / Code Blue',
     description: 'Medical emergency team',
-    colorBorder: 'border-red-500/50',
-    colorBg: 'bg-red-600/20',
+    colorBorder: 'border-red-500/40',
     colorText: 'text-red-300',
+    gradient: 'linear-gradient(135deg, rgba(127,29,29,0.3) 0%, rgba(60,20,20,0.4) 100%)',
   },
 ]
 
@@ -55,18 +55,15 @@ export function EscalationPanel({ onEscalate }: EscalationPanelProps) {
     triggerHaptic('tap')
 
     if (confirming === level) {
-      // Second tap - execute
       triggerHaptic('escalation')
       onEscalate?.(level)
       setConfirming(null)
       if (confirmTimeout) clearTimeout(confirmTimeout)
       setConfirmTimeout(null)
     } else {
-      // First tap - show confirmation
       setConfirming(level)
       if (confirmTimeout) clearTimeout(confirmTimeout)
 
-      // Auto-reset after 3 seconds
       const timeout = setTimeout(() => {
         setConfirming(null)
         setConfirmTimeout(null)
@@ -76,7 +73,7 @@ export function EscalationPanel({ onEscalate }: EscalationPanelProps) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {ESCALATION_LEVELS.map((escalation) => {
         const Icon = escalation.icon
         const isConfirming = confirming === escalation.id
@@ -86,8 +83,7 @@ export function EscalationPanel({ onEscalate }: EscalationPanelProps) {
             key={escalation.id}
             onClick={() => handleEscalateClick(escalation.id)}
             className={clsx(
-              'w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all',
-              'min-h-[56px]',
+              'w-full flex items-center gap-3.5 px-4 py-4 rounded-xl border transition-all min-h-[64px]',
               isConfirming
                 ? clsx(
                     'ring-2 ring-offset-2 ring-offset-slate-900',
@@ -97,28 +93,34 @@ export function EscalationPanel({ onEscalate }: EscalationPanelProps) {
                   )
                 : '',
               escalation.colorBorder,
-              escalation.colorBg
             )}
+            style={{ background: escalation.gradient }}
           >
-            <div className={clsx('flex-shrink-0', escalation.colorText)}>
+            <div className={clsx(
+              'flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center',
+              escalation.id === 'senior' && 'bg-amber-500/15',
+              escalation.id === 'icu' && 'bg-orange-500/15',
+              escalation.id === 'met' && 'bg-red-500/15',
+              escalation.colorText,
+            )}>
               {isConfirming ? (
-                <Check className="h-6 w-6" />
+                <Check className="h-5 w-5" />
               ) : (
-                <Icon className="h-6 w-6" />
+                <Icon className={clsx('h-5 w-5', escalation.id === 'met' && 'h-6 w-6')} />
               )}
             </div>
 
             <div className="flex-1 text-left">
-              <p className={clsx('font-semibold text-sm', escalation.colorText)}>
+              <p className={clsx('font-bold text-sm', escalation.colorText)}>
                 {isConfirming ? 'Confirm?' : escalation.label}
               </p>
-              <p className={clsx('text-xs', escalation.colorText, 'opacity-75')}>
+              <p className={clsx('text-xs mt-0.5', escalation.colorText, 'opacity-60')}>
                 {escalation.description}
               </p>
             </div>
 
             {isConfirming && (
-              <div className={clsx('text-xs font-bold', escalation.colorText)}>
+              <div className={clsx('text-xs font-bold tracking-wider', escalation.colorText)}>
                 TAP AGAIN
               </div>
             )}

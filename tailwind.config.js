@@ -44,6 +44,8 @@ export default {
         'slide-up': 'slideUp 0.3s ease-out',
         'fade-in': 'fadeIn 0.2s ease-out',
         'shimmer': 'shimmer 1.5s infinite',
+        'slide-up-sheet': 'slideUpSheet 0.35s cubic-bezier(0.32, 0.72, 0, 1)',
+        'slide-down-sheet': 'slideDownSheet 0.25s ease-in forwards',
       },
       keyframes: {
         slideUp: {
@@ -57,6 +59,14 @@ export default {
         shimmer: {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(400%)' },
+        },
+        slideUpSheet: {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        slideDownSheet: {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(100%)' },
         },
       },
     },

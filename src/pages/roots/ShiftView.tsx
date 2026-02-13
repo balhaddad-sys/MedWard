@@ -1,25 +1,19 @@
 /**
- * On-Call Dashboard (Hospital-Grade)
+ * On-Call Dashboard (Premium Redesign)
  *
- * Replaces the basic Shift View with a full-featured on-call workspace.
- * Features: fuzzy search, calculators, emergency protocols, timers,
- * patient workspace with expandable cards, handover generation.
+ * Hospital-grade on-call workspace with glassmorphism design,
+ * custom SVG medical icons, mobile-first bottom sheet for tools,
+ * and premium visual polish throughout.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
-  AlertTriangle,
-  Calculator,
-  Timer,
-  PhoneCall,
-  Shield,
   ChevronRight,
   ChevronDown,
   Clipboard,
   Plus,
-  Siren,
   Wrench,
 } from 'lucide-react'
 import { usePatientStore } from '@/stores/patientStore'
@@ -45,6 +39,17 @@ import { CalculatorShell } from '@/components/features/calculators/CalculatorShe
 import { CALCULATORS } from '@/components/features/calculators/calculatorRegistry'
 import { ORDER_SETS } from '@/config/orderSets'
 import type { OrderSet } from '@/types/orderSet'
+import { BottomSheet } from '@/components/ui/BottomSheet'
+import {
+  StethoscopeIcon,
+  SyringeIcon,
+  StopwatchIcon,
+  EmergencySignIcon,
+  MedicalCrossIcon,
+  BedPatientIcon,
+  FlaskIcon,
+} from '@/components/icons/MedicalIcons'
+import { CALCULATOR_ICON_MAP } from '@/components/icons/calculatorIconMap'
 
 // Calculator components
 import { MAPCalculator } from '@/components/features/calculators/MAPCalculator'
@@ -95,6 +100,13 @@ const CALCULATOR_COMPONENTS: Record<string, React.ComponentType> = {
 
 type ToolTab = 'calculators' | 'protocols' | 'timers' | 'escalation'
 
+const TOOL_TABS: { id: ToolTab; label: string; Icon: React.FC<{ className?: string }> }[] = [
+  { id: 'calculators', label: 'Calc', Icon: StethoscopeIcon },
+  { id: 'protocols', label: 'Protocols', Icon: SyringeIcon },
+  { id: 'timers', label: 'Timers', Icon: StopwatchIcon },
+  { id: 'escalation', label: 'Escalate', Icon: EmergencySignIcon },
+]
+
 export default function ShiftView() {
   const patients = usePatientStore((s) => s.patients)
   const criticalValues = usePatientStore((s) => s.criticalValues)
@@ -120,6 +132,15 @@ export default function ShiftView() {
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null)
   const [activeProtocol, setActiveProtocol] = useState<OrderSet | null>(null)
   const [showHandover, setShowHandover] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // Persist workspace
   useEffect(() => { saveWorkspace(workspacePatientIds) }, [workspacePatientIds])
@@ -305,37 +326,139 @@ export default function ShiftView() {
   const ActiveCalcComponent = activeCalcId ? CALCULATOR_COMPONENTS[activeCalcId] : null
   const activeCalcMeta = activeCalcId ? CALCULATORS.find((c) => c.id === activeCalcId) : null
 
+  // Tool tab bar (shared between desktop panel and bottom sheet)
+  const toolTabBar = (
+    <div className="flex gap-1 p-1.5 bg-slate-800/60 rounded-xl">
+      {TOOL_TABS.map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => { triggerHaptic('tap'); setActiveToolTab(tab.id) }}
+          className={clsx(
+            'flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all',
+            activeToolTab === tab.id
+              ? 'bg-amber-500/20 text-amber-400 shadow-sm'
+              : 'text-slate-400 hover:text-white hover:bg-slate-700/40'
+          )}
+        >
+          <tab.Icon className="h-3.5 w-3.5" />
+          <span className="hidden xs:inline">{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  )
+
+  // Tool content (shared between desktop panel and bottom sheet)
+  const toolContent = (
+    <div className="p-3 sm:p-4">
+      {/* Calculators Grid */}
+      {activeToolTab === 'calculators' && (
+        <div>
+          {activeCalcId && ActiveCalcComponent && activeCalcMeta ? (
+            <div>
+              <button
+                onClick={() => setActiveCalcId(null)}
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-white mb-3 transition-colors"
+              >
+                <ChevronDown className="w-3 h-3 rotate-90" /> Back to calculators
+              </button>
+              <CalculatorShell
+                title={activeCalcMeta.name}
+                icon={(() => {
+                  const IconComp = CALCULATOR_ICON_MAP[activeCalcId]
+                  return IconComp ? <IconComp className={clsx('w-5 h-5', activeCalcMeta.color)} /> : <StethoscopeIcon className={clsx('w-5 h-5', activeCalcMeta.color)} />
+                })()}
+              >
+                <ActiveCalcComponent />
+              </CalculatorShell>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+              {CALCULATORS.map((calc) => {
+                const IconComp = CALCULATOR_ICON_MAP[calc.id]
+                return (
+                  <button
+                    key={calc.id}
+                    onClick={() => { triggerHaptic('tap'); setActiveCalcId(calc.id) }}
+                    className="group flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-900/40 border border-slate-700/50 hover:border-slate-500/60 hover:bg-slate-800/60 transition-all text-center"
+                  >
+                    {IconComp ? (
+                      <IconComp className={clsx('w-7 h-7 transition-transform group-hover:scale-110', calc.color)} />
+                    ) : (
+                      <StethoscopeIcon className={clsx('w-7 h-7 transition-transform group-hover:scale-110', calc.color)} />
+                    )}
+                    <span className={clsx('text-xs font-bold', calc.color)}>{calc.shortName}</span>
+                    <span className="text-[10px] text-slate-500 leading-tight">{calc.name}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Protocols */}
+      {activeToolTab === 'protocols' && (
+        <ProtocolGrid onSelectProtocol={handleSelectProtocol} />
+      )}
+
+      {/* Timers */}
+      {activeToolTab === 'timers' && <TimerPanel />}
+
+      {/* Escalation */}
+      {activeToolTab === 'escalation' && <EscalationPanel />}
+    </div>
+  )
+
   return (
     <div className="animate-fade-in flex flex-col h-full -mx-3 -mt-3 sm:-mx-4 sm:-mt-4 md:-mx-6 md:-mt-6">
-      {/* STICKY HEADER: Search + Stats */}
-      <div className="sticky top-0 z-20 bg-slate-800/95 backdrop-blur-sm border-b border-slate-700/80">
+      {/* STICKY HEADER */}
+      <div
+        className="sticky top-0 z-20 border-b border-slate-700/40"
+        style={{
+          background: 'rgba(15, 23, 42, 0.8)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          boxShadow: '0 1px 20px -4px rgba(0,0,0,0.4)',
+        }}
+      >
         {/* Stats strip */}
         {workspacePatients.length > 0 && (
-          <div className="flex items-center gap-3 px-3 pt-2.5 pb-1 max-w-4xl mx-auto">
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-              <span className="font-bold text-white text-xs">{workspacePatients.length}</span> active
+          <div className="flex items-center gap-2 px-3 pt-2.5 pb-1 max-w-4xl mx-auto overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-700/60 border border-slate-600/40 flex-shrink-0">
+              <BedPatientIcon className="w-3.5 h-3.5 text-blue-400" />
+              <span className="font-bold text-white text-xs">{workspacePatients.length}</span>
+              <span className="text-[10px] text-slate-400">active</span>
             </div>
+
             {critCount > 0 && (
-              <div className="flex items-center gap-1 text-[10px] text-red-400">
-                <AlertTriangle className="w-3 h-3" /><span className="font-bold">{critCount}</span> critical
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 flex-shrink-0">
+                <EmergencySignIcon className="w-3.5 h-3.5 text-red-400" />
+                <span className="font-bold text-red-400 text-xs">{critCount}</span>
+                <span className="text-[10px] text-red-400/60">critical</span>
               </div>
             )}
+
             {totalPendingTasks > 0 && (
-              <div className="flex items-center gap-1 text-[10px] text-amber-400">
-                <span className="font-bold">{totalPendingTasks}</span> tasks
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 flex-shrink-0">
+                <span className="font-bold text-amber-400 text-xs">{totalPendingTasks}</span>
+                <span className="text-[10px] text-amber-400/60">tasks</span>
               </div>
             )}
+
             {totalCriticalLabs > 0 && (
-              <div className="flex items-center gap-1 text-[10px] text-red-400 animate-pulse">
-                <AlertTriangle className="w-3 h-3" /><span className="font-bold">{totalCriticalLabs}</span> crit labs
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 animate-pulse flex-shrink-0">
+                <FlaskIcon className="w-3.5 h-3.5 text-red-400" />
+                <span className="font-bold text-red-400 text-xs">{totalCriticalLabs}</span>
+                <span className="text-[10px] text-red-400/60">crit labs</span>
               </div>
             )}
-            <div className="ml-auto flex items-center gap-1.5">
+
+            <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
               <button
                 onClick={() => { triggerHaptic('tap'); setShowHandover(!showHandover) }}
                 className={clsx(
-                  'flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors min-h-[40px]',
-                  showHandover ? 'bg-blue-600 text-white' : 'bg-slate-700/60 text-slate-400 hover:text-white'
+                  'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all min-h-[40px]',
+                  showHandover ? 'bg-blue-600 text-white' : 'bg-slate-700/60 border border-slate-600/40 text-slate-400 hover:text-white'
                 )}
               >
                 <Clipboard className="w-3.5 h-3.5" /> Handover
@@ -355,21 +478,27 @@ export default function ShiftView() {
               onSelectDrug={() => {}}
             />
           </div>
-          <button
-            onClick={() => { triggerHaptic('tap'); setShowTools(!showTools) }}
-            className={clsx(
-              'relative flex items-center justify-center p-2.5 rounded-lg border transition-colors min-h-[42px] min-w-[42px]',
-              showTools ? 'bg-amber-600 border-amber-500 text-white' : 'bg-slate-700/60 border-slate-600 text-slate-300 hover:bg-slate-700'
-            )}
-          >
-            <Wrench className="w-4 h-4" />
-          </button>
+
+          {/* Desktop tools toggle */}
+          {!isMobile && (
+            <button
+              onClick={() => { triggerHaptic('tap'); setShowTools(!showTools) }}
+              className={clsx(
+                'relative flex items-center justify-center p-2.5 rounded-xl border transition-all min-h-[42px] min-w-[42px]',
+                showTools
+                  ? 'bg-amber-600 border-amber-500 text-white shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                  : 'bg-slate-700/60 border-slate-600/40 text-slate-300 hover:bg-slate-700'
+              )}
+            >
+              <Wrench className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* MAIN CONTENT */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-3 py-3 sm:px-4 sm:py-4">
+        <div className="max-w-4xl mx-auto px-2 py-3 sm:px-4 sm:py-4">
 
           {/* Handover Panel */}
           {showHandover && workspacePatients.length > 0 && (
@@ -386,9 +515,12 @@ export default function ShiftView() {
 
           {/* Critical Alerts Banner */}
           {allCriticalItems.length > 0 && !showHandover && (
-            <div className="mb-3 bg-red-900/30 rounded-xl border border-red-800/50 p-3 animate-fade-in">
+            <div
+              className="mb-3 rounded-xl border border-red-800/40 p-3 animate-fade-in overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, rgba(127,29,29,0.4) 0%, rgba(30,20,40,0.6) 100%)' }}
+            >
               <h3 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <AlertTriangle className="w-3.5 h-3.5" />
+                <EmergencySignIcon className="w-3.5 h-3.5" />
                 Action Required ({allCriticalItems.length})
               </h3>
               <div className="space-y-1.5">
@@ -400,7 +532,7 @@ export default function ShiftView() {
                       setExpandedCards((prev) => new Set(prev).add(item.patientId))
                       document.getElementById(`patient-${item.patientId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                     }}
-                    className="w-full flex items-center gap-2 text-xs p-2 rounded-lg bg-slate-900/40 hover:bg-slate-800/60 transition-colors text-left"
+                    className="w-full flex items-center gap-2 text-xs p-2 rounded-lg bg-slate-900/50 backdrop-blur-sm border border-slate-700/30 hover:bg-slate-800/60 transition-colors text-left"
                   >
                     <span className={clsx(
                       'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0',
@@ -420,97 +552,51 @@ export default function ShiftView() {
             </div>
           )}
 
-          {/* TOOLS PANEL */}
-          {showTools && (
-            <div className="mb-4 bg-slate-800/60 rounded-xl border border-slate-700 overflow-hidden animate-fade-in">
-              {/* Tool tabs */}
-              <div className="flex border-b border-slate-700">
-                {([
-                  { id: 'calculators' as ToolTab, label: 'Calculators', Icon: Calculator },
-                  { id: 'protocols' as ToolTab, label: 'Protocols', Icon: Shield },
-                  { id: 'timers' as ToolTab, label: 'Timers', Icon: Timer },
-                  { id: 'escalation' as ToolTab, label: 'Escalate', Icon: PhoneCall },
-                ]).map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => { triggerHaptic('tap'); setActiveToolTab(tab.id) }}
-                    className={clsx(
-                      'flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 text-xs font-bold uppercase tracking-wider transition-colors',
-                      activeToolTab === tab.id
-                        ? 'bg-amber-500/20 text-amber-400 border-b-2 border-amber-500'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-700/40'
-                    )}
-                  >
-                    <tab.Icon className="h-3.5 w-3.5" />
-                    <span className="hidden xs:inline">{tab.label}</span>
-                  </button>
-                ))}
+          {/* DESKTOP TOOLS PANEL */}
+          {showTools && !isMobile && (
+            <div className="mb-4 glass-card rounded-xl overflow-hidden animate-fade-in">
+              <div className="p-3 pb-0">
+                {toolTabBar}
               </div>
-
-              <div className="p-3 sm:p-4">
-                {/* Calculators Grid */}
-                {activeToolTab === 'calculators' && (
-                  <div>
-                    {activeCalcId && ActiveCalcComponent && activeCalcMeta ? (
-                      <div>
-                        <button
-                          onClick={() => setActiveCalcId(null)}
-                          className="flex items-center gap-1 text-xs text-slate-400 hover:text-white mb-3 transition-colors"
-                        >
-                          <ChevronDown className="w-3 h-3 rotate-90" /> Back to calculators
-                        </button>
-                        <CalculatorShell title={activeCalcMeta.name} icon={<Calculator className={clsx('w-4 h-4', activeCalcMeta.color)} />}>
-                          <ActiveCalcComponent />
-                        </CalculatorShell>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
-                        {CALCULATORS.map((calc) => (
-                          <button
-                            key={calc.id}
-                            onClick={() => { triggerHaptic('tap'); setActiveCalcId(calc.id) }}
-                            className="flex flex-col items-center gap-1.5 p-3 rounded-lg bg-slate-900/40 border border-slate-700 hover:border-slate-500 hover:bg-slate-800/60 transition-colors text-center"
-                          >
-                            <span className={clsx('text-lg font-bold', calc.color)}>{calc.shortName}</span>
-                            <span className="text-[10px] text-slate-500 leading-tight">{calc.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Protocols */}
-                {activeToolTab === 'protocols' && (
-                  <ProtocolGrid onSelectProtocol={handleSelectProtocol} />
-                )}
-
-                {/* Timers */}
-                {activeToolTab === 'timers' && <TimerPanel />}
-
-                {/* Escalation */}
-                {activeToolTab === 'escalation' && <EscalationPanel />}
-              </div>
+              {toolContent}
             </div>
           )}
 
           {/* PATIENT WORKSPACE */}
           {workspacePatients.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 sm:py-24 text-slate-600 select-none">
-              <Siren className="w-14 h-14 sm:w-16 sm:h-16 mb-4 opacity-20" />
-              <h2 className="text-lg sm:text-xl font-bold uppercase tracking-widest opacity-40">On-Call Console</h2>
-              <p className="text-sm opacity-30 mt-2 text-center px-4 max-w-md leading-relaxed">
+            <div className="flex flex-col items-center justify-center py-16 sm:py-24 select-none">
+              {/* Circular icon container */}
+              <div className="relative w-20 h-20 rounded-full bg-slate-800/40 border border-slate-700/40 flex items-center justify-center mb-5">
+                <StethoscopeIcon className="w-10 h-10 text-slate-600" />
+                <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-slate-900 border border-slate-700/50 flex items-center justify-center">
+                  <MedicalCrossIcon className="w-4 h-4 text-slate-500" />
+                </div>
+              </div>
+
+              <h2
+                className="text-lg sm:text-xl font-bold uppercase tracking-widest"
+                style={{
+                  background: 'linear-gradient(to right, rgb(148, 163, 184), rgb(71, 85, 105))',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                On-Call Console
+              </h2>
+              <p className="text-sm text-slate-500 mt-2 text-center px-4 max-w-md leading-relaxed">
                 No on-call patients yet. Use the search bar to add patients, or they will appear automatically from the on-call list.
               </p>
               <button
                 onClick={() => { triggerHaptic('tap'); openModal('patient-form', { initialData: { wardId: 'on-call' } }) }}
-                className="mt-6 flex items-center gap-2 px-4 py-2.5 bg-amber-600 text-white rounded-lg font-bold text-sm hover:bg-amber-500 transition-colors min-h-[44px]"
+                className="mt-6 flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white transition-all min-h-[48px] shadow-lg hover:shadow-xl active:scale-[0.98]"
+                style={{ background: 'linear-gradient(to right, rgb(217, 119, 6), rgb(245, 158, 11))' }}
               >
                 <Plus className="w-4 h-4" /> Add On-Call Patient
               </button>
             </div>
           ) : (
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-3">
               {workspacePatients.map((patient) => (
                 <div key={patient.id} id={`patient-${patient.id}`}>
                   <OnCallPatientCard
@@ -534,6 +620,34 @@ export default function ShiftView() {
           )}
         </div>
       </div>
+
+      {/* MOBILE FAB */}
+      {isMobile && (
+        <button
+          onClick={() => { triggerHaptic('tap'); setShowTools(true) }}
+          className={clsx(
+            'fixed bottom-6 right-4 z-30 w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-lg',
+            'bg-amber-600 text-white active:scale-[0.92]',
+            'shadow-[0_4px_20px_rgba(245,158,11,0.3)]'
+          )}
+        >
+          <Wrench className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* MOBILE BOTTOM SHEET TOOLS */}
+      {isMobile && (
+        <BottomSheet
+          isOpen={showTools}
+          onClose={() => setShowTools(false)}
+          title="Tools"
+        >
+          <div className="px-3 pb-2">
+            {toolTabBar}
+          </div>
+          {toolContent}
+        </BottomSheet>
+      )}
 
       {/* Protocol Modal */}
       {activeProtocol && (

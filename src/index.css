@@ -28,6 +28,12 @@
 }
 
 @layer components {
+  .glass-card {
+    @apply bg-slate-800/40 backdrop-blur-xl border border-slate-700/50;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+      0 4px 24px -4px rgba(0, 0, 0, 0.3);
+  }
+
   .card {
     @apply bg-ward-card rounded-xl border border-ward-border shadow-sm;
   }

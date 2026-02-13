@@ -19,9 +19,9 @@ export function CalculatorShell({
   onClose,
 }: CalculatorShellProps) {
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-lg overflow-hidden">
+    <div className="bg-slate-800/60 backdrop-blur-md border border-slate-700/50 rounded-xl shadow-lg overflow-hidden">
       {/* Header */}
-      <div className="bg-slate-900/60 border-b border-slate-700 px-6 py-4 flex items-start justify-between">
+      <div className="bg-slate-900/40 border-b border-slate-700/40 px-6 py-4 flex items-start justify-between">
         <div className="flex items-start gap-4 flex-1">
           <div className={clsx('flex-shrink-0 pt-1', iconColor)}>{icon}</div>
           <div className="flex-1">
