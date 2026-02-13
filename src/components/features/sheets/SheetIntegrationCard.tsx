@@ -234,7 +234,7 @@ export function SheetIntegrationCard() {
           lastName: p.lastName || '',
           dateOfBirth: p.dateOfBirth || '',
           gender: p.gender,
-          wardId: 'Unit E',
+          wardId: p.wardId || '',
           bedNumber: p.bedNumber || '',
           acuity: p.acuity,
           primaryDiagnosis: p.primaryDiagnosis || '',

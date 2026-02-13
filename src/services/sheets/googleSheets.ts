@@ -26,6 +26,7 @@ export interface ParsedSheetPatient {
   primaryDiagnosis: string
   attendingPhysician: string
   team: string
+  wardId: string
   gender: 'male' | 'female' | 'other'
   dateOfBirth: string
   allergies: string[]
@@ -249,6 +250,7 @@ export function parseWardData(
       primaryDiagnosis: get('primaryDiagnosis'),
       attendingPhysician: get('attendingPhysician'),
       team: get('team'),
+      wardId: get('wardId'),
       gender,
       dateOfBirth: get('dateOfBirth'),
       allergies,
