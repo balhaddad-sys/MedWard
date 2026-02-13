@@ -67,7 +67,6 @@ const DEFAULT_COLUMN_MAPPINGS: ColumnMapping[] = [
   { sheetColumn: 'E', patientField: 'primaryDiagnosis' },
   { sheetColumn: 'F', patientField: 'attendingPhysician' },
   { sheetColumn: 'G', patientField: 'team' },
-  { sheetColumn: 'H', patientField: 'wardId' },
 ]
 
 export const useSheetIntegrationStore = create<SheetIntegrationStore>()(
@@ -124,18 +123,13 @@ export const useSheetIntegrationStore = create<SheetIntegrationStore>()(
     }),
     {
       name: 'medward-sheet-integration',
-      version: 1,
+      version: 2,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>
-        if (version === 0) {
-          // v0 → v1: add wardId column mapping if missing
+        if (version <= 1) {
+          // v0/v1 → v2: remove wardId column mapping (wards come from row headers now)
           const mappings = (state.columnMappings || []) as ColumnMapping[]
-          if (!mappings.some((m) => m.patientField === 'wardId')) {
-            const usedCols = new Set(mappings.map((m) => m.sheetColumn))
-            const nextCol = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').find((l) => !usedCols.has(l)) || 'H'
-            mappings.push({ sheetColumn: nextCol, patientField: 'wardId' })
-            state.columnMappings = mappings
-          }
+          state.columnMappings = mappings.filter((m) => m.patientField !== 'wardId')
         }
         return state
       },

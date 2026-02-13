@@ -185,8 +185,32 @@ export async function fetchSheetViaAPI(
 // ---------------------------------------------------------------------------
 
 /**
+ * Detect if a row is a ward/section header (e.g. "Ward 10" spanning a row).
+ * Ward headers typically have content in only 1-2 cells while the rest are empty.
+ */
+function isWardHeaderRow(cells: string[], minDataCols: number): string | null {
+  const filled = cells.filter((c) => c?.trim())
+  // A ward header has very few filled cells compared to a data row
+  if (filled.length >= 1 && filled.length <= 2 && filled.length < minDataCols) {
+    const text = filled[0].trim()
+    // Skip if it looks like a repeated column header (common words)
+    const headerWords = ['bed', 'name', 'mrn', 'diagnosis', 'attending', 'team', 'gender', 'dob', 'allergies']
+    if (headerWords.some((w) => text.toLowerCase() === w)) return null
+    // Must have some content
+    if (text.length > 0) return text
+  }
+  return null
+}
+
+/**
  * Map raw spreadsheet rows to parsed patient data using column mappings.
  * Skips header row (first row) and empty rows.
+ *
+ * Supports two ward identification strategies:
+ * 1. Column-based: a dedicated wardId column mapping (reads ward from each row)
+ * 2. Row-based: ward names appear as section header rows in the sheet
+ *    (e.g. "Ward 10" in a row by itself, followed by patient rows)
+ *    The parser auto-detects these and assigns the ward to subsequent patients.
  */
 export function parseWardData(
   rows: string[][],
@@ -201,11 +225,22 @@ export function parseWardData(
     fieldMap.set(mapping.patientField, colIdx)
   }
 
+  // Minimum filled cells to count as a data row (at least name columns)
+  const minDataCols = Math.min(3, fieldMap.size)
+
   const patients: ParsedSheetPatient[] = []
+  let currentWard = ''
 
   for (let i = skipHeaderRows; i < rows.length; i++) {
     const cells = rows[i]
     if (!cells || cells.every((c) => !c?.trim())) continue
+
+    // Check if this row is a ward section header
+    const wardHeader = isWardHeaderRow(cells, minDataCols)
+    if (wardHeader) {
+      currentWard = wardHeader
+      continue
+    }
 
     const get = (field: string): string => {
       const idx = fieldMap.get(field)
@@ -242,6 +277,9 @@ export function parseWardData(
       ? allergiesRaw.split(/[,;]/).map((a) => a.trim()).filter(Boolean)
       : []
 
+    // Use column-mapped wardId if present, otherwise use the current ward section header
+    const wardFromCol = get('wardId')
+
     patients.push({
       bedNumber: get('bedNumber'),
       lastName,
@@ -250,7 +288,7 @@ export function parseWardData(
       primaryDiagnosis: get('primaryDiagnosis'),
       attendingPhysician: get('attendingPhysician'),
       team: get('team'),
-      wardId: get('wardId'),
+      wardId: wardFromCol || currentWard,
       gender,
       dateOfBirth: get('dateOfBirth'),
       allergies,
