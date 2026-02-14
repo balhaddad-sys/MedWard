@@ -41,7 +41,7 @@ export const summarizePatientHistory = onCall(async (request) => {
     try {
       // Attempt to parse the AI's JSON response
       structuredData = JSON.parse(responseText);
-    } catch (e) {
+    } catch {
       // Fallback if AI returns plain text
       structuredData = { situation: responseText, background: "", assessment: "", recommendation: "" };
     }
