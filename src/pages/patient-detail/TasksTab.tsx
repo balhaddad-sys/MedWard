@@ -1,4 +1,5 @@
-import { Plus, CheckCircle, Zap } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, CheckCircle, Zap, ChevronDown, ChevronRight } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { TaskForm } from '@/components/features/tasks/TaskForm'
@@ -38,6 +39,8 @@ export function TasksTab({
   patientTasks,
   setShowOrderSetModal,
 }: TasksTabProps) {
+  const [showCompleted, setShowCompleted] = useState(false)
+
   return (
     <div className="space-y-4">
       {!showTaskForm && (
@@ -75,7 +78,6 @@ export function TasksTab({
         </Card>
       )}
 
-      {/* Pending tasks */}
       {pendingTasks.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider">Open ({pendingTasks.length})</h3>
@@ -93,11 +95,23 @@ export function TasksTab({
         </div>
       )}
 
-      {/* Completed tasks */}
       {completedTasks.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-green-600 uppercase tracking-wider">Completed ({completedTasks.length})</h3>
-          {completedTasks.slice(0, 5).map((task) => (
+          <button
+            onClick={() => setShowCompleted((v) => !v)}
+            className="w-full flex items-center justify-between text-left"
+          >
+            <h3 className="text-xs font-semibold text-green-600 uppercase tracking-wider">
+              Completed ({completedTasks.length}) · Auto-clears in 24h
+            </h3>
+            {showCompleted ? (
+              <ChevronDown className="h-4 w-4 text-green-600" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-green-600" />
+            )}
+          </button>
+
+          {showCompleted && completedTasks.slice(0, 10).map((task) => (
             <PatientTaskCard key={task.id} task={task} />
           ))}
         </div>

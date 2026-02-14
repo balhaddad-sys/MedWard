@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isTaskVisible } from '@/utils/taskLifecycle'
 import type { Task, TaskPriority, TaskStatus } from '@/types'
 
 interface TaskStore {
@@ -28,11 +29,16 @@ export const useTaskStore = create<TaskStore>()((set, get) => ({
   filterAssignedTo: 'all',
   loading: false,
   error: null,
-  setTasks: (tasks) => set({ tasks }),
-  addTask: (task) => set((state) => ({ tasks: [...state.tasks, task] })),
+  setTasks: (tasks) => set({ tasks: tasks.filter((t) => isTaskVisible(t)) }),
+  addTask: (task) =>
+    set((state) => ({
+      tasks: isTaskVisible(task) ? [...state.tasks, task] : state.tasks,
+    })),
   updateTask: (id, updates) =>
     set((state) => ({
-      tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+      tasks: state.tasks
+        .map((t) => (t.id === id ? { ...t, ...updates } : t))
+        .filter((t) => isTaskVisible(t)),
     })),
   removeTask: (id) =>
     set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) })),

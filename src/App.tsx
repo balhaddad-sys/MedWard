@@ -29,7 +29,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { firebaseReady } from '@/config/firebase'
 import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/services/firebase/auth'
 import { subscribeToUserPatients } from '@/services/firebase/patients'
-import { subscribeToUserTasks } from '@/services/firebase/tasks'
+import { subscribeToUserTasks, purgeExpiredCompletedTasks } from '@/services/firebase/tasks'
 
 function PageLoader() {
   return (
@@ -127,6 +127,25 @@ function DataSubscriptions() {
       unsubTasks()
     }
   }, [firebaseUser, setPatients, setTasks])
+
+  useEffect(() => {
+    if (!firebaseUser) return
+
+    const runCleanup = async () => {
+      try {
+        await purgeExpiredCompletedTasks(firebaseUser.uid)
+      } catch (error) {
+        console.warn('Expired task cleanup skipped:', error)
+      }
+    }
+
+    void runCleanup()
+    const intervalId = window.setInterval(() => {
+      void runCleanup()
+    }, 30 * 60 * 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [firebaseUser])
 
   return null
 }

@@ -13,11 +13,14 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/config/firebase'
+import { isTaskExpiredForDeletion, isTaskVisible } from '@/utils/taskLifecycle'
 import type { Task, TaskFormData } from '@/types'
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
 const getTasksRef = () => collection(db, 'tasks')
 
 const safeTask = (id: string, data: Record<string, unknown>): Task => ({
+  id,
   status: 'pending',
   priority: 'medium',
   category: 'other',
@@ -30,22 +33,23 @@ const safeTask = (id: string, data: Record<string, unknown>): Task => ({
   assignedToName: '',
   createdBy: '',
   createdByName: '',
+  viewedBy: [],
+  escalationLevel: 'none',
   ...data,
-  id,
-} as Task)
+} as unknown as Task)
 
 export const getTasks = async (wardId?: string): Promise<Task[]> => {
   const q = wardId
     ? query(getTasksRef(), where('wardId', '==', wardId))
     : getTasksRef()
   const snapshot = await getDocs(q)
-  return snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
+  return snapshot.docs.map((doc) => safeTask(doc.id, doc.data())).filter((task) => isTaskVisible(task))
 }
 
 export const getTasksByPatient = async (patientId: string): Promise<Task[]> => {
   const q = query(getTasksRef(), where('patientId', '==', patientId), orderBy('dueAt'))
   const snapshot = await getDocs(q)
-  return snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
+  return snapshot.docs.map((doc) => safeTask(doc.id, doc.data())).filter((task) => isTaskVisible(task))
 }
 
 export const createTask = async (data: TaskFormData, userId: string, userName: string): Promise<string> => {
@@ -54,6 +58,8 @@ export const createTask = async (data: TaskFormData, userId: string, userName: s
     status: 'pending',
     createdBy: userId,
     createdByName: userName,
+    viewedBy: [],
+    escalationLevel: 'none',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
@@ -71,6 +77,7 @@ export const completeTask = async (id: string, userId: string): Promise<void> =>
   await updateDoc(doc(db, 'tasks', id), {
     status: 'completed',
     completedAt: serverTimestamp(),
+    autoDeleteAt: new Date(Date.now() + ONE_DAY_MS),
     completedBy: userId,
     updatedAt: serverTimestamp(),
   })
@@ -82,13 +89,17 @@ export const deleteTask = async (id: string): Promise<void> => {
 
 export const subscribeToTasks = (userId: string, callback: (tasks: Task[]) => void): Unsubscribe => {
   const q = query(getTasksRef(), where('createdBy', '==', userId))
-  return onSnapshot(q, (snapshot) => {
-    const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
-    callback(tasks)
-  }, (error) => {
-    console.error('Task subscription error:', error)
-    callback([])
-  })
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data())).filter((task) => isTaskVisible(task))
+      callback(tasks)
+    },
+    (error) => {
+      console.error('Task subscription error:', error)
+      callback([])
+    }
+  )
 }
 
 export const subscribeToUserTasks = (
@@ -103,7 +114,7 @@ export const subscribeToUserTasks = (
   return onSnapshot(
     q,
     (snapshot) => {
-      const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
+      const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data())).filter((task) => isTaskVisible(task))
       callback(tasks)
     },
     (error) => {
@@ -113,27 +124,18 @@ export const subscribeToUserTasks = (
   )
 }
 
-/**
- * NEW (Phase 2): Get overdue or unacknowledged tasks
- * Returns tasks that are:
- * - Past due date AND not completed
- * - OR high/critical priority AND not acknowledged
- */
 export const getOverdueTasks = async (userId: string): Promise<Task[]> => {
-  // Get all pending/in_progress tasks for user
   const q = query(
     getTasksRef(),
     where('assignedTo', '==', userId),
     where('status', 'in', ['pending', 'in_progress'])
   )
   const snapshot = await getDocs(q)
-  const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data()))
+  const tasks = snapshot.docs.map((doc) => safeTask(doc.id, doc.data())).filter((task) => isTaskVisible(task))
 
   const now = new Date()
 
-  // Filter for overdue or unacknowledged high-priority tasks
   return tasks.filter((task) => {
-    // Overdue: has dueAt and it's in the past
     if (task.dueAt) {
       const dueDate =
         typeof task.dueAt === 'object' && 'toDate' in task.dueAt
@@ -142,7 +144,6 @@ export const getOverdueTasks = async (userId: string): Promise<Task[]> => {
       if (dueDate < now) return true
     }
 
-    // Unacknowledged high/critical priority tasks
     if (
       (task.priority === 'high' || task.priority === 'critical') &&
       !task.acknowledgedAt
@@ -154,10 +155,6 @@ export const getOverdueTasks = async (userId: string): Promise<Task[]> => {
   })
 }
 
-/**
- * NEW (Phase 0.2): Acknowledge a task
- * Marks task as seen/acknowledged by user
- */
 export const acknowledgeTask = async (taskId: string, userId: string): Promise<void> => {
   const taskRef = doc(db, 'tasks', taskId)
   await updateDoc(taskRef, {
@@ -165,4 +162,19 @@ export const acknowledgeTask = async (taskId: string, userId: string): Promise<v
     acknowledgedBy: userId,
     updatedAt: serverTimestamp(),
   })
+}
+
+export const purgeExpiredCompletedTasks = async (userId: string): Promise<number> => {
+  const q = query(getTasksRef(), where('createdBy', '==', userId))
+  const snapshot = await getDocs(q)
+
+  const expiredDocs = snapshot.docs.filter((docSnap) => {
+    const task = safeTask(docSnap.id, docSnap.data())
+    return isTaskExpiredForDeletion(task)
+  })
+
+  if (expiredDocs.length === 0) return 0
+
+  const results = await Promise.allSettled(expiredDocs.map((docSnap) => deleteDoc(docSnap.ref)))
+  return results.filter((r) => r.status === 'fulfilled').length
 }

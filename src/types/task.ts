@@ -23,6 +23,7 @@ export interface Task {
   createdByName: string
   dueAt?: Timestamp
   completedAt?: Timestamp
+  autoDeleteAt?: Timestamp
   completedBy?: string
   notes?: string
   recurring?: {

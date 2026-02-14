@@ -62,7 +62,10 @@ export const generateSBARReport = async (
     .join('\n')
 
   const taskSummary = activeTasks
-    .filter((t) => (t.status ?? 'pending') !== 'completed')
+    .filter((t) => {
+      const status = t.status ?? 'pending'
+      return status === 'pending' || status === 'in_progress'
+    })
     .map((t) => `- [${t.priority ?? 'medium'}] ${t.title ?? ''}`)
     .join('\n')
 

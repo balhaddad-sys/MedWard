@@ -1,6 +1,7 @@
 import { CheckCircle, Edit, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { formatRelativeTime } from '@/utils/formatters'
+import { getTaskAutoDeleteDate } from '@/utils/taskLifecycle'
 import type { Task } from '@/types'
 import { clsx } from 'clsx'
 
@@ -16,6 +17,8 @@ export interface PatientTaskCardProps {
 export function PatientTaskCard({ task, onComplete, onEdit, onDelete, isConfirmingDelete, onCancelDelete }: PatientTaskCardProps) {
   const isCompleted = (task.status ?? 'pending') === 'completed'
   const priority = task.priority ?? 'medium'
+  const autoDeleteAt = getTaskAutoDeleteDate(task)
+
   const priorityColors: Record<string, string> = {
     critical: 'border-l-red-500 bg-red-50',
     high: 'border-l-orange-500 bg-orange-50',
@@ -24,29 +27,44 @@ export function PatientTaskCard({ task, onComplete, onEdit, onDelete, isConfirmi
   }
 
   return (
-    <div className={clsx(
-      'border rounded-lg p-3 border-l-4 transition-colors',
-      isCompleted ? 'opacity-60 border-l-green-400 bg-gray-50' : priorityColors[priority] || '',
-      !isCompleted && 'border-ward-border'
-    )}>
+    <div
+      className={clsx(
+        'border rounded-lg p-3 border-l-4 transition-colors',
+        isCompleted ? 'opacity-70 border-l-green-400 bg-gray-50' : priorityColors[priority] || '',
+        !isCompleted && 'border-ward-border'
+      )}
+    >
       <div className="flex items-start gap-2">
         {!isCompleted && onComplete && (
-          <button onClick={onComplete} aria-label={`Mark "${task.title}" as complete`} className="mt-0.5 p-1 rounded-lg text-ward-muted hover:text-green-600 hover:bg-green-50 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center flex-shrink-0">
+          <button
+            onClick={onComplete}
+            aria-label={`Mark "${task.title}" as complete`}
+            className="mt-0.5 p-1 rounded-lg text-ward-muted hover:text-green-600 hover:bg-green-50 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center flex-shrink-0"
+          >
             <CheckCircle className="h-5 w-5" />
           </button>
         )}
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <p className={clsx('text-sm font-medium truncate', isCompleted && 'line-through text-ward-muted')}>{task.title}</p>
-            <Badge variant={priority === 'critical' ? 'danger' : priority === 'high' ? 'warning' : 'default'} size="sm">{priority}</Badge>
+            <Badge variant={priority === 'critical' ? 'danger' : priority === 'high' ? 'warning' : 'default'} size="sm">
+              {priority}
+            </Badge>
           </div>
+
           {task.description && <p className="text-xs text-ward-muted mt-0.5 line-clamp-1">{task.description}</p>}
-          <div className="flex items-center gap-3 mt-1.5 text-[10px] text-ward-muted">
+
+          <div className="flex flex-wrap items-center gap-3 mt-1.5 text-[10px] text-ward-muted">
             {task.assignedToName && <span>{task.assignedToName}</span>}
             {task.dueAt && <span>{formatRelativeTime(task.dueAt)}</span>}
             {isCompleted && <span className="text-green-600 font-medium">✓ Done</span>}
+            {isCompleted && autoDeleteAt && (
+              <span className="text-amber-600 font-medium">Auto-removes {formatRelativeTime(autoDeleteAt)}</span>
+            )}
           </div>
         </div>
+
         {!isCompleted && (
           <div className="flex items-center gap-1 flex-shrink-0">
             {onEdit && (

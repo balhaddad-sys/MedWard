@@ -80,7 +80,10 @@ export function usePatientDetail(id: string | undefined) {
 
   const patientCriticals = criticalValues.filter((cv) => cv.patientId === id)
   const patientTasks = tasks.filter((t) => t.patientId === id)
-  const pendingTasks = patientTasks.filter((t) => (t.status ?? 'pending') !== 'completed')
+  const pendingTasks = patientTasks.filter((t) => {
+    const status = t.status ?? 'pending'
+    return status === 'pending' || status === 'in_progress'
+  })
   const completedTasks = patientTasks.filter((t) => (t.status ?? 'pending') === 'completed')
 
   const acuityKey = patient
