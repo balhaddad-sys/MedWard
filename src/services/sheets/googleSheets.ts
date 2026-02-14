@@ -208,10 +208,19 @@ function isWardHeaderRow(cells: string[], minDataCols: number): string | null {
     const text = filled[0].trim()
     const lower = text.toLowerCase()
 
-    // Must look like a ward/section label (contains ward-related keywords or is in parentheses)
+    // Ward headers are short - limit to 20 characters and 2 words max
+    // (This excludes patient names like "icu alsayed wehaib")
+    if (text.length > 20) return null
+    const wordCount = text.replace(/_/g, ' ').split(/\s+/).length
+    if (wordCount > 2) return null
+
+    // Must look like a ward/section label (contains ward-related keywords as complete words or is in parentheses)
     const wardKeywords = ['ward', 'unit', 'icu', 'er', 'emergency', 'chronic', 'list', 'male', 'female', 'unassigned']
-    const looksLikeWard = wardKeywords.some((kw) => lower.includes(kw)) ||
-                          (text.startsWith('(') && text.endsWith(')'))
+    const looksLikeWard = wardKeywords.some((kw) => {
+      // Use word boundaries to match complete words only
+      const regex = new RegExp(`\\b${kw}\\b`, 'i')
+      return regex.test(text)
+    }) || (text.startsWith('(') && text.endsWith(')'))
 
     if (looksLikeWard && text.length > 0) return text
   }
