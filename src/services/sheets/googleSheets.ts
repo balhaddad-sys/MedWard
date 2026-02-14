@@ -197,7 +197,37 @@ function isColumnHeaderRow(cells: string[]): boolean {
 }
 
 /**
- * Detect if a row is a ward/section header (e.g. "Ward 10" or "ICU" spanning a row).
+ * Detect if a row is a section header (e.g., "Male list (active)", "Female list (chronic)").
+ * Section headers are broader categories that contain multiple wards.
+ */
+function isSectionHeaderRow(cells: string[]): string | null {
+  if (!cells[0]?.trim()) return null
+
+  // Check that ALL other cells are empty
+  const hasOtherContent = cells.slice(1).some((c) => c?.trim())
+  if (hasOtherContent) return null
+
+  const text = cells[0].trim()
+
+  // Section headers often have parentheses with status: "Male list (active)"
+  // Or contain broader category words: "Chronic Care List", "Emergency Department"
+  const sectionIndicators = [
+    /\(active\)/i,
+    /\(chronic\)/i,
+    /\(stable\)/i,
+    /\(critical\)/i,
+    /list/i,
+  ]
+
+  const isSection = sectionIndicators.some((pattern) => pattern.test(text)) &&
+                    text.length <= 50 &&
+                    text.replace(/_/g, ' ').split(/\s+/).length <= 5
+
+  return isSection ? text : null
+}
+
+/**
+ * Detect if a row is a ward header (e.g. "Ward 10" or "ICU" spanning a row).
  * Ward headers must have content ONLY in the first cell (column A), with all other cells empty.
  * This prevents partial data rows from being misidentified as ward headers.
  */
@@ -220,7 +250,7 @@ function isWardHeaderRow(cells: string[], _minDataCols: number): string | null {
   // Must look like a ward/section label
   const wardKeywords = [
     'ward', 'unit', 'icu', 'ccu', 'hdu', 'er', 'ed', 'emergency',
-    'chronic', 'acute', 'list', 'male', 'female', 'unassigned',
+    'chronic', 'acute', 'unassigned',
     'floor', 'dept', 'department', 'block', 'wing', 'bay'
   ]
 
@@ -268,7 +298,8 @@ export function parseWardData(
   const minDataCols = Math.min(3, fieldMap.size)
 
   const patients: ParsedSheetPatient[] = []
-  let currentWard = ''
+  let currentSection = '' // e.g., "Male list (active)", "Female list (chronic)"
+  let currentWard = ''     // e.g., "Ward 27", "ICU"
 
   for (let i = skipHeaderRows; i < rows.length; i++) {
     const cells = rows[i]
@@ -277,7 +308,16 @@ export function parseWardData(
     // Skip column header rows (e.g. "Room | Name | Diagnosis | ...")
     if (isColumnHeaderRow(cells)) continue
 
-    // Check if this row is a ward section header
+    // Check if this row is a section header (broader category like "Male list (active)")
+    const sectionHeader = isSectionHeaderRow(cells)
+    if (sectionHeader) {
+      currentSection = sectionHeader
+      currentWard = '' // Reset ward when entering new section
+      console.log(`[Sheet Parser] Detected section header: "${sectionHeader}" at row ${i + 1}`)
+      continue
+    }
+
+    // Check if this row is a ward header (specific ward like "Ward 27")
     const wardHeader = isWardHeaderRow(cells, minDataCols)
     if (wardHeader) {
       currentWard = wardHeader
@@ -347,8 +387,23 @@ export function parseWardData(
       ? allergiesRaw.split(/[,;]/).map((a) => a.trim()).filter(Boolean)
       : []
 
-    // Use column-mapped wardId if present, otherwise use the current ward section header
+    // Use column-mapped wardId if present, otherwise build from section + ward headers
     const wardFromCol = get('wardId')
+
+    // Build wardId from section and ward context
+    let wardId = wardFromCol
+    if (!wardId) {
+      if (currentSection && currentWard) {
+        // Both section and ward: combine them (e.g., "Male list (active) - Ward 27")
+        wardId = `${currentSection} - ${currentWard}`
+      } else if (currentSection) {
+        // Only section: use it
+        wardId = currentSection
+      } else if (currentWard) {
+        // Only ward: use it
+        wardId = currentWard
+      }
+    }
 
     patients.push({
       bedNumber: get('bedNumber'),
@@ -358,7 +413,7 @@ export function parseWardData(
       primaryDiagnosis: get('primaryDiagnosis'),
       attendingPhysician: get('attendingPhysician'),
       team: get('team'),
-      wardId: wardFromCol || currentWard,
+      wardId,
       gender,
       dateOfBirth: get('dateOfBirth'),
       allergies,
