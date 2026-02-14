@@ -211,19 +211,31 @@ function isWardHeaderRow(cells: string[], _minDataCols: number): string | null {
 
   const text = cells[0].trim()
 
-  // Ward headers are short - limit to 20 characters and 2 words max
-  // (This excludes patient names like "icu alsayed wehaib")
-  if (text.length > 20) return null
+  // Ward headers are short - limit to 30 characters and 3 words max
+  // This allows "Ward 27 A", "Emergency Department", but excludes full patient names
+  if (text.length > 30) return null
   const wordCount = text.replace(/_/g, ' ').split(/\s+/).length
-  if (wordCount > 2) return null
+  if (wordCount > 3) return null
 
-  // Must look like a ward/section label (contains ward-related keywords as complete words or is in parentheses)
-  const wardKeywords = ['ward', 'unit', 'icu', 'er', 'emergency', 'chronic', 'list', 'male', 'female', 'unassigned']
-  const looksLikeWard = wardKeywords.some((kw) => {
-    // Use word boundaries to match complete words only
-    const regex = new RegExp(`\\b${kw}\\b`, 'i')
-    return regex.test(text)
-  }) || (text.startsWith('(') && text.endsWith(')'))
+  // Must look like a ward/section label
+  const wardKeywords = [
+    'ward', 'unit', 'icu', 'ccu', 'hdu', 'er', 'ed', 'emergency',
+    'chronic', 'acute', 'list', 'male', 'female', 'unassigned',
+    'floor', 'dept', 'department', 'block', 'wing', 'bay'
+  ]
+
+  const looksLikeWard =
+    // Contains ward-related keywords as complete words
+    wardKeywords.some((kw) => {
+      const regex = new RegExp(`\\b${kw}\\b`, 'i')
+      return regex.test(text)
+    }) ||
+    // Wrapped in parentheses like "(Unassigned)" or "(Ward A)"
+    (text.startsWith('(') && text.endsWith(')')) ||
+    // Starts with "Ward" followed by number/letter (e.g., "Ward 27", "Ward A")
+    /^ward\s*[0-9A-Za-z]+/i.test(text) ||
+    // Just a number or letter (e.g., "27", "A", "B1") - common for simple ward names
+    /^[0-9A-Za-z]{1,3}$/.test(text)
 
   if (looksLikeWard && text.length > 0) return text
   return null
@@ -269,6 +281,7 @@ export function parseWardData(
     const wardHeader = isWardHeaderRow(cells, minDataCols)
     if (wardHeader) {
       currentWard = wardHeader
+      console.log(`[Sheet Parser] Detected ward header: "${wardHeader}" at row ${i + 1}`)
       continue
     }
 
@@ -303,7 +316,15 @@ export function parseWardData(
       firstName = firstNameFromCol
     }
 
+    // Skip rows without a valid name (require at least one name component)
     if (!lastName && !firstName) continue
+
+    // Skip rows that look like totals or summary rows (e.g., "Total: 30 patients")
+    const fullNameForCheck = `${firstName} ${lastName}`.toLowerCase()
+    if (fullNameForCheck.includes('total') || fullNameForCheck.includes('count') ||
+        fullNameForCheck.includes('summary') || lastName.toLowerCase() === 'patients') {
+      continue
+    }
 
     const acuityRaw = parseInt(get('acuity')) || 3
     const acuity = (Math.min(5, Math.max(1, acuityRaw))) as 1 | 2 | 3 | 4 | 5
@@ -346,6 +367,20 @@ export function parseWardData(
       raw,
     })
   }
+
+  // Log summary
+  const wardCounts = patients.reduce((acc, p) => {
+    const ward = p.wardId || 'Unassigned'
+    acc[ward] = (acc[ward] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
+
+  console.log(`[Sheet Parser] Parsed ${patients.length} patients across ${Object.keys(wardCounts).length} wards:`)
+  Object.entries(wardCounts)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([ward, count]) => {
+      console.log(`  - ${ward}: ${count} patient${count !== 1 ? 's' : ''}`)
+    })
 
   return patients
 }
