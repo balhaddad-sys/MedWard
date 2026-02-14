@@ -198,31 +198,34 @@ function isColumnHeaderRow(cells: string[]): boolean {
 
 /**
  * Detect if a row is a ward/section header (e.g. "Ward 10" or "ICU" spanning a row).
- * Ward headers typically have content in only 1-2 cells while the rest are empty,
- * AND the text looks like a ward/section label (not a patient name).
+ * Ward headers must have content ONLY in the first cell (column A), with all other cells empty.
+ * This prevents partial data rows from being misidentified as ward headers.
  */
 function isWardHeaderRow(cells: string[], minDataCols: number): string | null {
-  const filled = cells.filter((c) => c?.trim())
-  // A ward header has very few filled cells compared to a data row
-  if (filled.length >= 1 && filled.length <= 2 && filled.length < minDataCols) {
-    const text = filled[0].trim()
+  // Ward header must have content only in first cell, all others must be empty
+  if (!cells[0]?.trim()) return null
 
-    // Ward headers are short - limit to 20 characters and 2 words max
-    // (This excludes patient names like "icu alsayed wehaib")
-    if (text.length > 20) return null
-    const wordCount = text.replace(/_/g, ' ').split(/\s+/).length
-    if (wordCount > 2) return null
+  // Check that ALL other cells are empty (not just most)
+  const hasOtherContent = cells.slice(1).some((c) => c?.trim())
+  if (hasOtherContent) return null
 
-    // Must look like a ward/section label (contains ward-related keywords as complete words or is in parentheses)
-    const wardKeywords = ['ward', 'unit', 'icu', 'er', 'emergency', 'chronic', 'list', 'male', 'female', 'unassigned']
-    const looksLikeWard = wardKeywords.some((kw) => {
-      // Use word boundaries to match complete words only
-      const regex = new RegExp(`\\b${kw}\\b`, 'i')
-      return regex.test(text)
-    }) || (text.startsWith('(') && text.endsWith(')'))
+  const text = cells[0].trim()
 
-    if (looksLikeWard && text.length > 0) return text
-  }
+  // Ward headers are short - limit to 20 characters and 2 words max
+  // (This excludes patient names like "icu alsayed wehaib")
+  if (text.length > 20) return null
+  const wordCount = text.replace(/_/g, ' ').split(/\s+/).length
+  if (wordCount > 2) return null
+
+  // Must look like a ward/section label (contains ward-related keywords as complete words or is in parentheses)
+  const wardKeywords = ['ward', 'unit', 'icu', 'er', 'emergency', 'chronic', 'list', 'male', 'female', 'unassigned']
+  const looksLikeWard = wardKeywords.some((kw) => {
+    // Use word boundaries to match complete words only
+    const regex = new RegExp(`\\b${kw}\\b`, 'i')
+    return regex.test(text)
+  }) || (text.startsWith('(') && text.endsWith(')'))
+
+  if (looksLikeWard && text.length > 0) return text
   return null
 }
 
