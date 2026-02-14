@@ -35,19 +35,24 @@ export const generateHandover = onCall(
       const patientsSnap = await db
         .collection("patients")
         .where("wardId", "==", wardId)
-        .orderBy("acuity")
         .get();
 
       if (patientsSnap.empty) {
         return { content: "No patients found in this ward.", usage: { inputTokens: 0, outputTokens: 0 } };
       }
 
-      const authorizedPatients = patientsSnap.docs.filter((doc) => {
-        const data = doc.data();
-        const createdBy = typeof data.createdBy === "string" ? data.createdBy : "";
-        const assignedClinicians = Array.isArray(data.assignedClinicians) ? data.assignedClinicians : [];
-        return createdBy === uid || assignedClinicians.includes(uid);
-      });
+      const authorizedPatients = patientsSnap.docs
+        .filter((doc) => {
+          const data = doc.data();
+          const createdBy = typeof data.createdBy === "string" ? data.createdBy : "";
+          const assignedClinicians = Array.isArray(data.assignedClinicians) ? data.assignedClinicians : [];
+          return createdBy === uid || assignedClinicians.includes(uid);
+        })
+        .sort((a, b) => {
+          const acuityA = typeof a.data().acuity === "number" ? a.data().acuity : 999;
+          const acuityB = typeof b.data().acuity === "number" ? b.data().acuity : 999;
+          return acuityA - acuityB; // critical first (1 is highest acuity)
+        });
 
       if (authorizedPatients.length === 0) {
         return {

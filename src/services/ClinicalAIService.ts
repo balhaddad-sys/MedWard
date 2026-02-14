@@ -90,8 +90,15 @@ export class ClinicalAIService {
   private conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
   private patientId?: string
 
-  setPatientContext(patientId: string): void {
-    this.patientId = patientId
+  setPatientContext(patientId?: string): void {
+    if (this.patientId !== patientId) {
+      this.patientId = patientId
+      this.clearHistory()
+    }
+  }
+
+  clearPatientContext(): void {
+    this.setPatientContext(undefined)
   }
 
   async sendMessage(
@@ -115,6 +122,12 @@ export class ClinicalAIService {
       // Update local conversation history for multi-turn
       this.conversationHistory.push({ role: 'user', content: userMessage })
       this.conversationHistory.push({ role: 'assistant', content: text })
+
+      // Cap history to prevent unbounded growth
+      const MAX_HISTORY_MESSAGES = 20
+      if (this.conversationHistory.length > MAX_HISTORY_MESSAGES * 2) {
+        this.conversationHistory = this.conversationHistory.slice(-MAX_HISTORY_MESSAGES * 2)
+      }
 
       // Try parsing as structured drug info
       let drugInfo: DrugInfo | undefined

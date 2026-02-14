@@ -196,6 +196,11 @@ export const clinicalChat = onCall(
       return response;
     } catch (error) {
       console.error("Clinical chat error:", error);
+
+      if (error instanceof HttpsError) {
+        throw error; // preserve permission-denied / invalid-argument / unauthenticated
+      }
+
       throw new HttpsError("internal", "Failed to process clinical chat request");
     }
   }

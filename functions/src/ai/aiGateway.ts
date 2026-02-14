@@ -146,47 +146,47 @@ async function semanticCacheLookup(
   contextTag: string,
   queryVec: number[]
 ): Promise<{ response: string; similarity: number; docId: string } | null> {
-  // Firestore vector search (findNearest) requires a vector index on the
-  // ai_cache collection. If the index doesn't exist yet, this will throw.
-  // We catch and fall through to Claude.
   try {
     const cacheRef = getCacheCollection();
 
-    // Pre-filter by contextTag, then KNN on embedding field
+    // Avoid vector-field orderBy issues; fetch a bounded candidate set and rank in memory.
     const snap = await cacheRef
       .where("contextTag", "==", contextTag)
-      .where("embedding", "!=", null)
-      .orderBy("embedding")
-      .limit(SEMANTIC_TOP_K * 3) // Over-fetch to filter by similarity
+      .limit(Math.max(SEMANTIC_TOP_K * 20, 50))
       .get();
 
     if (snap.empty) return null;
 
-    // Manual cosine similarity ranking (Firestore may not support
-    // findNearest with pre-filters in all SDK versions yet)
     let best: { response: string; similarity: number; docId: string } | null = null;
 
     for (const doc of snap.docs) {
       const data = doc.data();
-      const embedding: number[] | undefined = data.embedding;
-      if (!embedding || embedding.length !== EMBEDDING_DIMENSION) continue;
+      const embedding = data.embedding as unknown;
 
-      const sim = cosineSimilarity(queryVec, embedding);
+      if (
+        !Array.isArray(embedding) ||
+        embedding.length !== EMBEDDING_DIMENSION ||
+        !embedding.every((v) => typeof v === "number")
+      ) {
+        continue;
+      }
+
+      const sim = cosineSimilarity(queryVec, embedding as number[]);
       if (sim >= SEMANTIC_THRESHOLD && (!best || sim > best.similarity)) {
         best = { response: data.response, similarity: sim, docId: doc.id };
       }
     }
 
     if (best) {
-      // Bump hit counter
-      getCacheCollection().doc(best.docId)
+      getCacheCollection()
+        .doc(best.docId)
         .update({ hitCount: admin.firestore.FieldValue.increment(1) })
         .catch(() => {});
     }
 
     return best;
   } catch (err) {
-    console.warn("semanticCacheLookup: vector search failed (index may not exist yet):", err);
+    console.warn("semanticCacheLookup failed:", err);
     return null;
   }
 }

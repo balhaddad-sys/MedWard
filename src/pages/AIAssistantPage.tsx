@@ -36,10 +36,15 @@ export function AIAssistantPage() {
 
   // Update AI service patient context when selection changes
   useEffect(() => {
-    if (selectedPatientId) {
-      clinicalAIService.setPatientContext(selectedPatientId)
-    }
+    clinicalAIService.setPatientContext(selectedPatientId || undefined)
   }, [selectedPatientId])
+
+  // Clear patient context on unmount
+  useEffect(() => {
+    return () => {
+      clinicalAIService.clearPatientContext()
+    }
+  }, [])
 
   const selectedPatient = useMemo(
     () => patients.find((p) => p.id === selectedPatientId),
