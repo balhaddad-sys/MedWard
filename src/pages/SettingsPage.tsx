@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { clsx } from 'clsx'
+import { Bell, BellOff, CheckCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -8,6 +10,12 @@ import { usePatientStore } from '@/stores/patientStore'
 import { subscribeToUserPatients, deletePatient } from '@/services/firebase/patients'
 import { APP_NAME, APP_VERSION } from '@/config/constants'
 import { SheetIntegrationCard } from '@/components/features/sheets/SheetIntegrationCard'
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  type NotificationPermissionStatus,
+} from '@/services/browserNotifications'
 import type { Patient } from '@/types'
 
 function SettingToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
@@ -384,6 +392,115 @@ function PatientManagementCard() {
   )
 }
 
+function BrowserNotificationCard() {
+  const addToast = useUIStore((s) => s.addToast)
+  const [permission, setPermission] = useState<NotificationPermissionStatus>(getNotificationPermission())
+  const [requesting, setRequesting] = useState(false)
+
+  const handleRequestPermission = async () => {
+    setRequesting(true)
+    try {
+      const result = await requestNotificationPermission()
+      setPermission(result)
+      if (result === 'granted') {
+        addToast({
+          type: 'success',
+          title: 'Browser notifications enabled',
+          message: "You'll receive alerts for urgent and overdue tasks.",
+        })
+      } else if (result === 'denied') {
+        addToast({
+          type: 'error',
+          title: 'Notifications blocked',
+          message: 'Please enable notifications in your browser settings.',
+        })
+      }
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Failed to enable notifications',
+        message: String(error),
+      })
+    } finally {
+      setRequesting(false)
+    }
+  }
+
+  if (!isNotificationSupported()) {
+    return (
+      <Card>
+        <CardHeader><CardTitle>Browser Notifications</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex items-start gap-3">
+            <BellOff className="h-5 w-5 text-ward-muted flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-ward-text">Not supported in this browser</p>
+              <p className="text-xs text-ward-muted mt-1">
+                Browser notifications require a modern browser with notification support.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>Browser Notifications</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-xs text-ward-muted">
+          Enable browser notifications to receive alerts for urgent and overdue tasks even when MedWard is not in focus.
+        </p>
+
+        {permission === 'granted' ? (
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
+            <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-green-700">Notifications enabled</p>
+              <p className="text-xs text-green-600 mt-0.5">
+                You'll receive browser alerts for critical tasks and overdue items.
+              </p>
+            </div>
+          </div>
+        ) : permission === 'denied' ? (
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
+            <BellOff className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-700">Notifications blocked</p>
+              <p className="text-xs text-red-600 mt-0.5">
+                To enable notifications, update your browser settings and refresh the page.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            icon={<Bell className="h-4 w-4" />}
+            onClick={handleRequestPermission}
+            disabled={requesting}
+            className="min-h-[44px]"
+          >
+            {requesting ? 'Requesting...' : 'Enable Browser Notifications'}
+          </Button>
+        )}
+
+        <div className="space-y-2 pt-2 border-t border-ward-border">
+          <p className="text-xs font-medium text-ward-text">What you'll be notified about:</p>
+          <ul className="space-y-1 text-xs text-ward-muted ml-4">
+            <li className="list-disc">Critical and high-priority tasks that need acknowledgment</li>
+            <li className="list-disc">Tasks that are overdue or approaching their due date</li>
+            <li className="list-disc">Urgent patient care alerts</li>
+          </ul>
+          <p className="text-xs text-ward-muted pt-1">
+            These notifications appear even when MedWard is in the background. You'll also see in-app toast notifications.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function SettingsPage() {
   const settings = useSettingsStore()
   const user = useAuthStore((s) => s.user)
@@ -480,6 +597,8 @@ export function SettingsPage() {
           />
         </CardContent>
       </Card>
+
+      <BrowserNotificationCard />
 
       <SheetIntegrationCard />
 

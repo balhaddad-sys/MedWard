@@ -30,6 +30,7 @@ import { firebaseReady } from '@/config/firebase'
 import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/services/firebase/auth'
 import { subscribeToUserPatients } from '@/services/firebase/patients'
 import { subscribeToUserTasks, purgeExpiredCompletedTasks } from '@/services/firebase/tasks'
+import { useMissedTaskNotifications } from '@/hooks/useMissedTaskNotifications'
 
 function PageLoader() {
   return (
@@ -102,6 +103,9 @@ function DataSubscriptions() {
   const setTasks = useTaskStore((s) => s.setTasks)
   const setIsMobile = useUIStore((s) => s.setIsMobile)
   const firebaseUser = useAuthStore((s) => s.firebaseUser)
+
+  // Enable missed task notifications
+  useMissedTaskNotifications()
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
