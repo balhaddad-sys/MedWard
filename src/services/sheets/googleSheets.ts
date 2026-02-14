@@ -244,7 +244,9 @@ function looksLikeWardLabel(label: string): boolean {
 
 function detectContextHeader(cells: string[]): { kind: 'section' | 'ward'; label: string } | null {
   const filled = getFilledCells(cells)
-  if (filled.length !== 1) return null
+
+  // Must have exactly one filled cell, and it must be in column A (index 0)
+  if (filled.length !== 1 || filled[0].index !== 0) return null
 
   const label = normalizeHeaderLabel(filled[0].value)
   if (!label) return null
