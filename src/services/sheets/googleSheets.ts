@@ -206,7 +206,6 @@ function isWardHeaderRow(cells: string[], minDataCols: number): string | null {
   // A ward header has very few filled cells compared to a data row
   if (filled.length >= 1 && filled.length <= 2 && filled.length < minDataCols) {
     const text = filled[0].trim()
-    const lower = text.toLowerCase()
 
     // Ward headers are short - limit to 20 characters and 2 words max
     // (This excludes patient names like "icu alsayed wehaib")
