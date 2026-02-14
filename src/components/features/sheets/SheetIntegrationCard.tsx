@@ -85,34 +85,69 @@ function ImportPreviewModal({
   onCancel,
   importing,
 }: {
-  rows: Array<{ name: string; bed: string; mrn: string; diagnosis: string }>
+  rows: Array<{ name: string; bed: string; mrn: string; diagnosis: string; ward: string; status: string }>
   onConfirm: () => void
   onCancel: () => void
   importing: boolean
 }) {
+  // Group patients by ward
+  const patientsByWard = rows.reduce((acc, patient) => {
+    const ward = patient.ward || 'Unassigned'
+    if (!acc[ward]) acc[ward] = []
+    acc[ward].push(patient)
+    return acc
+  }, {} as Record<string, typeof rows>)
+
+  const wardEntries = Object.entries(patientsByWard).sort((a, b) => {
+    if (a[0] === 'Unassigned') return 1
+    if (b[0] === 'Unassigned') return -1
+    return a[0].localeCompare(b[0])
+  })
+
+  const totalWards = wardEntries.length
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col">
         <div className="p-4 border-b border-ward-border">
           <h3 className="text-base font-semibold text-ward-text">
-            Import Preview — {rows.length} patient{rows.length !== 1 ? 's' : ''}
+            Import Preview — {rows.length} patient{rows.length !== 1 ? 's' : ''} in {totalWards} ward{totalWards !== 1 ? 's' : ''}
           </h3>
           <p className="text-xs text-ward-muted mt-1">
             Review the data below before importing into MedWard.
           </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="border border-ward-border rounded-lg divide-y divide-ward-border">
-            {rows.map((r, i) => (
-              <div key={i} className="px-3 py-2 text-sm">
-                <p className="font-medium text-ward-text">{r.name || '(no name)'}</p>
-                <p className="text-xs text-ward-muted">
-                  {[r.bed && `Bed ${r.bed}`, r.mrn && `MRN: ${r.mrn}`, r.diagnosis].filter(Boolean).join(' · ')}
-                </p>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {wardEntries.map(([wardName, wardPatients]) => (
+            <div key={wardName} className="border border-ward-border rounded-lg overflow-hidden">
+              <div className="bg-gray-50 px-3 py-2 border-b border-ward-border">
+                <p className="text-sm font-bold text-ward-text">{wardName}</p>
+                <p className="text-xs text-ward-muted">{wardPatients.length} patient{wardPatients.length !== 1 ? 's' : ''}</p>
               </div>
-            ))}
-          </div>
+              <div className="divide-y divide-gray-100">
+                {wardPatients.map((r, i) => (
+                  <div key={i} className="px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-ward-text text-sm flex-1">{r.name || '(no name)'}</p>
+                      {r.status && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          r.status.toLowerCase().includes('chronic')
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}>
+                          {r.status}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-ward-muted mt-0.5">
+                      {[r.bed && `Bed ${r.bed}`, r.mrn && `MRN: ${r.mrn}`, r.diagnosis].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="p-4 border-t border-ward-border flex gap-2 justify-end">
@@ -147,7 +182,7 @@ export function SheetIntegrationCard() {
 
   const [urlInput, setUrlInput] = useState(store.sheetUrl)
   const [testingConnection, setTestingConnection] = useState(false)
-  const [importPreview, setImportPreview] = useState<Array<{ name: string; bed: string; mrn: string; diagnosis: string }> | null>(null)
+  const [importPreview, setImportPreview] = useState<Array<{ name: string; bed: string; mrn: string; diagnosis: string; ward: string; status: string }> | null>(null)
   const [parsedForImport, setParsedForImport] = useState<ReturnType<typeof parseWardData>>([])
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -205,10 +240,14 @@ export function SheetIntegrationCard() {
       // Show preview
       setImportPreview(
         parsed.map((p) => ({
-          name: `${p.lastName}, ${p.firstName}`.trim() || '(unnamed)',
+          name: p.firstName
+            ? `${p.lastName}, ${p.firstName}`.trim()
+            : p.lastName || '(unnamed)',
           bed: p.bedNumber,
           mrn: p.mrn,
           diagnosis: p.primaryDiagnosis,
+          ward: p.wardId,
+          status: p.raw.F || '', // Column F contains status
         }))
       )
       setParsedForImport(parsed)
