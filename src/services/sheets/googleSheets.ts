@@ -201,7 +201,7 @@ function isColumnHeaderRow(cells: string[]): boolean {
  * Ward headers must have content ONLY in the first cell (column A), with all other cells empty.
  * This prevents partial data rows from being misidentified as ward headers.
  */
-function isWardHeaderRow(cells: string[], minDataCols: number): string | null {
+function isWardHeaderRow(cells: string[], _minDataCols: number): string | null {
   // Ward header must have content only in first cell, all others must be empty
   if (!cells[0]?.trim()) return null
 
