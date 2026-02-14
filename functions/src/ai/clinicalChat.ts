@@ -127,20 +127,26 @@ export const clinicalChat = onCall(
             contextParts.push(`\nRecent Labs:\n${labLines.join("\n")}`);
           }
 
-          // Fetch active tasks
+          // Fetch tasks for patient (filter status client-side to avoid composite index)
           const tasksSnap = await db
             .collection("tasks")
             .where("patientId", "==", patientId)
-            .where("status", "!=", "completed")
-            .limit(10)
+            .limit(20)
             .get();
 
           if (!tasksSnap.empty) {
-            const taskLines = tasksSnap.docs.map((doc) => {
-              const task = doc.data();
-              return `- [${task.priority || "medium"}] ${task.title || ""}`;
-            });
-            contextParts.push(`\nActive Tasks:\n${taskLines.join("\n")}`);
+            // Filter to active tasks only
+            const activeTasks = tasksSnap.docs
+              .map((doc) => doc.data())
+              .filter((task) => task.status !== "completed" && task.status !== "cancelled")
+              .slice(0, 10);
+
+            if (activeTasks.length > 0) {
+              const taskLines = activeTasks.map((task) => {
+                return `- [${task.priority || "medium"}] ${task.title || ""}`;
+              });
+              contextParts.push(`\nActive Tasks:\n${taskLines.join("\n")}`);
+            }
           }
 
           systemPrompt = CLINICAL_CHAT_WITH_CONTEXT(contextParts.join("\n"));
