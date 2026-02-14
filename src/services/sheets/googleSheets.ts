@@ -185,7 +185,19 @@ export async function fetchSheetViaAPI(
 // ---------------------------------------------------------------------------
 
 /**
- * Detect if a row is a ward/section header (e.g. "Ward 10" spanning a row).
+ * Detect if a row is a column header row (e.g. "Room | Name | Diagnosis | ...").
+ * These appear multiple times in the sheet and should be skipped.
+ */
+function isColumnHeaderRow(cells: string[]): boolean {
+  const filled = cells.filter((c) => c?.trim()).map((c) => c.toLowerCase())
+  const headerWords = ['room', 'name', 'patient', 'diagnosis', 'attending', 'doctor', 'status', 'bed']
+  // If row has 2+ header-like words, it's a column header
+  const headerCount = filled.filter((text) => headerWords.some((w) => text.includes(w))).length
+  return headerCount >= 2
+}
+
+/**
+ * Detect if a row is a ward/section header (e.g. "Ward 10" or "ICU" spanning a row).
  * Ward headers typically have content in only 1-2 cells while the rest are empty.
  */
 function isWardHeaderRow(cells: string[], minDataCols: number): string | null {
@@ -193,9 +205,6 @@ function isWardHeaderRow(cells: string[], minDataCols: number): string | null {
   // A ward header has very few filled cells compared to a data row
   if (filled.length >= 1 && filled.length <= 2 && filled.length < minDataCols) {
     const text = filled[0].trim()
-    // Skip if it looks like a repeated column header (common words)
-    const headerWords = ['bed', 'name', 'mrn', 'diagnosis', 'attending', 'team', 'gender', 'dob', 'allergies']
-    if (headerWords.some((w) => text.toLowerCase() === w)) return null
     // Must have some content
     if (text.length > 0) return text
   }
@@ -235,6 +244,9 @@ export function parseWardData(
     const cells = rows[i]
     if (!cells || cells.every((c) => !c?.trim())) continue
 
+    // Skip column header rows (e.g. "Room | Name | Diagnosis | ...")
+    if (isColumnHeaderRow(cells)) continue
+
     // Check if this row is a ward section header
     const wardHeader = isWardHeaderRow(cells, minDataCols)
     if (wardHeader) {
@@ -252,8 +264,27 @@ export function parseWardData(
       raw[indexToColLetter(ci)] = val
     })
 
-    const lastName = get('lastName')
-    const firstName = get('firstName')
+    // Handle full name in lastName field (column B contains "Firstname Lastname")
+    const fullName = get('lastName') || ''
+    const firstNameFromCol = get('firstName')
+
+    let lastName = ''
+    let firstName = ''
+
+    if (fullName && !firstNameFromCol) {
+      // Split full name: "Taher hasan" → firstName="Taher", lastName="hasan"
+      const parts = fullName.trim().split(/\s+/)
+      if (parts.length >= 2) {
+        firstName = parts[0]
+        lastName = parts.slice(1).join(' ')
+      } else if (parts.length === 1) {
+        lastName = parts[0]
+      }
+    } else {
+      lastName = get('lastName')
+      firstName = firstNameFromCol
+    }
+
     if (!lastName && !firstName) continue
 
     const acuityRaw = parseInt(get('acuity')) || 3

@@ -61,12 +61,9 @@ const DEFAULT_DOCTOR_COLORS: DoctorColorMapping[] = [
 
 const DEFAULT_COLUMN_MAPPINGS: ColumnMapping[] = [
   { sheetColumn: 'A', patientField: 'bedNumber' },
-  { sheetColumn: 'B', patientField: 'lastName' },
-  { sheetColumn: 'C', patientField: 'firstName' },
-  { sheetColumn: 'D', patientField: 'mrn' },
-  { sheetColumn: 'E', patientField: 'primaryDiagnosis' },
-  { sheetColumn: 'F', patientField: 'attendingPhysician' },
-  { sheetColumn: 'G', patientField: 'team' },
+  { sheetColumn: 'B', patientField: 'lastName' }, // Will be treated as full name and split
+  { sheetColumn: 'C', patientField: 'primaryDiagnosis' },
+  { sheetColumn: 'E', patientField: 'attendingPhysician' },
 ]
 
 export const useSheetIntegrationStore = create<SheetIntegrationStore>()(
@@ -123,13 +120,13 @@ export const useSheetIntegrationStore = create<SheetIntegrationStore>()(
     }),
     {
       name: 'medward-sheet-integration',
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>
-        if (version <= 1) {
-          // v0/v1 → v2: remove wardId column mapping (wards come from row headers now)
-          const mappings = (state.columnMappings || []) as ColumnMapping[]
-          state.columnMappings = mappings.filter((m) => m.patientField !== 'wardId')
+        if (version <= 2) {
+          // v0/v1/v2 → v3: reset column mappings to match actual sheet structure
+          // (A=bed, B=name, C=diagnosis, E=doctor)
+          state.columnMappings = DEFAULT_COLUMN_MAPPINGS
         }
         return state
       },
