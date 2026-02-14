@@ -3,7 +3,6 @@ import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { getOverdueTasks } from '@/services/firebase/tasks'
 import { showNotification, getNotificationPermission } from '@/services/browserNotifications'
-import type { Task } from '@/types'
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000 // Check every 5 minutes
 const NOTIFICATION_CACHE_KEY = 'missedTaskNotifications'
