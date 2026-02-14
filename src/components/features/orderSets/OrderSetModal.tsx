@@ -1,16 +1,9 @@
-/**
- * Order Set Modal (Phase 4)
- *
- * Displays grid of order set templates
- * Shows checklist of tasks to be created
- * Enables one-tap batch task creation
- */
-
-import { useState } from 'react';
-import { X, ChevronRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, ChevronRight, ClipboardList, Clock3, BookOpen } from 'lucide-react';
 import { ORDER_SETS } from '@/config/orderSets';
+import { PROTOCOL_ICON_MAP } from '@/components/icons/protocolIconMap';
 import { OrderSetSection } from './OrderSetSection';
-import type { OrderSet, OrderSetItem } from '@/types/orderSet';
+import type { OrderSet, OrderSetCategory, OrderSetItem } from '@/types/orderSet';
 
 interface OrderSetModalProps {
   isOpen: boolean;
@@ -20,6 +13,28 @@ interface OrderSetModalProps {
   bedNumber: string;
   onCreateTasks: (orderSetId: string, selectedItems: OrderSetItem[]) => Promise<void>;
 }
+
+const CATEGORY_ICON_STYLES: Record<OrderSetCategory, string> = {
+  cardiac: 'bg-red-500/10 text-red-500 border-red-500/30',
+  infectious: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
+  metabolic: 'bg-orange-500/10 text-orange-500 border-orange-500/30',
+  neurological: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30',
+  respiratory: 'bg-teal-500/10 text-teal-500 border-teal-500/30',
+  renal: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30',
+  gastrointestinal: 'bg-rose-500/10 text-rose-500 border-rose-500/30',
+  other: 'bg-slate-500/10 text-slate-500 border-slate-500/30',
+};
+
+const CATEGORY_HOVER_STYLES: Record<OrderSetCategory, string> = {
+  cardiac: 'hover:border-red-400/50',
+  infectious: 'hover:border-purple-400/50',
+  metabolic: 'hover:border-orange-400/50',
+  neurological: 'hover:border-indigo-400/50',
+  respiratory: 'hover:border-teal-400/50',
+  renal: 'hover:border-cyan-400/50',
+  gastrointestinal: 'hover:border-rose-400/50',
+  other: 'hover:border-slate-400/50',
+};
 
 export function OrderSetModal({
   isOpen,
@@ -33,23 +48,58 @@ export function OrderSetModal({
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedOrderSet(null);
+      setSelectedItems(new Set());
+      setIsCreating(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedOrderSet(null);
+        setSelectedItems(new Set());
+        setIsCreating(false);
+        onClose();
+      }
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    setSelectedOrderSet(null);
+    setSelectedItems(new Set());
+    setIsCreating(false);
+    onClose();
+  };
 
   const handleSelectOrderSet = (orderSet: OrderSet) => {
     setSelectedOrderSet(orderSet);
-    // Pre-select all items that are marked as preChecked
     const preCheckedIds = orderSet.items.filter((item) => item.isPreChecked).map((item) => item.id);
     setSelectedItems(new Set(preCheckedIds));
   };
 
   const handleToggleItem = (itemId: string) => {
-    const newSelected = new Set(selectedItems);
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
-    } else {
-      newSelected.add(itemId);
-    }
-    setSelectedItems(newSelected);
+    setSelectedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
   };
 
   const handleCreateOrders = async () => {
@@ -59,9 +109,7 @@ export function OrderSetModal({
     try {
       const items = selectedOrderSet.items.filter((item) => selectedItems.has(item.id));
       await onCreateTasks(selectedOrderSet.id, items);
-      onClose();
-      setSelectedOrderSet(null);
-      setSelectedItems(new Set());
+      handleClose();
     } catch (error) {
       console.error('Failed to create order set tasks:', error);
       alert('Failed to create tasks. Please try again.');
@@ -75,94 +123,129 @@ export function OrderSetModal({
     setSelectedItems(new Set());
   };
 
+  const criticalItems = selectedOrderSet?.items.filter((item) => item.isPreChecked) ?? [];
+  const optionalItems = selectedOrderSet?.items.filter((item) => !item.isPreChecked) ?? [];
+  const SelectedIcon = selectedOrderSet ? PROTOCOL_ICON_MAP[selectedOrderSet.id] : null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Order Sets</h2>
-            <p className="text-sm text-gray-600 mt-1">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 safe-x"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) handleClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-set-modal-title"
+        className="w-full max-w-6xl max-h-[100dvh] sm:max-h-[92vh] rounded-t-2xl sm:rounded-2xl border border-ward-border bg-ward-card shadow-2xl flex flex-col safe-bottom"
+      >
+        <div className="sticky top-0 z-10 px-4 sm:px-6 py-4 border-b border-ward-border bg-ward-card flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 id="order-set-modal-title" className="text-lg sm:text-2xl font-bold text-ward-text">
+              Order Sets
+            </h2>
+            <p className="text-xs sm:text-sm text-ward-muted mt-1 truncate">
               {selectedOrderSet
                 ? `${selectedOrderSet.name} - ${patientName} (${bedNumber})`
                 : 'Select a clinical scenario to generate tasks'}
             </p>
           </div>
           <button
-            onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+            onClick={handleClose}
+            className="p-2 rounded-lg text-ward-muted hover:text-ward-text hover:bg-ward-bg min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Close order set modal"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 overscroll-contain">
           {!selectedOrderSet ? (
-            // Order Set Grid
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {ORDER_SETS.map((orderSet) => (
-                <button
-                  key={orderSet.id}
-                  onClick={() => handleSelectOrderSet(orderSet)}
-                  className="p-6 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all text-left group"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className={`text-4xl p-3 rounded-lg ${orderSet.color} bg-opacity-20`}>
-                      {orderSet.icon}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+              {ORDER_SETS.map((orderSet) => {
+                const IconComponent = PROTOCOL_ICON_MAP[orderSet.id];
+                return (
+                  <button
+                    key={orderSet.id}
+                    onClick={() => handleSelectOrderSet(orderSet)}
+                    className={`group rounded-xl border border-ward-border bg-ward-card p-4 sm:p-5 text-left transition-all hover:bg-ward-bg ${CATEGORY_HOVER_STYLES[orderSet.category]}`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div
+                        className={`h-12 w-12 sm:h-14 sm:w-14 rounded-xl border flex items-center justify-center ${CATEGORY_ICON_STYLES[orderSet.category]}`}
+                      >
+                        {IconComponent ? (
+                          <IconComponent className="w-7 h-7" />
+                        ) : (
+                          <span className="text-2xl">{orderSet.icon}</span>
+                        )}
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-ward-muted group-hover:text-primary-600 mt-1" />
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold text-gray-900 mb-1">{orderSet.name}</h3>
-                  <p className="text-xs text-gray-600 mb-2">{orderSet.description}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{orderSet.items.length} items</span>
-                    <span>{orderSet.estimatedDuration}</span>
-                  </div>
-                </button>
-              ))}
+
+                    <h3 className="font-semibold text-ward-text mb-1">{orderSet.name}</h3>
+                    <p className="text-xs text-ward-muted mb-3">{orderSet.description}</p>
+
+                    <div className="flex items-center justify-between text-xs text-ward-muted">
+                      <span>{orderSet.items.length} items</span>
+                      <span>{orderSet.estimatedDuration}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
-            // Order Set Details & Checklist
             <div>
-              {/* Order Set Info */}
-              <div className={`p-4 rounded-lg ${selectedOrderSet.color} bg-opacity-10 mb-6`}>
+              <div className="mb-6 p-4 sm:p-5 rounded-xl border border-ward-border bg-ward-bg">
                 <div className="flex items-start gap-4">
-                  <div className={`text-5xl p-4 rounded-lg ${selectedOrderSet.color} bg-opacity-20`}>
-                    {selectedOrderSet.icon}
+                  <div
+                    className={`h-14 w-14 sm:h-16 sm:w-16 rounded-xl border flex items-center justify-center ${CATEGORY_ICON_STYLES[selectedOrderSet.category]}`}
+                  >
+                    {SelectedIcon ? (
+                      <SelectedIcon className="w-8 h-8" />
+                    ) : (
+                      <span className="text-3xl">{selectedOrderSet.icon}</span>
+                    )}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">
-                      {selectedOrderSet.name}
-                    </h3>
-                    <p className="text-sm text-gray-700 mb-2">{selectedOrderSet.description}</p>
-                    <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-                      <span>📋 {selectedOrderSet.items.length} items</span>
-                      <span>⏱️ {selectedOrderSet.estimatedDuration}</span>
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg sm:text-xl font-bold text-ward-text mb-1">{selectedOrderSet.name}</h3>
+                    <p className="text-sm text-ward-muted mb-3">{selectedOrderSet.description}</p>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-ward-muted">
+                      <span className="inline-flex items-center gap-1">
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        {selectedOrderSet.items.length} items
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Clock3 className="w-3.5 h-3.5" />
+                        {selectedOrderSet.estimatedDuration}
+                      </span>
                       {selectedOrderSet.clinicalGuideline && (
-                        <span>📖 {selectedOrderSet.clinicalGuideline}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <BookOpen className="w-3.5 h-3.5" />
+                          {selectedOrderSet.clinicalGuideline}
+                        </span>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Checklist Sections */}
-              <div className="space-y-6">
-                {/* Critical Items */}
+              <div className="space-y-5">
                 <OrderSetSection
                   title="Critical Items (Pre-selected)"
-                  items={selectedOrderSet.items.filter((item) => item.isPreChecked)}
+                  items={criticalItems}
                   selectedItems={selectedItems}
                   onToggleItem={handleToggleItem}
                   severity="critical"
                 />
 
-                {/* Optional Items */}
-                {selectedOrderSet.items.filter((item) => !item.isPreChecked).length > 0 && (
+                {optionalItems.length > 0 && (
                   <OrderSetSection
                     title="Optional Items"
-                    items={selectedOrderSet.items.filter((item) => !item.isPreChecked)}
+                    items={optionalItems}
                     selectedItems={selectedItems}
                     onToggleItem={handleToggleItem}
                     severity="optional"
@@ -170,9 +253,8 @@ export function OrderSetModal({
                 )}
               </div>
 
-              {/* Summary */}
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-900">
+              <div className="mt-6 p-4 rounded-lg border border-primary-400/30 bg-primary-500/10">
+                <p className="text-sm text-ward-text">
                   <strong>{selectedItems.size}</strong> tasks will be created for{' '}
                   <strong>{patientName}</strong> ({bedNumber})
                 </p>
@@ -181,34 +263,37 @@ export function OrderSetModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-between">
-          <div>
-            {selectedOrderSet && (
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-ward-border bg-ward-card safe-bottom">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              {selectedOrderSet && (
+                <button
+                  onClick={handleBack}
+                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-ward-text bg-ward-card border border-ward-border rounded-lg hover:bg-ward-bg min-h-[44px]"
+                >
+                  Back to Order Sets
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:ml-auto">
               <button
-                onClick={handleBack}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                onClick={handleClose}
+                className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-ward-text bg-ward-card border border-ward-border rounded-lg hover:bg-ward-bg min-h-[44px]"
               >
-                ← Back to Order Sets
+                Cancel
               </button>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            {selectedOrderSet && (
-              <button
-                onClick={handleCreateOrders}
-                disabled={selectedItems.size === 0 || isCreating}
-                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isCreating ? 'Creating...' : `Create ${selectedItems.size} Tasks`}
-              </button>
-            )}
+
+              {selectedOrderSet && (
+                <button
+                  onClick={handleCreateOrders}
+                  disabled={selectedItems.size === 0 || isCreating}
+                  className="w-full sm:w-auto px-6 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px]"
+                >
+                  {isCreating ? 'Creating...' : `Create ${selectedItems.size} Tasks`}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
