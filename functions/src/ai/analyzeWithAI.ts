@@ -19,8 +19,6 @@ export const analyzeWithAI = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    // SECURITY FIX: Enforce App Check to prevent abuse
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {

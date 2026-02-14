@@ -255,8 +255,6 @@ export const aiGateway = onCall(
     cors: true,
     region: "europe-west1",
     timeoutSeconds: 60,
-    // SECURITY FIX: Enforce App Check to prevent abuse
-    consumeAppCheckToken: true,
     memory: "512MiB",
   },
   async (request): Promise<GatewayResponse> => {

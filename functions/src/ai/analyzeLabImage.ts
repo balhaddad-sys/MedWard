@@ -434,8 +434,6 @@ export const analyzeLabImage = onCall(
     cpu: 2,
     region: "europe-west1",
     timeoutSeconds: 120,
-    // SECURITY FIX: Enforce App Check to prevent abuse
-    consumeAppCheckToken: true,
   },
   async (request) => {
     if (!request.auth) {
