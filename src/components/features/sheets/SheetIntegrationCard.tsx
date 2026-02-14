@@ -50,6 +50,7 @@ type PreviewRow = {
   diagnosis: string
   ward: string
   doctor: string
+  section: string
 }
 
 // ---------------------------------------------------------------------------
@@ -103,23 +104,37 @@ function ImportPreviewModal({
   onCancel: () => void
   importing: boolean
 }) {
-  // Group patients by ward -> doctor
+  // Group patients by section -> ward -> doctor
   const grouped = rows.reduce((acc, row) => {
+    const section = row.section || 'Active'
     const ward = row.ward || 'Unassigned'
     const doctor = row.doctor || 'Unassigned Doctor'
-    if (!acc[ward]) acc[ward] = {}
-    if (!acc[ward][doctor]) acc[ward][doctor] = []
-    acc[ward][doctor].push(row)
-    return acc
-  }, {} as Record<string, Record<string, PreviewRow[]>>)
 
-  const wardEntries = Object.entries(grouped).sort((a, b) => {
-    if (a[0] === 'Unassigned') return 1
-    if (b[0] === 'Unassigned') return -1
+    if (!acc[section]) acc[section] = {}
+    if (!acc[section][ward]) acc[section][ward] = {}
+    if (!acc[section][ward][doctor]) acc[section][ward][doctor] = []
+    acc[section][ward][doctor].push(row)
+    return acc
+  }, {} as Record<string, Record<string, Record<string, PreviewRow[]>>>)
+
+  // Sort sections: Active first, then chronic, then alphabetical
+  const sectionEntries = Object.entries(grouped).sort((a, b) => {
+    const aLower = a[0].toLowerCase()
+    const bLower = b[0].toLowerCase()
+
+    if (aLower === 'active') return -1
+    if (bLower === 'active') return 1
+
+    const aIsChronic = /\bchronic\b/i.test(aLower)
+    const bIsChronic = /\bchronic\b/i.test(bLower)
+
+    if (aIsChronic && !bIsChronic) return 1
+    if (!aIsChronic && bIsChronic) return -1
+
     return a[0].localeCompare(b[0])
   })
 
-  const totalWards = wardEntries.length
+  const totalWards = new Set(rows.map(r => r.ward)).size
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -133,33 +148,62 @@ function ImportPreviewModal({
           </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {wardEntries.map(([wardName, doctorsInWard]) => {
-            const wardPatientCount = Object.values(doctorsInWard).reduce((sum, patients) => sum + patients.length, 0)
-            const doctorEntries = Object.entries(doctorsInWard).sort((a, b) => a[0].localeCompare(b[0]))
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {sectionEntries.map(([sectionName, wardsInSection]) => {
+            const sectionPatientCount = Object.values(wardsInSection).reduce(
+              (sum, doctors) => sum + Object.values(doctors).reduce((dSum, patients) => dSum + patients.length, 0),
+              0
+            )
+            const wardEntries = Object.entries(wardsInSection).sort((a, b) => {
+              if (a[0] === 'Unassigned') return 1
+              if (b[0] === 'Unassigned') return -1
+              return a[0].localeCompare(b[0])
+            })
+
+            const isChronic = /\bchronic\b/i.test(sectionName)
 
             return (
-              <div key={wardName} className="border border-ward-border rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-3 py-2 border-b border-ward-border">
-                  <p className="text-sm font-bold text-ward-text">{wardName}</p>
-                  <p className="text-xs text-ward-muted">{wardPatientCount} patient{wardPatientCount !== 1 ? 's' : ''}</p>
+              <div key={sectionName} className={`border-2 rounded-xl overflow-hidden ${isChronic ? 'border-orange-200 bg-orange-50/30' : 'border-ward-border'}`}>
+                <div className={`px-4 py-2 border-b ${isChronic ? 'bg-orange-100 border-orange-200' : 'bg-primary-50 border-primary-100'}`}>
+                  <p className={`text-sm font-bold ${isChronic ? 'text-orange-900' : 'text-primary-900'}`}>
+                    {sectionName} {isChronic && '(Chronic)'}
+                  </p>
+                  <p className={`text-xs ${isChronic ? 'text-orange-600' : 'text-primary-600'}`}>
+                    {sectionPatientCount} patient{sectionPatientCount !== 1 ? 's' : ''}
+                  </p>
                 </div>
-                <div className="divide-y divide-gray-100">
-                  {doctorEntries.map(([doctorName, patients]) => (
-                    <div key={doctorName} className="px-3 py-2">
-                      <p className="text-xs font-semibold text-primary-600 mb-1.5">{doctorName}</p>
-                      <div className="space-y-1.5">
-                        {patients.map((r, i) => (
-                          <div key={i} className="pl-2 border-l-2 border-gray-200">
-                            <p className="font-medium text-ward-text text-sm">{r.name || '(no name)'}</p>
-                            <p className="text-xs text-ward-muted">
-                              {[r.bed && `Bed ${r.bed}`, r.mrn && `MRN: ${r.mrn}`, r.diagnosis].filter(Boolean).join(' · ')}
-                            </p>
-                          </div>
-                        ))}
+
+                <div className="space-y-2 p-3">
+                  {wardEntries.map(([wardName, doctorsInWard]) => {
+                    const wardPatientCount = Object.values(doctorsInWard).reduce((sum, patients) => sum + patients.length, 0)
+                    const doctorEntries = Object.entries(doctorsInWard).sort((a, b) => a[0].localeCompare(b[0]))
+
+                    return (
+                      <div key={wardName} className="border border-ward-border rounded-lg overflow-hidden bg-white">
+                        <div className="bg-gray-50 px-3 py-2 border-b border-ward-border">
+                          <p className="text-sm font-bold text-ward-text">{wardName}</p>
+                          <p className="text-xs text-ward-muted">{wardPatientCount} patient{wardPatientCount !== 1 ? 's' : ''}</p>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {doctorEntries.map(([doctorName, patients]) => (
+                            <div key={doctorName} className="px-3 py-2">
+                              <p className="text-xs font-semibold text-primary-600 mb-1.5">{doctorName}</p>
+                              <div className="space-y-1.5">
+                                {patients.map((r, i) => (
+                                  <div key={i} className="pl-2 border-l-2 border-gray-200">
+                                    <p className="font-medium text-ward-text text-sm">{r.name || '(no name)'}</p>
+                                    <p className="text-xs text-ward-muted">
+                                      {[r.bed && `Bed ${r.bed}`, r.mrn && `MRN: ${r.mrn}`, r.diagnosis].filter(Boolean).join(' · ')}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -245,7 +289,9 @@ export function SheetIntegrationCard() {
     store.setSyncStatus('importing')
     try {
       const rows = await fetchSheetAsCSV(store.sheetId, store.sheetTabName || undefined)
-      const parsed = parseWardData(rows, store.columnMappings)
+      const parsed = parseWardData(rows, store.columnMappings, {
+        excludeArchived: true,
+      })
 
       if (parsed.length === 0) {
         addToast({ type: 'error', title: 'No data', message: 'No patient data found in the sheet. Check your column mappings.' })
@@ -262,6 +308,7 @@ export function SheetIntegrationCard() {
           diagnosis: p.primaryDiagnosis || '',
           ward: p.wardId || 'Unassigned',
           doctor: p.attendingPhysician || 'Unassigned Doctor',
+          section: p.section || 'Active',
         }))
       )
       setParsedForImport(parsed)

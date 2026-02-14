@@ -27,6 +27,7 @@ export interface ParsedSheetPatient {
   attendingPhysician: string
   team: string
   wardId: string
+  section: string
   gender: 'male' | 'female' | 'other'
   dateOfBirth: string
   allergies: string[]
@@ -50,6 +51,13 @@ export interface ExportResult {
   success: boolean
   rowsWritten: number
   error?: string
+}
+
+export interface ParseWardOptions {
+  skipHeaderRows?: number
+  excludeArchived?: boolean
+  excludedSectionKeywords?: string[]
+  excludedStatusKeywords?: string[]
 }
 
 // ---------------------------------------------------------------------------
@@ -293,12 +301,24 @@ function compareWardId(a: string, b: string): number {
  * 2. Row-based: ward names appear as section header rows in the sheet
  *    (e.g. "Ward 10" in a row by itself, followed by patient rows)
  *    The parser auto-detects these and assigns the ward to subsequent patients.
+ *
+ * Options:
+ * - excludeArchived: Skip history/archive sections and rows (default: true, keeps chronic)
+ * - excludedSectionKeywords: Keywords to exclude sections (default: history, archive, old)
+ * - excludedStatusKeywords: Keywords to exclude rows by status (default: history, archived, discharged)
  */
 export function parseWardData(
   rows: string[][],
   columnMappings: ColumnMapping[],
-  skipHeaderRows: number = 1
+  options: ParseWardOptions = {}
 ): ParsedSheetPatient[] {
+  const {
+    skipHeaderRows = 1,
+    excludeArchived = true,
+    excludedSectionKeywords = ['history', 'archive', 'old', 'discharged'],
+    excludedStatusKeywords = ['history', 'archived', 'discharged'],
+  } = options
+
   if (rows.length <= skipHeaderRows) return []
 
   const fieldMap = new Map<string, number>()
@@ -314,6 +334,7 @@ export function parseWardData(
   const patients: ParsedSheetPatient[] = []
   let currentSection = ''
   let currentWard = ''
+  let includeCurrentSection = true
 
   for (let i = skipHeaderRows; i < rows.length; i++) {
     const cells = rows[i] || []
@@ -327,9 +348,17 @@ export function parseWardData(
       if (ctx.kind === 'section') {
         currentSection = ctx.label
         currentWard = ''
+        const lower = ctx.label.toLowerCase()
+        includeCurrentSection = !excludeArchived ||
+          !excludedSectionKeywords.some((kw) => lower.includes(kw))
       } else {
         currentWard = ctx.label
       }
+      continue
+    }
+
+    // Skip rows in excluded sections
+    if (excludeArchived && !includeCurrentSection) {
       continue
     }
 
@@ -338,6 +367,16 @@ export function parseWardData(
 
     const fullNameLower = `${nameParts.firstName} ${nameParts.lastName}`.toLowerCase()
     if (/\b(total|count|summary)\b/.test(fullNameLower)) continue
+
+    // Skip rows with excluded status keywords
+    const stateRaw = getFrom(cells, 'state').toLowerCase()
+    if (
+      excludeArchived &&
+      stateRaw &&
+      excludedStatusKeywords.some((kw) => stateRaw.includes(kw))
+    ) {
+      continue
+    }
 
     const raw: Record<string, string> = {}
     cells.forEach((val, ci) => { raw[indexToColLetter(ci)] = val || '' })
@@ -373,6 +412,7 @@ export function parseWardData(
       attendingPhysician: getFrom(cells, 'attendingPhysician'),
       team: getFrom(cells, 'team'),
       wardId,
+      section: currentSection || 'Active',
       gender,
       dateOfBirth: getFrom(cells, 'dateOfBirth'),
       allergies,
