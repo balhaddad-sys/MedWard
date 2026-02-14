@@ -14,7 +14,9 @@
     "test:coverage": "vitest run --coverage",
     "preview": "vite preview",
     "firebase:emulators": "firebase emulators:start",
-    "deploy": "npm run build && firebase deploy"
+    "deploy": "npm run build && npm run build --prefix functions && firebase deploy",
+    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "deploy:functions": "npm run build --prefix functions && firebase deploy --only functions"
   },
   "dependencies": {
     "browser-image-compression": "^2.0.2",
@@ -51,6 +53,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "@vitest/coverage-v8": "^4.0.18"
   }
 }

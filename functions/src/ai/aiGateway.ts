@@ -255,6 +255,8 @@ export const aiGateway = onCall(
     cors: true,
     region: "europe-west1",
     timeoutSeconds: 60,
+    // SECURITY FIX: Enforce App Check to prevent abuse
+    consumeAppCheckToken: true,
     memory: "512MiB",
   },
   async (request): Promise<GatewayResponse> => {
@@ -292,11 +294,18 @@ export const aiGateway = onCall(
     const skipCache = data.skipCache === true;
 
     // ── Determine cacheability ──
-    const cacheAllowed = !skipCache && CACHEABLE_TAGS.has(contextTag);
+    // SECURITY FIX: Disable caching when context is present to prevent cross-context leaks
+    // Context often contains patient-specific PHI that would make cache key collisions unsafe
+    const cacheAllowed = !skipCache && CACHEABLE_TAGS.has(contextTag) && !context;
 
     // ── PHI redaction + normalization (for cache key, not for Claude) ──
     const redacted = redactPHI(prompt);
-    const normalized = normalizeForHash(`${contextTag}::${redacted}`);
+    // SECURITY FIX: Include system instruction in cache key to prevent wrong responses
+    const systemPrompt =
+      data.systemInstruction ||
+      SYSTEM_PROMPTS[contextTag] ||
+      "You are a helpful clinical AI assistant. Be concise, evidence-based, and safe.";
+    const normalized = normalizeForHash(`${contextTag}::${systemPrompt}::${redacted}`);
     const promptHash = sha256(normalized);
 
     // ── 1) Exact cache ──
@@ -331,11 +340,7 @@ export const aiGateway = onCall(
 
     // ── 3) Claude call ──
     try {
-      const systemPrompt =
-        data.systemInstruction ||
-        SYSTEM_PROMPTS[contextTag] ||
-        "You are a helpful clinical AI assistant. Be concise, evidence-based, and safe.";
-
+      // Note: systemPrompt is defined above for cache key calculation
       const fullPrompt = context ? `${prompt}\n\nContext:\n${context}` : prompt;
 
       let aiResponse: AIResponse;

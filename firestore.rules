@@ -31,17 +31,20 @@ service cloud.firestore {
                     && request.resource.data.keys().hasAll(['email', 'displayName', 'role'])
                     && isValidString(request.resource.data.email, 254)
                     && isValidString(request.resource.data.displayName, 100)
-                    && request.resource.data.role in ['admin', 'physician', 'clinician', 'nurse'];
+                    // SECURITY FIX: Users can only create non-admin accounts; admins must be promoted server-side
+                    && request.resource.data.role in ['physician', 'clinician', 'nurse'];
       allow update: if isOwner(userId)
+                    // Prevent role escalation - users cannot modify their own role
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
     }
 
     // Patients collection (PHASE 0: Team-based access with flexible permissions)
     match /patients/{patientId} {
-      // Read: must be creator OR assigned to the patient (fallback to createdBy if assignedClinicians doesn't exist)
+      // Read: must be creator OR explicitly assigned to the patient
+      // SECURITY FIX: Removed unsafe fallback that granted access to all users for legacy docs
       allow read: if isAuthenticated()
                   && (resource.data.createdBy == request.auth.uid
-                      || request.auth.uid in resource.data.get('assignedClinicians', [request.auth.uid]));
+                      || request.auth.uid in resource.data.get('assignedClinicians', []));
 
       // Create: allow any authenticated user, with basic validation
       allow create: if isAuthenticated()
@@ -64,9 +67,14 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
 
       // Labs subcollection
+      // SECURITY FIX: Restrict read access to authorized users only (creator or assigned clinicians)
       match /labs/{labId} {
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid
+                        || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.get('assignedClinicians', []));
         allow create: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid
+                          || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.get('assignedClinicians', []))
                       && request.resource.data.keys().hasAll(['patientId', 'category', 'panelName', 'values', 'status', 'source'])
                       && isValidString(request.resource.data.patientId, 200)
                       && isValidString(request.resource.data.panelName, 200)
@@ -75,14 +83,21 @@ service cloud.firestore {
                       && request.resource.data.source in ['manual', 'ocr', 'hl7', 'image']
                       && request.resource.data.values is list;
         allow update: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid
+                          || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.get('assignedClinicians', []))
                       && request.resource.data.status in ['pending', 'resulted', 'reviewed'];
         allow delete: if isAuthenticated() && get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid;
       }
 
       // History subcollection (patient medical history)
+      // SECURITY FIX: Restrict read access to authorized users only
       match /history/{historyId} {
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid
+                        || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.get('assignedClinicians', []));
         allow create, update: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid
+                          || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.get('assignedClinicians', []))
                       && request.resource.data.keys().hasAll(['patientId', 'updatedBy'])
                       && isValidString(request.resource.data.patientId, 200)
                       && request.resource.data.updatedBy == request.auth.uid;
@@ -90,12 +105,19 @@ service cloud.firestore {
       }
 
       // Notes subcollection
+      // SECURITY FIX: Restrict read access to authorized users only
       match /notes/{noteId} {
-        allow read: if isAuthenticated();
+        allow read: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid
+                        || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.get('assignedClinicians', []));
         allow create: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid
+                          || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.get('assignedClinicians', []))
                       && request.resource.data.keys().hasAll(['content'])
                       && isValidString(request.resource.data.content, 10000);
         allow update: if isAuthenticated()
+                      && (get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid
+                          || request.auth.uid in get(/databases/$(database)/documents/patients/$(patientId)).data.get('assignedClinicians', []))
                       && request.resource.data.content is string
                       && request.resource.data.content.size() <= 10000;
         allow delete: if isAuthenticated() && get(/databases/$(database)/documents/patients/$(patientId)).data.createdBy == request.auth.uid;
@@ -103,14 +125,23 @@ service cloud.firestore {
     }
 
     // Tasks collection
+    // SECURITY FIX: Restrict read/update to assigned users or creators only
     match /tasks/{taskId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated()
+                  && (resource.data.createdBy == request.auth.uid
+                      || resource.data.get('assignedTo', '') == request.auth.uid
+                      || (resource.data.keys().hasAny(['patientId'])
+                          && (get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid
+                              || request.auth.uid in get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.get('assignedClinicians', []))));
       allow create: if isAuthenticated()
                     && request.resource.data.keys().hasAll(['title', 'priority', 'status'])
                     && isValidString(request.resource.data.title, 500)
                     && request.resource.data.priority in ['critical', 'high', 'medium', 'low']
-                    && request.resource.data.status in ['pending', 'in_progress', 'completed', 'cancelled'];
+                    && request.resource.data.status in ['pending', 'in_progress', 'completed', 'cancelled']
+                    && request.resource.data.createdBy == request.auth.uid;
       allow update: if isAuthenticated()
+                    && (resource.data.createdBy == request.auth.uid
+                        || resource.data.get('assignedTo', '') == request.auth.uid)
                     && request.resource.data.title is string
                     && request.resource.data.title.size() <= 500
                     && request.resource.data.priority in ['critical', 'high', 'medium', 'low']
@@ -149,6 +180,7 @@ service cloud.firestore {
     }
 
     // On-Call List collection (PHASE 0: Reference-only architecture)
+    // SECURITY FIX: Restrict update/delete to entry creator or authorized patient clinicians
     match /on_call_list/{entryId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated()
@@ -158,9 +190,14 @@ service cloud.firestore {
                     && request.resource.data.isActive is bool
                     && request.resource.data.addedBy == request.auth.uid;
       allow update: if isAuthenticated()
+                    && (resource.data.addedBy == request.auth.uid
+                        || get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid
+                        || request.auth.uid in get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.get('assignedClinicians', []))
                     && request.resource.data.priority in ['low', 'medium', 'high', 'critical']
                     && request.resource.data.isActive is bool;
-      allow delete: if isAuthenticated();
+      allow delete: if isAuthenticated()
+                    && (resource.data.addedBy == request.auth.uid
+                        || get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid);
     }
 
     // Notifications collection (PHASE 0.2)
@@ -181,6 +218,26 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       // Metrics are immutable
       allow update, delete: if false;
+    }
+
+    // Alerts collection (SECURITY FIX: Added missing rules)
+    match /alerts/{alertId} {
+      // Users can read alerts for patients they have access to
+      allow read: if isAuthenticated()
+                  && (get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid
+                      || request.auth.uid in get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.get('assignedClinicians', []));
+      // System creates alerts via Cloud Functions (admin SDK bypasses this)
+      // Users can acknowledge alerts
+      allow update: if isAuthenticated()
+                    && (get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid
+                        || request.auth.uid in get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.get('assignedClinicians', []))
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acknowledgedAt', 'acknowledgedBy', 'status']);
+      // Only allow deletion by admins or patient owner
+      allow delete: if isAuthenticated()
+                    && (hasRole('admin')
+                        || get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid);
+      // Creation is server-side only (Cloud Functions with admin SDK)
+      allow create: if false;
     }
 
     // AI Cache — managed exclusively by Cloud Functions (server-side)

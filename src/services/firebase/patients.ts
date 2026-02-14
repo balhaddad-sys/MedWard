@@ -68,8 +68,7 @@ export const getPatient = async (id: string): Promise<Patient | null> => {
 }
 
 export const createPatient = async (data: PatientFormData, userId: string): Promise<string> => {
-  console.log('🔍 Creating patient with data:', data);
-  console.log('🔍 User ID:', userId);
+  // SECURITY FIX: Removed console.log that exposed PHI in production
 
   try {
     // Clean up data: convert empty strings to undefined, keep arrays and numbers as-is
@@ -113,12 +112,9 @@ export const createPatient = async (data: PatientFormData, userId: string): Prom
       lastModifiedBy: userId,
     };
 
-    console.log('📤 Sending to Firestore (fields):', Object.keys(patientData));
-    console.log('📤 acuity type:', typeof patientData.acuity, 'value:', patientData.acuity);
-    console.log('📤 state value:', patientData.state);
+    // SECURITY FIX: Removed debug logging that could expose patient data in production
 
     const docRef = await addDoc(getPatientsRef(), patientData);
-    console.log('✅ Patient created successfully:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('❌ Error creating patient:', error);

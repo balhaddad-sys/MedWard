@@ -6,7 +6,13 @@ import { logAuditEvent } from "../utils/auditLog";
 import { HANDOVER_SYSTEM_PROMPT } from "../prompts/handover";
 
 export const generateHandover = onCall(
-  { secrets: [anthropicApiKey], cors: true, region: "europe-west1" },
+  {
+    secrets: [anthropicApiKey],
+    cors: true,
+    region: "europe-west1",
+    // SECURITY FIX: Enforce App Check to prevent abuse
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");
@@ -26,7 +32,7 @@ export const generateHandover = onCall(
     try {
       const db = admin.firestore();
 
-      // Fetch all patients in the ward directly from Firestore
+      // SECURITY FIX: Fetch only patients the user has access to in the ward
       const patientsSnap = await db
         .collection("patients")
         .where("wardId", "==", wardId)
@@ -37,10 +43,25 @@ export const generateHandover = onCall(
         return { content: "No patients found in this ward.", usage: { inputTokens: 0, outputTokens: 0 } };
       }
 
+      // SECURITY FIX: Filter to only patients user has access to (creator or assigned)
+      const authorizedPatients = patientsSnap.docs.filter((doc) => {
+        const data = doc.data();
+        const createdBy = data.createdBy || "";
+        const assignedClinicians = data.assignedClinicians || [];
+        return createdBy === request.auth!.uid || assignedClinicians.includes(request.auth!.uid);
+      });
+
+      if (authorizedPatients.length === 0) {
+        return {
+          content: "No patients found in this ward that you have access to.",
+          usage: { inputTokens: 0, outputTokens: 0 },
+        };
+      }
+
       // Build comprehensive patient summaries with labs and tasks
       const patientSummaries: string[] = [];
 
-      for (const patientDoc of patientsSnap.docs) {
+      for (const patientDoc of authorizedPatients) {
         const patient = patientDoc.data();
         const parts: string[] = [
           `--- Patient: ${patient.firstName || ""} ${patient.lastName || ""} (Bed ${patient.bedNumber || "?"}) ---`,

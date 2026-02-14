@@ -6,7 +6,13 @@ import { logAuditEvent } from "../utils/auditLog";
 import { CLINICAL_CHAT_SYSTEM_PROMPT, CLINICAL_CHAT_WITH_CONTEXT } from "../prompts/clinicalChat";
 
 export const clinicalChat = onCall(
-  { secrets: [anthropicApiKey], cors: true, region: "europe-west1" },
+  {
+    secrets: [anthropicApiKey],
+    cors: true,
+    region: "europe-west1",
+    // SECURITY FIX: Enforce App Check to prevent abuse
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");
@@ -37,6 +43,16 @@ export const clinicalChat = onCall(
 
         if (patientDoc.exists) {
           const patient = patientDoc.data()!;
+
+          // SECURITY FIX: Verify user has access to this patient
+          const createdBy = patient.createdBy || "";
+          const assignedClinicians = patient.assignedClinicians || [];
+          if (createdBy !== request.auth.uid && !assignedClinicians.includes(request.auth.uid)) {
+            throw new HttpsError(
+              "permission-denied",
+              "You do not have permission to access this patient's data"
+            );
+          }
           const contextParts: string[] = [
             `Name: ${patient.firstName} ${patient.lastName}`,
             `DOB: ${patient.dateOfBirth || "Unknown"}`,

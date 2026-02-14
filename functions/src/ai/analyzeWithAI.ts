@@ -15,7 +15,13 @@ const SYSTEM_PROMPTS: Record<PromptType, string> = {
 };
 
 export const analyzeWithAI = onCall(
-  { secrets: [anthropicApiKey], cors: true, region: "europe-west1" },
+  {
+    secrets: [anthropicApiKey],
+    cors: true,
+    region: "europe-west1",
+    // SECURITY FIX: Enforce App Check to prevent abuse
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");

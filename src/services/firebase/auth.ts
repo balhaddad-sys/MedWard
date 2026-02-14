@@ -94,6 +94,43 @@ export const signInWithGoogle = async (): Promise<FirebaseUser> => {
 }
 
 export const signOut = async (): Promise<void> => {
+  // SECURITY FIX: Clear PHI from client-side storage before signing out
+  const phiKeys = [
+    'acutePatients',
+    'clinicPatients',
+    'clerkingPatients',
+    'medward-offline-queue',
+    'shiftview-cache',
+  ]
+
+  // Clear localStorage PHI keys
+  phiKeys.forEach((key) => {
+    try {
+      localStorage.removeItem(key)
+    } catch (e) {
+      console.warn(`Failed to clear localStorage key: ${key}`, e)
+    }
+  })
+
+  // Clear sessionStorage
+  try {
+    sessionStorage.clear()
+  } catch (e) {
+    console.warn('Failed to clear sessionStorage', e)
+  }
+
+  // Clear IndexedDB (if used)
+  try {
+    const databases = await indexedDB.databases()
+    for (const db of databases) {
+      if (db.name) {
+        indexedDB.deleteDatabase(db.name)
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to clear IndexedDB', e)
+  }
+
   await firebaseSignOut(auth)
 }
 
