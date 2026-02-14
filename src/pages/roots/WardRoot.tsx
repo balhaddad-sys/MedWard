@@ -427,7 +427,10 @@ function WardPatientRow({ patient, taskCount, hasCritical, onTap, onEdit, onDele
         <div className="w-10 text-xs font-mono font-bold text-ward-text flex-shrink-0">{patient.bedNumber || '—'}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="text-sm font-semibold text-ward-text truncate">{patient.lastName?.toUpperCase()}, {patient.firstName}</p>
+            <p className="text-sm font-semibold text-ward-text truncate">
+              {patient.lastName?.toUpperCase()}
+              {patient.firstName && `, ${patient.firstName}`}
+            </p>
             {hasCritical && <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />}
           </div>
           <p className="text-xs text-ward-muted truncate">{patient.primaryDiagnosis || 'No diagnosis'}</p>

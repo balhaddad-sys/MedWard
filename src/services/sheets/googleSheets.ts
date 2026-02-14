@@ -198,15 +198,22 @@ function isColumnHeaderRow(cells: string[]): boolean {
 
 /**
  * Detect if a row is a ward/section header (e.g. "Ward 10" or "ICU" spanning a row).
- * Ward headers typically have content in only 1-2 cells while the rest are empty.
+ * Ward headers typically have content in only 1-2 cells while the rest are empty,
+ * AND the text looks like a ward/section label (not a patient name).
  */
 function isWardHeaderRow(cells: string[], minDataCols: number): string | null {
   const filled = cells.filter((c) => c?.trim())
   // A ward header has very few filled cells compared to a data row
   if (filled.length >= 1 && filled.length <= 2 && filled.length < minDataCols) {
     const text = filled[0].trim()
-    // Must have some content
-    if (text.length > 0) return text
+    const lower = text.toLowerCase()
+
+    // Must look like a ward/section label (contains ward-related keywords or is in parentheses)
+    const wardKeywords = ['ward', 'unit', 'icu', 'er', 'emergency', 'chronic', 'list', 'male', 'female', 'unassigned']
+    const looksLikeWard = wardKeywords.some((kw) => lower.includes(kw)) ||
+                          (text.startsWith('(') && text.endsWith(')'))
+
+    if (looksLikeWard && text.length > 0) return text
   }
   return null
 }
