@@ -40,6 +40,19 @@ const PATIENT_FIELDS = [
 const COLUMN_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type PreviewRow = {
+  name: string
+  bed: string
+  mrn: string
+  diagnosis: string
+  ward: string
+  doctor: string
+}
+
+// ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
@@ -85,20 +98,22 @@ function ImportPreviewModal({
   onCancel,
   importing,
 }: {
-  rows: Array<{ name: string; bed: string; mrn: string; diagnosis: string; ward: string; status: string }>
+  rows: PreviewRow[]
   onConfirm: () => void
   onCancel: () => void
   importing: boolean
 }) {
-  // Group patients by ward
-  const patientsByWard = rows.reduce((acc, patient) => {
-    const ward = patient.ward || 'Unassigned'
-    if (!acc[ward]) acc[ward] = []
-    acc[ward].push(patient)
+  // Group patients by ward -> doctor
+  const grouped = rows.reduce((acc, row) => {
+    const ward = row.ward || 'Unassigned'
+    const doctor = row.doctor || 'Unassigned Doctor'
+    if (!acc[ward]) acc[ward] = {}
+    if (!acc[ward][doctor]) acc[ward][doctor] = []
+    acc[ward][doctor].push(row)
     return acc
-  }, {} as Record<string, typeof rows>)
+  }, {} as Record<string, Record<string, PreviewRow[]>>)
 
-  const wardEntries = Object.entries(patientsByWard).sort((a, b) => {
+  const wardEntries = Object.entries(grouped).sort((a, b) => {
     if (a[0] === 'Unassigned') return 1
     if (b[0] === 'Unassigned') return -1
     return a[0].localeCompare(b[0])
@@ -119,35 +134,36 @@ function ImportPreviewModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {wardEntries.map(([wardName, wardPatients]) => (
-            <div key={wardName} className="border border-ward-border rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-3 py-2 border-b border-ward-border">
-                <p className="text-sm font-bold text-ward-text">{wardName}</p>
-                <p className="text-xs text-ward-muted">{wardPatients.length} patient{wardPatients.length !== 1 ? 's' : ''}</p>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {wardPatients.map((r, i) => (
-                  <div key={i} className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-ward-text text-sm flex-1">{r.name || '(no name)'}</p>
-                      {r.status && (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          r.status.toLowerCase().includes('chronic')
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-green-100 text-green-700'
-                        }`}>
-                          {r.status}
-                        </span>
-                      )}
+          {wardEntries.map(([wardName, doctorsInWard]) => {
+            const wardPatientCount = Object.values(doctorsInWard).reduce((sum, patients) => sum + patients.length, 0)
+            const doctorEntries = Object.entries(doctorsInWard).sort((a, b) => a[0].localeCompare(b[0]))
+
+            return (
+              <div key={wardName} className="border border-ward-border rounded-lg overflow-hidden">
+                <div className="bg-gray-50 px-3 py-2 border-b border-ward-border">
+                  <p className="text-sm font-bold text-ward-text">{wardName}</p>
+                  <p className="text-xs text-ward-muted">{wardPatientCount} patient{wardPatientCount !== 1 ? 's' : ''}</p>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {doctorEntries.map(([doctorName, patients]) => (
+                    <div key={doctorName} className="px-3 py-2">
+                      <p className="text-xs font-semibold text-primary-600 mb-1.5">{doctorName}</p>
+                      <div className="space-y-1.5">
+                        {patients.map((r, i) => (
+                          <div key={i} className="pl-2 border-l-2 border-gray-200">
+                            <p className="font-medium text-ward-text text-sm">{r.name || '(no name)'}</p>
+                            <p className="text-xs text-ward-muted">
+                              {[r.bed && `Bed ${r.bed}`, r.mrn && `MRN: ${r.mrn}`, r.diagnosis].filter(Boolean).join(' · ')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-xs text-ward-muted mt-0.5">
-                      {[r.bed && `Bed ${r.bed}`, r.mrn && `MRN: ${r.mrn}`, r.diagnosis].filter(Boolean).join(' · ')}
-                    </p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         <div className="p-4 border-t border-ward-border flex gap-2 justify-end">
@@ -182,7 +198,7 @@ export function SheetIntegrationCard() {
 
   const [urlInput, setUrlInput] = useState(store.sheetUrl)
   const [testingConnection, setTestingConnection] = useState(false)
-  const [importPreview, setImportPreview] = useState<Array<{ name: string; bed: string; mrn: string; diagnosis: string; ward: string; status: string }> | null>(null)
+  const [importPreview, setImportPreview] = useState<PreviewRow[] | null>(null)
   const [parsedForImport, setParsedForImport] = useState<ReturnType<typeof parseWardData>>([])
   const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -240,14 +256,12 @@ export function SheetIntegrationCard() {
       // Show preview
       setImportPreview(
         parsed.map((p) => ({
-          name: p.firstName
-            ? `${p.lastName}, ${p.firstName}`.trim()
-            : p.lastName || '(unnamed)',
-          bed: p.bedNumber,
-          mrn: p.mrn,
-          diagnosis: p.primaryDiagnosis,
-          ward: p.wardId,
-          status: p.raw.F || '', // Column F contains status
+          name: [p.firstName, p.lastName].filter(Boolean).join(' ').trim() || '(unnamed)',
+          bed: p.bedNumber || '',
+          mrn: p.mrn || '',
+          diagnosis: p.primaryDiagnosis || '',
+          ward: p.wardId || 'Unassigned',
+          doctor: p.attendingPhysician || 'Unassigned Doctor',
         }))
       )
       setParsedForImport(parsed)
@@ -265,31 +279,33 @@ export function SheetIntegrationCard() {
     setImporting(true)
     let succeeded = 0
 
-    for (const p of parsedForImport) {
-      try {
-        const formData: PatientFormData = {
-          mrn: p.mrn || '',
-          firstName: p.firstName || '',
-          lastName: p.lastName || '',
-          dateOfBirth: p.dateOfBirth || '',
-          gender: p.gender,
-          wardId: p.wardId || '',
-          bedNumber: p.bedNumber || '',
-          acuity: p.acuity,
-          primaryDiagnosis: p.primaryDiagnosis || '',
-          diagnoses: p.primaryDiagnosis ? [p.primaryDiagnosis] : [],
-          allergies: p.allergies,
-          codeStatus: p.codeStatus,
-          attendingPhysician: p.attendingPhysician || '',
-          team: p.team || '',
-          notes: '',
-        }
-
-        await createPatient(formData, user.id)
-        succeeded++
-      } catch (err) {
-        console.error('Failed to import patient:', p.lastName, err)
-      }
+    // Process in batches for better performance and safety
+    const BATCH_SIZE = 10
+    for (let i = 0; i < parsedForImport.length; i += BATCH_SIZE) {
+      const chunk = parsedForImport.slice(i, i + BATCH_SIZE)
+      const results = await Promise.allSettled(
+        chunk.map(async (p) => {
+          const formData: PatientFormData = {
+            mrn: p.mrn || '',
+            firstName: p.firstName || '',
+            lastName: p.lastName || '',
+            dateOfBirth: p.dateOfBirth || '',
+            gender: p.gender,
+            wardId: p.wardId || '',
+            bedNumber: p.bedNumber || '',
+            acuity: p.acuity,
+            primaryDiagnosis: p.primaryDiagnosis || '',
+            diagnoses: p.primaryDiagnosis ? [p.primaryDiagnosis] : [],
+            allergies: p.allergies,
+            codeStatus: p.codeStatus,
+            attendingPhysician: p.attendingPhysician || '',
+            team: p.team || '',
+            notes: '',
+          }
+          await createPatient(formData, user.id)
+        })
+      )
+      succeeded += results.filter((r) => r.status === 'fulfilled').length
     }
 
     // Refresh patient list from Firestore (real-time subscription will pick up new patients)

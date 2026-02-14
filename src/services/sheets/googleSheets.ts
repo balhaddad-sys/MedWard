@@ -35,6 +35,17 @@ export interface ParsedSheetPatient {
   raw: Record<string, string>
 }
 
+export interface OrganizedDoctorGroup {
+  doctorName: string
+  patients: ParsedSheetPatient[]
+}
+
+export interface OrganizedWardGroup {
+  wardId: string
+  totalPatients: number
+  doctors: OrganizedDoctorGroup[]
+}
+
 export interface ExportResult {
   success: boolean
   rowsWritten: number
@@ -184,6 +195,57 @@ export async function fetchSheetViaAPI(
 // Parse ward data from sheet rows
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+interface FilledCell {
+  index: number
+  value: string
+}
+
+function getFilledCells(cells: string[]): FilledCell[] {
+  return cells
+    .map((value, index) => ({ index, value: (value || '').trim() }))
+    .filter((c) => c.value.length > 0)
+}
+
+function normalizeHeaderLabel(raw: string): string {
+  return raw.replace(/\s+/g, ' ').replace(/^\(|\)$/g, '').trim()
+}
+
+function looksLikeSectionLabel(label: string): boolean {
+  const t = label.toLowerCase()
+  return (
+    /\blist\b/.test(t) ||
+    /\bchronic\b/.test(t) ||
+    /\bactive\b/.test(t) ||
+    /\bmale\b/.test(t) ||
+    /\bfemale\b/.test(t)
+  )
+}
+
+function looksLikeWardLabel(label: string): boolean {
+  const t = label.toLowerCase()
+  if (/^ward\s*[0-9a-z-]+$/i.test(t)) return true
+  return [
+    'ward', 'icu', 'ccu', 'hdu', 'er', 'ed', 'emergency',
+    'unassigned', 'unit', 'bay', 'floor', 'block', 'wing'
+  ].some((kw) => new RegExp(`\\b${kw}\\b`, 'i').test(t))
+}
+
+function detectContextHeader(cells: string[]): { kind: 'section' | 'ward'; label: string } | null {
+  const filled = getFilledCells(cells)
+  if (filled.length !== 1) return null
+
+  const label = normalizeHeaderLabel(filled[0].value)
+  if (!label) return null
+
+  if (looksLikeWardLabel(label)) return { kind: 'ward', label }
+  if (looksLikeSectionLabel(label)) return { kind: 'section', label }
+  return null
+}
+
 /**
  * Detect if a row is a column header row (e.g. "Room | Name | Diagnosis | ...").
  * These appear multiple times in the sheet and should be skipped.
@@ -196,79 +258,30 @@ function isColumnHeaderRow(cells: string[]): boolean {
   return headerCount >= 2
 }
 
-/**
- * Detect if a row is a section header (e.g., "Male list (active)", "Female list (chronic)").
- * Section headers are broader categories that contain multiple wards.
- */
-function isSectionHeaderRow(cells: string[]): string | null {
-  if (!cells[0]?.trim()) return null
+function splitPatientName(lastNameField: string, firstNameField: string): { firstName: string; lastName: string } {
+  const first = firstNameField.trim()
+  const last = lastNameField.trim()
 
-  // Check that ALL other cells are empty
-  const hasOtherContent = cells.slice(1).some((c) => c?.trim())
-  if (hasOtherContent) return null
+  if (!last && !first) return { firstName: '', lastName: '' }
+  if (first) return { firstName: first, lastName: last }
 
-  const text = cells[0].trim()
+  const parts = last.split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return { firstName: '', lastName: '' }
+  if (parts.length === 1) return { firstName: '', lastName: parts[0] }
 
-  // Section headers often have parentheses with status: "Male list (active)"
-  // Or contain broader category words: "Chronic Care List", "Emergency Department"
-  const sectionIndicators = [
-    /\(active\)/i,
-    /\(chronic\)/i,
-    /\(stable\)/i,
-    /\(critical\)/i,
-    /list/i,
-  ]
-
-  const isSection = sectionIndicators.some((pattern) => pattern.test(text)) &&
-                    text.length <= 50 &&
-                    text.replace(/_/g, ' ').split(/\s+/).length <= 5
-
-  return isSection ? text : null
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  }
 }
 
-/**
- * Detect if a row is a ward header (e.g. "Ward 10" or "ICU" spanning a row).
- * Ward headers must have content ONLY in the first cell (column A), with all other cells empty.
- * This prevents partial data rows from being misidentified as ward headers.
- */
-function isWardHeaderRow(cells: string[], _minDataCols: number): string | null {
-  // Ward header must have content only in first cell, all others must be empty
-  if (!cells[0]?.trim()) return null
-
-  // Check that ALL other cells are empty (not just most)
-  const hasOtherContent = cells.slice(1).some((c) => c?.trim())
-  if (hasOtherContent) return null
-
-  const text = cells[0].trim()
-
-  // Ward headers are short - limit to 30 characters and 3 words max
-  // This allows "Ward 27 A", "Emergency Department", but excludes full patient names
-  if (text.length > 30) return null
-  const wordCount = text.replace(/_/g, ' ').split(/\s+/).length
-  if (wordCount > 3) return null
-
-  // Must look like a ward/section label
-  const wardKeywords = [
-    'ward', 'unit', 'icu', 'ccu', 'hdu', 'er', 'ed', 'emergency',
-    'chronic', 'acute', 'unassigned',
-    'floor', 'dept', 'department', 'block', 'wing', 'bay'
-  ]
-
-  const looksLikeWard =
-    // Contains ward-related keywords as complete words
-    wardKeywords.some((kw) => {
-      const regex = new RegExp(`\\b${kw}\\b`, 'i')
-      return regex.test(text)
-    }) ||
-    // Wrapped in parentheses like "(Unassigned)" or "(Ward A)"
-    (text.startsWith('(') && text.endsWith(')')) ||
-    // Starts with "Ward" followed by number/letter (e.g., "Ward 27", "Ward A")
-    /^ward\s*[0-9A-Za-z]+/i.test(text) ||
-    // Just a number or letter (e.g., "27", "A", "B1") - common for simple ward names
-    /^[0-9A-Za-z]{1,3}$/.test(text)
-
-  if (looksLikeWard && text.length > 0) return text
-  return null
+function compareWardId(a: string, b: string): number {
+  const ma = a.match(/ward\s*(\d+)/i)
+  const mb = b.match(/ward\s*(\d+)/i)
+  if (ma && mb) return Number(ma[1]) - Number(mb[1])
+  if (ma) return -1
+  if (mb) return 1
+  return a.localeCompare(b)
 }
 
 /**
@@ -290,132 +303,78 @@ export function parseWardData(
 
   const fieldMap = new Map<string, number>()
   for (const mapping of columnMappings) {
-    const colIdx = colLetterToIndex(mapping.sheetColumn.toUpperCase())
-    fieldMap.set(mapping.patientField, colIdx)
+    fieldMap.set(mapping.patientField, colLetterToIndex(mapping.sheetColumn.toUpperCase()))
   }
 
-  // Minimum filled cells to count as a data row (at least name columns)
-  const minDataCols = Math.min(3, fieldMap.size)
+  const getFrom = (cells: string[], field: string): string => {
+    const idx = fieldMap.get(field)
+    return idx === undefined ? '' : (cells[idx] || '').trim()
+  }
 
   const patients: ParsedSheetPatient[] = []
-  let currentSection = '' // e.g., "Male list (active)", "Female list (chronic)"
-  let currentWard = ''     // e.g., "Ward 27", "ICU"
+  let currentSection = ''
+  let currentWard = ''
 
   for (let i = skipHeaderRows; i < rows.length; i++) {
-    const cells = rows[i]
-    if (!cells || cells.every((c) => !c?.trim())) continue
+    const cells = rows[i] || []
+    const filled = getFilledCells(cells)
+    if (filled.length === 0) continue
 
-    // Skip column header rows (e.g. "Room | Name | Diagnosis | ...")
     if (isColumnHeaderRow(cells)) continue
 
-    // Check if this row is a section header (broader category like "Male list (active)")
-    const sectionHeader = isSectionHeaderRow(cells)
-    if (sectionHeader) {
-      currentSection = sectionHeader
-      currentWard = '' // Reset ward when entering new section
-      console.log(`[Sheet Parser] Detected section header: "${sectionHeader}" at row ${i + 1}`)
+    const ctx = detectContextHeader(cells)
+    if (ctx) {
+      if (ctx.kind === 'section') {
+        currentSection = ctx.label
+        currentWard = ''
+      } else {
+        currentWard = ctx.label
+      }
       continue
     }
 
-    // Check if this row is a ward header (specific ward like "Ward 27")
-    const wardHeader = isWardHeaderRow(cells, minDataCols)
-    if (wardHeader) {
-      currentWard = wardHeader
-      console.log(`[Sheet Parser] Detected ward header: "${wardHeader}" at row ${i + 1}`)
-      continue
-    }
+    const nameParts = splitPatientName(getFrom(cells, 'lastName'), getFrom(cells, 'firstName'))
+    if (!nameParts.firstName && !nameParts.lastName) continue
 
-    const get = (field: string): string => {
-      const idx = fieldMap.get(field)
-      return idx !== undefined ? (cells[idx] || '').trim() : ''
-    }
+    const fullNameLower = `${nameParts.firstName} ${nameParts.lastName}`.toLowerCase()
+    if (/\b(total|count|summary)\b/.test(fullNameLower)) continue
 
     const raw: Record<string, string> = {}
-    cells.forEach((val, ci) => {
-      raw[indexToColLetter(ci)] = val
-    })
+    cells.forEach((val, ci) => { raw[indexToColLetter(ci)] = val || '' })
 
-    // Handle full name in lastName field (column B contains "Firstname Lastname")
-    const fullName = get('lastName') || ''
-    const firstNameFromCol = get('firstName')
+    const acuityRaw = parseInt(getFrom(cells, 'acuity'), 10)
+    const acuity = (Number.isFinite(acuityRaw) ? Math.min(5, Math.max(1, acuityRaw)) : 3) as 1 | 2 | 3 | 4 | 5
 
-    let lastName = ''
-    let firstName = ''
-
-    if (fullName && !firstNameFromCol) {
-      // Split full name: "Taher hasan" → firstName="Taher", lastName="hasan"
-      const parts = fullName.trim().split(/\s+/)
-      if (parts.length >= 2) {
-        firstName = parts[0]
-        lastName = parts.slice(1).join(' ')
-      } else if (parts.length === 1) {
-        lastName = parts[0]
-      }
-    } else {
-      lastName = get('lastName')
-      firstName = firstNameFromCol
-    }
-
-    // Skip rows without a valid name (require at least one name component)
-    if (!lastName && !firstName) continue
-
-    // Skip rows that look like totals or summary rows (e.g., "Total: 30 patients")
-    const fullNameForCheck = `${firstName} ${lastName}`.toLowerCase()
-    if (fullNameForCheck.includes('total') || fullNameForCheck.includes('count') ||
-        fullNameForCheck.includes('summary') || lastName.toLowerCase() === 'patients') {
-      continue
-    }
-
-    const acuityRaw = parseInt(get('acuity')) || 3
-    const acuity = (Math.min(5, Math.max(1, acuityRaw))) as 1 | 2 | 3 | 4 | 5
-
-    const codeStatusRaw = get('codeStatus').toLowerCase()
+    const codeRaw = getFrom(cells, 'codeStatus').toLowerCase()
     const codeStatus: ParsedSheetPatient['codeStatus'] =
-      codeStatusRaw === 'dnr' ? 'DNR'
-        : codeStatusRaw === 'dni' ? 'DNI'
-          : codeStatusRaw === 'comfort' ? 'comfort'
-            : 'full'
+      codeRaw === 'dnr' ? 'DNR' :
+      codeRaw === 'dni' ? 'DNI' :
+      codeRaw === 'comfort' ? 'comfort' : 'full'
 
-    const genderRaw = get('gender').toLowerCase()
+    const genderRaw = getFrom(cells, 'gender').toLowerCase()
     const gender: ParsedSheetPatient['gender'] =
-      genderRaw.startsWith('f') ? 'female'
-        : genderRaw.startsWith('m') ? 'male'
-          : 'other'
+      genderRaw.startsWith('f') ? 'female' :
+      genderRaw.startsWith('m') ? 'male' : 'other'
 
-    const allergiesRaw = get('allergies')
-    const allergies = allergiesRaw
-      ? allergiesRaw.split(/[,;]/).map((a) => a.trim()).filter(Boolean)
-      : []
+    const allergies = getFrom(cells, 'allergies')
+      .split(/[,;]/)
+      .map((a) => a.trim())
+      .filter(Boolean)
 
-    // Use column-mapped wardId if present, otherwise build from section + ward headers
-    const wardFromCol = get('wardId')
-
-    // Build wardId from section and ward context
-    let wardId = wardFromCol
-    if (!wardId) {
-      if (currentSection && currentWard) {
-        // Both section and ward: combine them (e.g., "Male list (active) - Ward 27")
-        wardId = `${currentSection} - ${currentWard}`
-      } else if (currentSection) {
-        // Only section: use it
-        wardId = currentSection
-      } else if (currentWard) {
-        // Only ward: use it
-        wardId = currentWard
-      }
-    }
+    const wardFromCol = getFrom(cells, 'wardId')
+    const wardId = wardFromCol || currentWard || currentSection || 'Unassigned'
 
     patients.push({
-      bedNumber: get('bedNumber'),
-      lastName,
-      firstName,
-      mrn: get('mrn'),
-      primaryDiagnosis: get('primaryDiagnosis'),
-      attendingPhysician: get('attendingPhysician'),
-      team: get('team'),
+      bedNumber: getFrom(cells, 'bedNumber'),
+      lastName: nameParts.lastName,
+      firstName: nameParts.firstName,
+      mrn: getFrom(cells, 'mrn'),
+      primaryDiagnosis: getFrom(cells, 'primaryDiagnosis'),
+      attendingPhysician: getFrom(cells, 'attendingPhysician'),
+      team: getFrom(cells, 'team'),
       wardId,
       gender,
-      dateOfBirth: get('dateOfBirth'),
+      dateOfBirth: getFrom(cells, 'dateOfBirth'),
       allergies,
       codeStatus,
       acuity,
@@ -423,21 +382,35 @@ export function parseWardData(
     })
   }
 
-  // Log summary
-  const wardCounts = patients.reduce((acc, p) => {
-    const ward = p.wardId || 'Unassigned'
-    acc[ward] = (acc[ward] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  console.log(`[Sheet Parser] Parsed ${patients.length} patients across ${Object.keys(wardCounts).length} wards:`)
-  Object.entries(wardCounts)
-    .sort((a, b) => b[1] - a[1])
-    .forEach(([ward, count]) => {
-      console.log(`  - ${ward}: ${count} patient${count !== 1 ? 's' : ''}`)
-    })
-
   return patients
+}
+
+export function organizePatientsByWardAndDoctor(patients: ParsedSheetPatient[]): OrganizedWardGroup[] {
+  const wardMap = new Map<string, Map<string, ParsedSheetPatient[]>>()
+
+  for (const p of patients) {
+    const ward = p.wardId?.trim() || 'Unassigned'
+    const doctor = p.attendingPhysician?.trim() || 'Unassigned Doctor'
+
+    if (!wardMap.has(ward)) wardMap.set(ward, new Map())
+    const doctorMap = wardMap.get(ward)!
+    if (!doctorMap.has(doctor)) doctorMap.set(doctor, [])
+    doctorMap.get(doctor)!.push(p)
+  }
+
+  return [...wardMap.entries()]
+    .map(([wardId, doctorMap]) => {
+      const doctors = [...doctorMap.entries()]
+        .map(([doctorName, doctorPatients]) => ({
+          doctorName,
+          patients: doctorPatients.sort((a, b) => (a.bedNumber || '').localeCompare(b.bedNumber || '')),
+        }))
+        .sort((a, b) => a.doctorName.localeCompare(b.doctorName))
+
+      const totalPatients = doctors.reduce((sum, d) => sum + d.patients.length, 0)
+      return { wardId, totalPatients, doctors }
+    })
+    .sort((a, b) => compareWardId(a.wardId, b.wardId))
 }
 
 // ---------------------------------------------------------------------------
