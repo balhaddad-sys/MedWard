@@ -3,6 +3,7 @@ import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth'
 import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore'
 import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage'
 import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions'
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
 
 interface FirebaseConfig {
   apiKey: string
@@ -68,6 +69,22 @@ function bootstrap(config: FirebaseConfig) {
       connectFunctionsEmulator(functions, 'localhost', 5001)
     } catch {
       // Emulators already connected
+    }
+  } else {
+    // SECURITY: Initialize App Check in production to prevent abuse of Cloud Functions
+    // Get ReCaptcha v3 site key from environment variable
+    const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
+    if (recaptchaSiteKey) {
+      try {
+        initializeAppCheck(app, {
+          provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+          isTokenAutoRefreshEnabled: true,
+        })
+      } catch (error) {
+        console.warn('App Check initialization failed:', error)
+      }
+    } else {
+      console.warn('VITE_RECAPTCHA_SITE_KEY not set - App Check disabled. Cloud Functions may reject requests.')
     }
   }
 }
