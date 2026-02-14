@@ -11,7 +11,8 @@
       "Bash(npx eslint:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nDetect ward names from row headers in Google Sheets import\n\nThe sheet uses ward names as section header rows \\(e.g. \"Ward 10\" in\na row by itself\\) rather than a dedicated ward column. The parser now\nauto-detects these rows and assigns the ward to all subsequent patients\nuntil the next ward header. Removed wardId from default column mappings\nsince wards come from rows.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
-      "Bash(npm run typecheck:*)"
+      "Bash(npm run typecheck:*)",
+      "Bash(npm audit:*)"
     ]
   }
 }

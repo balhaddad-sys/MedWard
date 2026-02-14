@@ -1,13 +1,10 @@
 import { AlertCircle, X } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 export function PilotBanner() {
-  const [dismissed, setDismissed] = useState(false)
-
-  useEffect(() => {
-    const isDismissed = localStorage.getItem('pilot-banner-dismissed') === 'true'
-    setDismissed(isDismissed)
-  }, [])
+  const [dismissed, setDismissed] = useState(() => {
+    return localStorage.getItem('pilot-banner-dismissed') === 'true'
+  })
 
   const handleDismiss = () => {
     localStorage.setItem('pilot-banner-dismissed', 'true')

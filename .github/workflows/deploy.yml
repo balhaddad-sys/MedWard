@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: false  # Never cancel an in-progress deploy
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "22"
   PROJECT_ID: medward-pro
 
 jobs:
