@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { clinicalAIService } from '@/services/ClinicalAIService'
 import { usePatientStore } from '@/stores/patientStore'
 import { Markdown } from '@/components/ui/Markdown'
+import { AIDisclaimerBanner } from '@/components/AIDisclaimerBanner'
 import { clsx } from 'clsx'
 
 interface Message {
@@ -102,6 +103,8 @@ export function AIAssistantPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-100px)] animate-fade-in">
+      <AIDisclaimerBanner />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div>

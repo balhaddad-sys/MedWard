@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions'
 import { functions } from '@/config/firebase'
+import { reportAIError } from '@/utils/errorReporting'
 
 export interface DrugInfo {
   name: string
@@ -148,8 +149,9 @@ export class ClinicalAIService {
 
       return { text, drugInfo }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error occurred'
+      const errorInstance = error instanceof Error ? error : new Error('Unknown error occurred')
+      reportAIError(errorInstance, 'chat', this.patientId)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       throw new Error(`AI service error: ${errorMessage}`)
     }
   }

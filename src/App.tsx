@@ -22,6 +22,7 @@ const ShiftView = lazy(() => import('@/pages/roots/ShiftView'))
 const ClerkingRoot = lazy(() => import('@/pages/roots/ClerkingRoot'))
 
 import { HIPAADisclaimer } from '@/components/HIPAADisclaimer'
+import { PilotBanner } from '@/components/PilotBanner'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
 import { usePatientStore } from '@/stores/patientStore'
@@ -229,6 +230,7 @@ export default function App() {
     <ErrorBoundary>
       <ModeProvider>
         <BrowserRouter>
+          <PilotBanner />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
