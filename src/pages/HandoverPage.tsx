@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowRightLeft, Download, Sparkles } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -13,14 +13,49 @@ import { ACUITY_LEVELS } from '@/config/constants'
 export function HandoverPage() {
   const patients = usePatientStore((s) => s.patients)
   const defaultWard = useSettingsStore((s) => s.defaultWard)
+
   const [summary, setSummary] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [selectedWard, setSelectedWard] = useState('')
+
+  const wardOptions = useMemo(() => {
+    const set = new Set<string>()
+    if (defaultWard) set.add(defaultWard)
+    for (const p of patients) {
+      if (p.wardId) set.add(p.wardId)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [patients, defaultWard])
+
+  useEffect(() => {
+    if (selectedWard) return
+    if (defaultWard) {
+      setSelectedWard(defaultWard)
+      return
+    }
+    if (wardOptions.length === 1) {
+      setSelectedWard(wardOptions[0])
+    }
+  }, [selectedWard, defaultWard, wardOptions])
+
+  useEffect(() => {
+    setSummary(null)
+  }, [selectedWard])
+
+  const wardPatients = useMemo(() => {
+    if (!selectedWard) return patients
+    return patients.filter((p) => p.wardId === selectedWard)
+  }, [patients, selectedWard])
 
   const handleGenerate = async () => {
+    const wardId = selectedWard || defaultWard || wardOptions[0]
+    if (!wardId) {
+      setSummary('Select a ward first to generate handover.')
+      return
+    }
+
     setGenerating(true)
     try {
-      // Cloud Function fetches full patient data + labs + tasks directly from Firestore
-      const wardId = patients[0]?.wardId || defaultWard || 'default'
       const result = await generateHandoverSummary(wardId)
       setSummary(result)
     } catch {
@@ -32,10 +67,11 @@ export function HandoverPage() {
 
   const handleExport = () => {
     if (!summary) return
+    const wardLabel = selectedWard || defaultWard || 'Ward'
     exportHandoverReport(
-      'Ward',
+      wardLabel,
       summary,
-      patients.map((p) => ({
+      wardPatients.map((p) => ({
         name: `${p.firstName} ${p.lastName}`,
         bed: p.bedNumber,
         summary: p.primaryDiagnosis,
@@ -52,13 +88,43 @@ export function HandoverPage() {
           </h1>
           <p className="text-sm text-ward-muted mt-1">Generate shift handover reports</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />} onClick={handleExport} disabled={!summary} className="min-h-[44px] flex-1 sm:flex-none">
-            Export PDF
-          </Button>
-          <Button size="sm" icon={<Sparkles className="h-4 w-4" />} onClick={handleGenerate} loading={generating} className="min-h-[44px] flex-1 sm:flex-none">
-            Generate
-          </Button>
+
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <select
+            value={selectedWard}
+            onChange={(e) => setSelectedWard(e.target.value)}
+            className="input-field text-sm min-h-[44px]"
+          >
+            <option value="">Select ward</option>
+            {wardOptions.map((ward) => (
+              <option key={ward} value={ward}>
+                {ward}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Download className="h-4 w-4" />}
+              onClick={handleExport}
+              disabled={!summary}
+              className="min-h-[44px] flex-1 sm:flex-none"
+            >
+              Export PDF
+            </Button>
+            <Button
+              size="sm"
+              icon={<Sparkles className="h-4 w-4" />}
+              onClick={handleGenerate}
+              loading={generating}
+              disabled={wardOptions.length === 0}
+              className="min-h-[44px] flex-1 sm:flex-none"
+            >
+              Generate
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -77,13 +143,17 @@ export function HandoverPage() {
       )}
 
       <Card>
-        <CardHeader><CardTitle>Patient List ({patients.length})</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>
+            Patient List ({wardPatients.length}){selectedWard ? ` - ${selectedWard}` : ''}
+          </CardTitle>
+        </CardHeader>
         <CardContent>
-          {patients.length === 0 ? (
-            <p className="text-ward-muted text-sm py-4 text-center">No patients on the ward</p>
+          {wardPatients.length === 0 ? (
+            <p className="text-ward-muted text-sm py-4 text-center">No patients on the selected ward</p>
           ) : (
             <div className="divide-y divide-ward-border">
-              {patients
+              {wardPatients
                 .sort((a, b) => a.acuity - b.acuity)
                 .map((patient) => (
                   <div key={patient.id} className="py-3 flex items-center justify-between">

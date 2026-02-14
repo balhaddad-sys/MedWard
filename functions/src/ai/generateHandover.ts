@@ -10,7 +10,6 @@ export const generateHandover = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    // SECURITY FIX: Enforce App Check to prevent abuse
     consumeAppCheckToken: true,
   },
   async (request) => {
@@ -18,13 +17,15 @@ export const generateHandover = onCall(
       throw new HttpsError("unauthenticated", "Authentication required");
     }
 
+    const uid = request.auth.uid;
+    const email = request.auth.token.email || "";
     const { wardId } = request.data;
 
     if (!wardId || typeof wardId !== "string") {
       throw new HttpsError("invalid-argument", "Ward ID is required");
     }
 
-    const allowed = await checkRateLimit(request.auth.uid, "handover-generation");
+    const allowed = await checkRateLimit(uid, "handover-generation");
     if (!allowed) {
       throw new HttpsError("resource-exhausted", "Rate limit exceeded. Please try again later.");
     }
@@ -32,7 +33,6 @@ export const generateHandover = onCall(
     try {
       const db = admin.firestore();
 
-      // SECURITY FIX: Fetch only patients the user has access to in the ward
       const patientsSnap = await db
         .collection("patients")
         .where("wardId", "==", wardId)
@@ -43,12 +43,11 @@ export const generateHandover = onCall(
         return { content: "No patients found in this ward.", usage: { inputTokens: 0, outputTokens: 0 } };
       }
 
-      // SECURITY FIX: Filter to only patients user has access to (creator or assigned)
       const authorizedPatients = patientsSnap.docs.filter((doc) => {
         const data = doc.data();
-        const createdBy = data.createdBy || "";
-        const assignedClinicians = data.assignedClinicians || [];
-        return createdBy === request.auth!.uid || assignedClinicians.includes(request.auth!.uid);
+        const createdBy = typeof data.createdBy === "string" ? data.createdBy : "";
+        const assignedClinicians = Array.isArray(data.assignedClinicians) ? data.assignedClinicians : [];
+        return createdBy === uid || assignedClinicians.includes(uid);
       });
 
       if (authorizedPatients.length === 0) {
@@ -58,102 +57,90 @@ export const generateHandover = onCall(
         };
       }
 
-      // Build comprehensive patient summaries with labs and tasks
-      const patientSummaries: string[] = [];
+      const authorizedCount = authorizedPatients.length;
 
-      for (const patientDoc of authorizedPatients) {
-        const patient = patientDoc.data();
-        const parts: string[] = [
-          `--- Patient: ${patient.firstName || ""} ${patient.lastName || ""} (Bed ${patient.bedNumber || "?"}) ---`,
-          `Acuity: ${patient.acuity || "N/A"} | Code Status: ${patient.codeStatus || "Unknown"}`,
-          `Primary Dx: ${patient.primaryDiagnosis || "Unknown"}`,
-          `Diagnoses: ${(patient.diagnoses || []).join(", ") || "None"}`,
-          `Allergies: ${(patient.allergies || []).join(", ") || "NKDA"}`,
-          `Attending: ${patient.attendingPhysician || "Unknown"}`,
-        ];
+      // Build summaries in parallel (faster than serial N+1 loop)
+      const patientSummaries = await Promise.all(
+        authorizedPatients.map(async (patientDoc) => {
+          const patient = patientDoc.data();
 
-        // Fetch patient history for context
-        const historyDoc = await db
-          .collection("patients")
-          .doc(patientDoc.id)
-          .collection("history")
-          .doc("current")
-          .get();
+          const parts: string[] = [
+            `--- Patient: ${patient.firstName || ""} ${patient.lastName || ""} (Bed ${patient.bedNumber || "?"}) ---`,
+            `Acuity: ${patient.acuity || "N/A"} | Code Status: ${patient.codeStatus || "Unknown"}`,
+            `Primary Dx: ${patient.primaryDiagnosis || "Unknown"}`,
+            `Diagnoses: ${(patient.diagnoses || []).join(", ") || "None"}`,
+            `Allergies: ${(patient.allergies || []).join(", ") || "NKDA"}`,
+            `Attending: ${patient.attendingPhysician || "Unknown"}`,
+          ];
 
-        if (historyDoc.exists) {
-          const history = historyDoc.data()!;
-          const historyLines: string[] = [];
-          if (Array.isArray(history.pmh) && history.pmh.length > 0) {
-            historyLines.push(`  PMH: ${history.pmh.map((h: { condition: string }) => h.condition).join(", ")}`);
+          const [historyDoc, labsSnap, tasksSnap] = await Promise.all([
+            db.collection("patients").doc(patientDoc.id).collection("history").doc("current").get(),
+            db.collection("patients").doc(patientDoc.id).collection("labs").orderBy("collectedAt", "desc").limit(5).get(),
+            db.collection("tasks").where("patientId", "==", patientDoc.id).limit(25).get(),
+          ]);
+
+          if (historyDoc.exists) {
+            const history = historyDoc.data()!;
+            const historyLines: string[] = [];
+            if (Array.isArray(history.pmh) && history.pmh.length > 0) {
+              historyLines.push(`  PMH: ${history.pmh.map((h: { condition: string }) => h.condition).join(", ")}`);
+            }
+            if (Array.isArray(history.medications) && history.medications.length > 0) {
+              historyLines.push(
+                `  Meds: ${history.medications
+                  .map((m: { name: string; dose?: string }) => `${m.name}${m.dose ? ` ${m.dose}` : ""}`)
+                  .join(", ")}`
+              );
+            }
+            if (historyLines.length > 0) {
+              parts.push(`History:\n${historyLines.join("\n")}`);
+            }
           }
-          if (Array.isArray(history.medications) && history.medications.length > 0) {
-            historyLines.push(`  Meds: ${history.medications.map((m: { name: string; dose?: string }) => `${m.name}${m.dose ? ` ${m.dose}` : ""}`).join(", ")}`);
+
+          if (!labsSnap.empty) {
+            const labLines = labsSnap.docs.map((doc) => {
+              const lab = doc.data();
+              const abnormal = (lab.values || [])
+                .filter((v: { flag?: string }) => v.flag && v.flag !== "normal")
+                .map((v: { name?: string; value?: string; unit?: string; flag?: string }) =>
+                  `${v.name || ""}=${v.value || ""}${v.unit || ""}[${v.flag || ""}]`
+                )
+                .join(", ");
+              return `  ${lab.panelName || "Unknown"}: ${abnormal || "all normal"}`;
+            });
+            parts.push(`Recent Labs:\n${labLines.join("\n")}`);
           }
-          if (historyLines.length > 0) {
-            parts.push(`History:\n${historyLines.join("\n")}`);
+
+          const activeTasks = tasksSnap.docs
+            .map((doc) => doc.data() as { priority?: string; title?: string; status?: string })
+            .filter((task) => task.status !== "completed" && task.status !== "cancelled")
+            .slice(0, 10);
+
+          if (activeTasks.length > 0) {
+            const taskLines = activeTasks.map(
+              (task) => `  - [${task.priority || "medium"}] ${task.title || ""}`
+            );
+            parts.push(`Active Tasks:\n${taskLines.join("\n")}`);
           }
-        }
 
-        // Fetch recent labs for this patient
-        const labsSnap = await db
-          .collection("patients")
-          .doc(patientDoc.id)
-          .collection("labs")
-          .orderBy("collectedAt", "desc")
-          .limit(5)
-          .get();
-
-        if (!labsSnap.empty) {
-          const labLines = labsSnap.docs.map((doc) => {
-            const lab = doc.data();
-            const abnormal = (lab.values || [])
-              .filter((v: { flag?: string }) => v.flag && v.flag !== "normal")
-              .map((v: { name?: string; value?: string; unit?: string; flag?: string }) =>
-                `${v.name || ""}=${v.value || ""}${v.unit || ""}[${v.flag || ""}]`
-              )
-              .join(", ");
-            return `  ${lab.panelName || "Unknown"}: ${abnormal || "all normal"}`;
-          });
-          parts.push(`Recent Labs:\n${labLines.join("\n")}`);
-        }
-
-        // Fetch active tasks for this patient
-        const tasksSnap = await db
-          .collection("tasks")
-          .where("patientId", "==", patientDoc.id)
-          .where("status", "!=", "completed")
-          .limit(10)
-          .get();
-
-        if (!tasksSnap.empty) {
-          const taskLines = tasksSnap.docs.map((doc) => {
-            const task = doc.data();
-            return `  - [${task.priority || "medium"}] ${task.title || ""}`;
-          });
-          parts.push(`Active Tasks:\n${taskLines.join("\n")}`);
-        }
-
-        patientSummaries.push(parts.join("\n"));
-      }
+          return parts.join("\n");
+        })
+      );
 
       const fullContext = patientSummaries.join("\n\n");
-      const userPrompt = `Generate a shift handover summary for the following ${patientsSnap.size} ward patients:\n\n${fullContext}`;
+      const userPrompt = `Generate a shift handover summary for the following ${authorizedCount} ward patients:\n\n${fullContext}`;
 
-      const response = await callClaude(
-        HANDOVER_SYSTEM_PROMPT,
-        userPrompt,
-        4096
-      );
+      const response = await callClaude(HANDOVER_SYSTEM_PROMPT, userPrompt, 4096);
 
       await logAuditEvent(
         "handover-generation",
-        request.auth.uid,
-        request.auth.token.email || "",
+        uid,
+        email,
         "ai",
         "handover",
         {
           wardId,
-          patientCount: patientsSnap.size,
+          patientCount: authorizedCount,
           inputTokens: response.usage.inputTokens,
           outputTokens: response.usage.outputTokens,
         }
