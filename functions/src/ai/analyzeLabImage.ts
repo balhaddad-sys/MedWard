@@ -224,8 +224,10 @@ function computeFlag(
   raw: string = ""
 ): Flag {
   const rawUp = raw.toUpperCase().trim();
-  if (rawUp.includes("HH")) return "critical_high";
-  if (rawUp.includes("LL")) return "critical_low";
+  if (/(\b|[^A-Z])HH(\b|[^A-Z])/.test(rawUp)) return "critical_high";
+  if (/(\b|[^A-Z])LL(\b|[^A-Z])/.test(rawUp)) return "critical_low";
+  if (/(\b|[^A-Z])H(\b|[^A-Z])/.test(rawUp) || /H$/.test(rawUp)) return "high";
+  if (/(\b|[^A-Z])L(\b|[^A-Z])/.test(rawUp) || /L$/.test(rawUp)) return "low";
 
   if (value === null) return "normal";
   if (refLow === null && refHigh === null) return "normal";
@@ -303,8 +305,79 @@ function computeTrendDirection(
 
 function safeFloat(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  return isNaN(n) ? null : n;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v !== "string") return null;
+
+  const normalized = v
+    .replace(/,/g, "")
+    .replace(/[–—−]/g, "-")
+    .trim();
+  if (!normalized) return null;
+
+  const match = normalized.match(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/);
+  if (!match) return null;
+
+  const n = Number(match[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseFlag(v: unknown): Flag | null {
+  if (!v) return null;
+  const normalized = String(v).trim().toLowerCase().replace(/\s+/g, "_");
+  if (
+    normalized === "normal" ||
+    normalized === "high" ||
+    normalized === "low" ||
+    normalized === "critical_high" ||
+    normalized === "critical_low"
+  ) {
+    return normalized;
+  }
+  if (normalized === "hh" || normalized === "criticalhigh") return "critical_high";
+  if (normalized === "ll" || normalized === "criticallow") return "critical_low";
+  if (normalized === "h") return "high";
+  if (normalized === "l") return "low";
+  return null;
+}
+
+function parseReferenceBounds(rawRange: unknown): { low: number | null; high: number | null } {
+  const raw = String(rawRange || "").trim();
+  if (!raw) return { low: null, high: null };
+
+  const text = raw
+    .replace(/,/g, "")
+    .replace(/[–—−]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const range = text.match(/(-?\d*\.?\d+)\s*(?:-|to)\s*(-?\d*\.?\d+)/i);
+  if (range) {
+    const a = Number(range[1]);
+    const b = Number(range[2]);
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      return a <= b ? { low: a, high: b } : { low: b, high: a };
+    }
+  }
+
+  const le = text.match(/(?:<=|≤|<)\s*(-?\d*\.?\d+)/);
+  if (le) {
+    const high = Number(le[1]);
+    return Number.isFinite(high) ? { low: null, high } : { low: null, high: null };
+  }
+
+  const ge = text.match(/(?:>=|≥|>)\s*(-?\d*\.?\d+)/);
+  if (ge) {
+    const low = Number(ge[1]);
+    return Number.isFinite(low) ? { low, high: null } : { low: null, high: null };
+  }
+
+  return { low: null, high: null };
+}
+
+function toEpochMs(isoOrDate: string): number | null {
+  if (!isoOrDate) return null;
+  const ms = Date.parse(isoOrDate);
+  return Number.isFinite(ms) ? ms : null;
 }
 
 function stripCodeFences(text: string): string {
@@ -329,17 +402,20 @@ function parseExtractionResponse(raw: string): ExtractionResponse {
     visit_date: data.patient?.visit_date || "",
   };
 
-  // Collect all results for trend computation
-  const analyteValues: Record<string, { values: number[]; flag: Flag; name: string }> = {};
+  const panelsWithOrder: Array<LabPanel & { _collectedMs: number | null; _sourceIndex: number }> = (data.panels || []).map(
+    (panel: Record<string, unknown>, index: number) => {
+      const panelCollectedAt = String(panel.collected_at || "");
+      const collectedMs = toEpochMs(panelCollectedAt);
 
-  const panels: LabPanel[] = (data.panels || []).map(
-    (panel: Record<string, unknown>) => {
       const results: LabResult[] = (
         (panel.results as Record<string, unknown>[]) || []
       ).map((r: Record<string, unknown>) => {
         const value = safeFloat(r.value);
-        const refLow = safeFloat(r.ref_low);
-        const refHigh = safeFloat(r.ref_high);
+        const parsedRange = parseReferenceBounds(
+          r.ref_range ?? r.reference_range ?? r.range ?? r.reference
+        );
+        const refLow = safeFloat(r.ref_low) ?? parsedRange.low;
+        const refHigh = safeFloat(r.ref_high) ?? parsedRange.high;
         const valueRaw = String(r.value_raw || r.value || "");
 
         // Normalise analyte key
@@ -348,25 +424,22 @@ function parseExtractionResponse(raw: string): ExtractionResponse {
           ? normalizeAnalyteKey(aiKey)
           : normalizeAnalyteKey(String(r.test_name || ""));
 
-        // Recompute flag with per-analyte critical thresholds
-        const flagExtracted = String(r.flag || "normal") as Flag;
-        const flag = computeFlag(value, refLow, refHigh, analyteKey, valueRaw);
-
-        // Accumulate for trends
-        if (value !== null) {
-          if (!analyteValues[analyteKey]) {
-            analyteValues[analyteKey] = {
-              values: [],
-              flag: "normal",
-              name: String(r.test_name || analyteKey),
-            };
-          }
-          analyteValues[analyteKey].values.push(value);
-          analyteValues[analyteKey].flag = flag;
+        // Recompute flag with per-analyte critical thresholds, but keep extracted
+        // flag when no usable range is available.
+        const extractedFlag = parseFlag(r.flag);
+        const computedFlag = computeFlag(value, refLow, refHigh, analyteKey, valueRaw);
+        const noReference = refLow === null && refHigh === null;
+        let flag: Flag = computedFlag;
+        if (
+          extractedFlag &&
+          extractedFlag !== computedFlag &&
+          (noReference || value === null || computedFlag === "normal")
+        ) {
+          flag = extractedFlag;
         }
 
         return {
-          test_name: String(r.test_name || ""),
+          test_name: String(r.test_name || analyteKey),
           test_code: String(r.test_code || ""),
           analyte_key: analyteKey,
           value,
@@ -375,18 +448,52 @@ function parseExtractionResponse(raw: string): ExtractionResponse {
           ref_low: refLow,
           ref_high: refHigh,
           flag,
-          flag_extracted: flagExtracted !== flag ? flagExtracted : undefined,
+          flag_extracted: extractedFlag && extractedFlag !== flag ? extractedFlag : undefined,
         };
       });
 
       return {
         panel_name: String(panel.panel_name || "General"),
         order_id: String(panel.order_id || ""),
-        collected_at: String(panel.collected_at || ""),
+        collected_at: panelCollectedAt,
         results,
+        _collectedMs: collectedMs,
+        _sourceIndex: index,
       };
     }
   );
+
+  // Sort panels oldest -> newest so trend direction reflects real chronology.
+  panelsWithOrder.sort((a, b) => {
+    if (a._collectedMs === null && b._collectedMs === null) return a._sourceIndex - b._sourceIndex;
+    if (a._collectedMs === null) return 1;
+    if (b._collectedMs === null) return -1;
+    return a._collectedMs - b._collectedMs;
+  });
+
+  const panels: LabPanel[] = panelsWithOrder.map((panel) => ({
+    panel_name: panel.panel_name,
+    order_id: panel.order_id,
+    collected_at: panel.collected_at,
+    results: panel.results,
+  }));
+
+  // Collect all results for trend computation using sorted panels.
+  const analyteValues: Record<string, { values: number[]; latestFlag: Flag; name: string }> = {};
+  for (const panel of panels) {
+    for (const result of panel.results) {
+      if (result.value === null) continue;
+      if (!analyteValues[result.analyte_key]) {
+        analyteValues[result.analyte_key] = {
+          values: [],
+          latestFlag: "normal",
+          name: result.test_name || result.analyte_key,
+        };
+      }
+      analyteValues[result.analyte_key].values.push(result.value);
+      analyteValues[result.analyte_key].latestFlag = result.flag;
+    }
+  }
 
   // Compute trends for analytes with multiple values (cumulative reports)
   const trends: LabTrendResult[] = [];
@@ -395,11 +502,11 @@ function parseExtractionResponse(raw: string): ExtractionResponse {
   for (const [key, data] of Object.entries(analyteValues)) {
     const vals = data.values;
     const latestVal = vals[vals.length - 1];
-    const direction = computeTrendDirection(vals, data.flag);
+    const direction = computeTrendDirection(vals, data.latestFlag);
     const pctChange = vals.length >= 2 && vals[0] !== 0
       ? Math.round(((latestVal - vals[0]) / Math.abs(vals[0])) * 10000) / 100
       : 0;
-    const severity = computeSeverity(data.flag, direction, pctChange);
+    const severity = computeSeverity(data.latestFlag, direction, pctChange);
 
     const trend: LabTrendResult = {
       analyte_key: key,
@@ -407,12 +514,12 @@ function parseExtractionResponse(raw: string): ExtractionResponse {
       direction,
       pct_change: pctChange,
       latest_value: latestVal,
-      latest_flag: data.flag,
+      latest_flag: data.latestFlag,
       severity_score: severity,
     };
 
     trends.push(trend);
-    if (data.flag === "critical_high" || data.flag === "critical_low") {
+    if (data.latestFlag === "critical_high" || data.latestFlag === "critical_low") {
       criticalFlags.push(trend);
     }
   }

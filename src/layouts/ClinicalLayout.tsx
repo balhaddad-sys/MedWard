@@ -16,13 +16,15 @@ import {
   LayoutDashboard,
   CheckSquare,
   FlaskConical,
-  Bot,
   Settings,
   MoreHorizontal,
   X,
   ArrowRightLeft,
   Pill,
   Users,
+  Plus,
+  Phone,
+  Sparkles,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -37,6 +39,7 @@ export default function ClinicalLayout() {
   const { mode, isTransitioning } = useClinicalMode()
   const user = useAuthStore((s) => s.user)
   const isMobile = useUIStore((s) => s.isMobile)
+  const openModal = useUIStore((s) => s.openModal)
   const criticalValues = usePatientStore((s) => s.criticalValues)
   const tasks = useTaskStore((s) => s.tasks)
   const navigate = useNavigate()
@@ -58,19 +61,24 @@ export default function ClinicalLayout() {
 
   const primaryMobileNav = [
     { path: '/', icon: LayoutDashboard, label: 'Home' },
+    { path: '/patients', icon: Users, label: 'Patients' },
     { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
-    { path: '/ai', icon: Bot, label: 'AI' },
     { path: '/labs', icon: FlaskConical, label: 'Labs' },
   ]
 
   const moreNav = [
-    { path: '/patients', icon: Users, label: 'Patients' },
+    { path: '/on-call', icon: Phone, label: 'On-Call' },
     { path: '/drugs', icon: Pill, label: 'Drug Info' },
     { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
+    { path: '/ai', icon: Sparkles, label: 'AI' },
     { path: '/settings', icon: Settings, label: 'Settings' },
   ]
 
-  const isMoreActive = moreNav.some((item) => location.pathname === item.path)
+  const isRouteActive = (path: string) => (
+    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
+  )
+
+  const isMoreActive = moreNav.some((item) => isRouteActive(item.path))
 
   const handleSignOut = async () => {
     await signOut()
@@ -120,6 +128,41 @@ export default function ClinicalLayout() {
               )}
             >
               {mode === 'ward' ? 'Ward' : mode === 'acute' ? 'On-Call' : 'Clerking'}
+            </div>
+          )}
+
+          {!isMobile && (
+            <div className="hidden md:flex items-center gap-1">
+              <button
+                onClick={() => {
+                  triggerHaptic('tap')
+                  openModal('patient-form')
+                }}
+                className={clsx(
+                  'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-2 rounded-lg border transition-colors',
+                  mode === 'acute'
+                    ? 'border-slate-700 text-slate-300 hover:bg-white/10'
+                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                )}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Patient
+              </button>
+              <button
+                onClick={() => {
+                  triggerHaptic('tap')
+                  openModal('task-form')
+                }}
+                className={clsx(
+                  'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-2 rounded-lg transition-colors',
+                  mode === 'acute'
+                    ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                    : 'bg-primary-600 text-white hover:bg-primary-700'
+                )}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Task
+              </button>
             </div>
           )}
 
@@ -279,8 +322,42 @@ export default function ClinicalLayout() {
                   </button>
                 </div>
                 <div className="grid grid-cols-4 gap-2">
+                  <button
+                    onClick={() => {
+                      triggerHaptic('tap')
+                      openModal('patient-form')
+                      setShowMore(false)
+                    }}
+                    className={clsx(
+                      'col-span-2 flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-xs font-semibold border transition-colors',
+                      mode === 'acute'
+                        ? 'border-slate-700 text-slate-300 hover:bg-white/10'
+                        : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                    )}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Patient
+                  </button>
+                  <button
+                    onClick={() => {
+                      triggerHaptic('tap')
+                      openModal('task-form')
+                      setShowMore(false)
+                    }}
+                    className={clsx(
+                      'col-span-2 flex items-center justify-center gap-2 px-2 py-2.5 rounded-lg text-xs font-semibold transition-colors',
+                      mode === 'acute'
+                        ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                        : 'bg-primary-600 text-white hover:bg-primary-700'
+                    )}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Add Task
+                  </button>
+                </div>
+                <div className="grid grid-cols-4 gap-2 mt-2">
                   {moreNav.map((item) => {
-                    const isActive = location.pathname === item.path
+                    const isActive = isRouteActive(item.path)
                     return (
                       <button
                         key={item.path}
@@ -321,7 +398,7 @@ export default function ClinicalLayout() {
           >
             <div className="flex items-center justify-around py-1">
               {primaryMobileNav.map((item) => {
-                const isActive = location.pathname === item.path
+                const isActive = isRouteActive(item.path)
                 return (
                   <button
                     key={item.path}

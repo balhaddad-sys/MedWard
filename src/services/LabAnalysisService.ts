@@ -14,9 +14,9 @@ export class LabAnalysisService {
   async analyzeLabImage(image: RawLabImage): Promise<AnalyzedLab> {
     try {
       const ocrResult = await this.runOCR(image.base64Data)
-      const tests = this.parseTests(ocrResult.text)
-      const category = this.categorizeLabType(tests, ocrResult.text)
-      const metadata = this.extractMetadata(ocrResult.text)
+      const tests = this.parseExtractedTests(ocrResult.structured, ocrResult.text)
+      const category = this.categorizeLabType(tests, ocrResult.structured, ocrResult.text)
+      const metadata = this.extractMetadata(ocrResult.structured, ocrResult.text)
 
       return {
         id: `lab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -29,7 +29,7 @@ export class LabAnalysisService {
         category,
         ocrText: ocrResult.text,
         tests,
-        confidence: this.calculateConfidence(tests),
+        confidence: this.calculateConfidence(tests, ocrResult.structured),
         isConfirmed: false,
         status: 'pending',
       }
@@ -61,6 +61,39 @@ export class LabAnalysisService {
   }
 
   parseTests(ocrText: string): LabTest[] {
+    return this.parseExtractedTests(undefined, ocrText)
+  }
+
+  private parseExtractedTests(structured?: ExtractionResponse, rawText?: string): LabTest[] {
+    if (structured?.panels?.length) {
+      return structured.panels.flatMap((panel) =>
+        panel.results
+          .filter((result) => result.test_name)
+          .map((result) => {
+            const refRange = this.toRefRange(result.ref_low, result.ref_high)
+            const value = result.value != null ? String(result.value) : result.value_raw || '?'
+            const isAbnormal = result.flag === 'high'
+              || result.flag === 'low'
+              || result.flag === 'critical_high'
+              || result.flag === 'critical_low'
+
+            return {
+              name: result.test_name,
+              value,
+              unit: result.unit || undefined,
+              refRange,
+              isAbnormal,
+            }
+          })
+      )
+    }
+
+    if (!rawText) return []
+
+    return this.parseLegacyTests(rawText)
+  }
+
+  private parseLegacyTests(ocrText: string): LabTest[] {
     const lines = ocrText.split('\n')
     const tests: LabTest[] = []
 
@@ -84,8 +117,12 @@ export class LabAnalysisService {
 
   categorizeLabType(
     tests: LabTest[],
-    ocrText: string
+    structured?: ExtractionResponse,
+    ocrText = ''
   ): AnalyzedLab['category'] {
+    const panelCategory = this.mapPanelCategory(structured)
+    if (panelCategory) return panelCategory
+
     const combined = (
       ocrText +
       ' ' +
@@ -118,10 +155,19 @@ export class LabAnalysisService {
     return bestMatch as AnalyzedLab['category']
   }
 
-  private extractMetadata(ocrText: string): {
+  private extractMetadata(structured?: ExtractionResponse, ocrText = ''): {
     labName?: string
     testDate?: Date
   } {
+    const firstPanel = structured?.panels?.[0]
+    if (firstPanel) {
+      const parsed = firstPanel.collected_at ? new Date(firstPanel.collected_at) : undefined
+      return {
+        labName: firstPanel.panel_name || undefined,
+        testDate: parsed && !isNaN(parsed.getTime()) ? parsed : undefined,
+      }
+    }
+
     const metaLine = ocrText
       .split('\n')
       .find((l) => l.startsWith('META:'))
@@ -159,6 +205,30 @@ export class LabAnalysisService {
     return { labName, testDate }
   }
 
+  private toRefRange(low: number | null, high: number | null): string | undefined {
+    if (low == null && high == null) return undefined
+    if (low != null && high != null) return `${low}-${high}`
+    if (low != null) return `>=${low}`
+    return `<=${high}`
+  }
+
+  private mapPanelCategory(structured?: ExtractionResponse): AnalyzedLab['category'] | null {
+    if (!structured?.panels?.length) return null
+
+    const name = structured.panels[0].panel_name.toLowerCase()
+    if (/\bcbc\b|blood count|hematology/.test(name)) return 'CBC'
+    if (/\bbmp\b|basic metabolic/.test(name)) return 'BMP'
+    if (/\bcmp\b|comprehensive metabolic|chemistry/.test(name)) return 'CMP'
+    if (/lft|liver|hepatic/.test(name)) return 'LFT'
+    if (/coag|inr|pt|aptt/.test(name)) return 'Coagulation'
+    if (/cardiac|troponin|bnp|ck/.test(name)) return 'Cardiac'
+    if (/thyroid|tsh|t3|t4/.test(name)) return 'Thyroid'
+    if (/urinalysis|urine/.test(name)) return 'Urinalysis'
+    if (/abg|arterial blood gas/.test(name)) return 'ABG'
+
+    return null
+  }
+
   private checkIfAbnormal(value: string, refRange?: string): boolean {
     if (!refRange || refRange === '?') return false
 
@@ -174,7 +244,25 @@ export class LabAnalysisService {
     return numValue < min || numValue > max
   }
 
-  private calculateConfidence(tests: LabTest[]): number {
+  private calculateConfidence(tests: LabTest[], structured?: ExtractionResponse): number {
+    // Structured output from the function is already normalized and validated.
+    if (structured?.panels?.length) {
+      const total = structured.panels.reduce((sum, panel) => sum + panel.results.length, 0)
+      if (total === 0) return 0
+
+      let complete = 0
+      for (const panel of structured.panels) {
+        for (const result of panel.results) {
+          if (!result.test_name) continue
+          if (result.value !== null || result.value_raw) complete += 1
+          if (result.unit) complete += 1
+          if (result.ref_low !== null || result.ref_high !== null) complete += 1
+        }
+      }
+      const maxScore = total * 3
+      return Math.round((complete / maxScore) * 100)
+    }
+
     if (tests.length === 0) return 0
 
     let totalScore = 0
