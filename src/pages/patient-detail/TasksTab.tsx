@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, CheckCircle, Zap, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, CheckCircle, Zap, ChevronDown, ChevronRight, AlertTriangle, Clock } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { TaskForm } from '@/components/features/tasks/TaskForm'
@@ -40,25 +40,43 @@ export function TasksTab({
   setShowOrderSetModal,
 }: TasksTabProps) {
   const [showCompleted, setShowCompleted] = useState(false)
+  const criticalOpen = pendingTasks.filter((t) => t.priority === 'critical').length
 
   return (
     <div className="space-y-4">
       {!showTaskForm && (
-        <div className="flex justify-end gap-2">
-          {setShowOrderSetModal && (
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<Zap className="h-4 w-4" />}
-              onClick={() => setShowOrderSetModal(true)}
-              className="min-h-[44px]"
-            >
-              Order Sets
+        <div className="rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50 p-3 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white border border-blue-100 text-blue-700">
+              {pendingTasks.length} open
+            </span>
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white border border-blue-100 text-blue-700 inline-flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {completedTasks.length} completed
+            </span>
+            {criticalOpen > 0 && (
+              <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-100 border border-red-200 text-red-700 inline-flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                {criticalOpen} critical
+              </span>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            {setShowOrderSetModal && (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<Zap className="h-4 w-4" />}
+                onClick={() => setShowOrderSetModal(true)}
+                className="min-h-[44px]"
+              >
+                Order Sets
+              </Button>
+            )}
+            <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => { setEditingTask(null); setShowTaskForm(true) }} className="min-h-[44px]">
+              Add Task
             </Button>
-          )}
-          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => { setEditingTask(null); setShowTaskForm(true) }} className="min-h-[44px]">
-            Add Task
-          </Button>
+          </div>
         </div>
       )}
 

@@ -16,6 +16,21 @@ interface OverviewTabProps {
 export function OverviewTab({ patient, setActiveTab, setShowLabEntry, setShowTaskForm, handleGenerateSBAR }: OverviewTabProps) {
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Care Snapshot</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white border border-blue-100 text-blue-700">
+            Team: {patient.team || 'Unassigned'}
+          </span>
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white border border-blue-100 text-blue-700">
+            Attending: {patient.attendingPhysician || 'Not set'}
+          </span>
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white border border-blue-100 text-blue-700">
+            Code: {patient.codeStatus || 'Unknown'}
+          </span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Card>
           <CardContent>
@@ -60,7 +75,7 @@ export function OverviewTab({ patient, setActiveTab, setShowLabEntry, setShowTas
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="secondary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => { setActiveTab('labs'); setShowLabEntry(true) }} className="min-h-[44px]">Add Labs</Button>
         <Button size="sm" variant="secondary" icon={<Plus className="h-3.5 w-3.5" />} onClick={() => { setActiveTab('tasks'); setShowTaskForm(true) }} className="min-h-[44px]">Add Task</Button>
-        <Button size="sm" variant="secondary" icon={<Sparkles className="h-3.5 w-3.5" />} onClick={() => { setActiveTab('sbar'); handleGenerateSBAR() }} className="min-h-[44px]">SBAR</Button>
+        <Button size="sm" icon={<Sparkles className="h-3.5 w-3.5" />} onClick={() => { setActiveTab('sbar'); handleGenerateSBAR() }} className="min-h-[44px]">Generate SBAR</Button>
       </div>
     </div>
   )

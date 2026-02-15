@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   Stethoscope,
@@ -15,9 +14,11 @@ import {
   FileText,
   Activity,
   Target,
+  Save,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { usePatientStore } from '@/stores/patientStore';
+import { useUIStore } from '@/stores/uiStore';
 import { createPatient } from '@/services/firebase/patients';
 import {
   createClerkingNote,
@@ -33,19 +34,17 @@ import type {
 import { validateClerkingNote } from '@/utils/safetyValidators';
 import { SafetyValidationModal } from '@/components/modals/SafetyValidationModal';
 import type { ValidationResult } from '@/utils/safetyValidators';
-import { ClerkingProgress } from '@/components/features/clerking/ClerkingProgress';
 import { ClerkingSection } from '@/components/features/clerking/ClerkingSection';
-import { ClerkingQuickSave } from '@/components/features/clerking/ClerkingQuickSave';
 import { ComplaintSelector } from '@/components/features/clerking/ComplaintSelector';
 import { PMHAutocomplete } from '@/components/features/clerking/PMHAutocomplete';
 
-const LOCALSTORAGE_DRAFT_KEY = 'clerking_draft_v3';
+const LOCALSTORAGE_DRAFT_KEY = 'clerking_draft_v4';
 const AUTOSAVE_INTERVAL = 3000;
 
 export default function ClerkingRoot() {
   const user = useAuthStore((s) => s.user);
-  const _navigate = useNavigate();
   const patients = usePatientStore((s) => s.patients);
+  const addToast = useUIStore((s) => s.addToast);
 
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [clerkingNote, setClerkingNote] = useState<Partial<ClerkingNote> | null>(null);
@@ -55,9 +54,6 @@ export default function ClerkingRoot() {
   // PHASE 1: Safety validation modal state
   const [showSafetyModal, setShowSafetyModal] = useState(false);
   const [safetyValidation, setSafetyValidation] = useState<ValidationResult | null>(null);
-
-  // PHASE 3: 60-second clerking state
-  const [startTime, setStartTime] = useState<Date>(new Date());
 
   const [selectedComplaintTemplate, setSelectedComplaintTemplate] = useState<import('@/config/complaintTemplates').ComplaintTemplate | null>(null);
   const [showNewPatientDialog, setShowNewPatientDialog] = useState(false);
@@ -121,7 +117,7 @@ export default function ClerkingRoot() {
 
   async function handleStart() {
     if (!user) {
-      alert('You must be logged in');
+      addToast({ type: 'error', title: 'You must be logged in' });
       return;
     }
     setIsSaving(true);
@@ -158,11 +154,11 @@ export default function ClerkingRoot() {
       };
       setClerkingNote(newNote);
       setActiveNoteId(noteId);
-      setStartTime(new Date()); // PHASE 3: Start timer
       saveDraft();
+      addToast({ type: 'success', title: 'Clerking started' });
     } catch (e) {
       console.error('Failed to start:', e);
-      alert('Failed to start clerking');
+      addToast({ type: 'error', title: 'Failed to start clerking' });
     } finally {
       setIsSaving(false);
     }
@@ -170,7 +166,7 @@ export default function ClerkingRoot() {
 
   async function handleCreatePatient() {
     if (!newPatientData.firstName || !newPatientData.lastName || !user) {
-      alert('First and last name required');
+      addToast({ type: 'warning', title: 'First and last name required' });
       return;
     }
     setIsSaving(true);
@@ -198,31 +194,52 @@ export default function ClerkingRoot() {
       update({ patientId });
       setShowNewPatientDialog(false);
       setNewPatientData({ firstName: '', lastName: '', dateOfBirth: '', gender: 'M', mrn: '', bedNumber: '' });
-      alert('✅ Patient created!');
+      addToast({ type: 'success', title: 'Patient created and linked' });
     } catch (e) {
       console.error(e);
-      alert('Failed to create patient');
+      addToast({ type: 'error', title: 'Failed to create patient' });
     } finally {
       setIsSaving(false);
     }
   }
 
+  function buildPreparedNote(note: Partial<ClerkingNote>): Partial<ClerkingNote> {
+    const currentProblems = note.problemList || [];
+    if (currentProblems.length > 0 || !note.workingDiagnosis?.trim()) return note;
+
+    const autoProblem: ProblemListItem = {
+      id: `auto-${Date.now()}`,
+      title: note.workingDiagnosis.trim(),
+      evidence: ['Auto-created from working diagnosis'],
+      severity: 'medium',
+      plan: [],
+      tasks: [],
+      isActive: true,
+    };
+
+    return {
+      ...note,
+      problemList: [autoProblem],
+    };
+  }
+
   async function handleSaveToOnCall() {
     if (!activeNoteId || !user) {
-      alert('No active note');
+      addToast({ type: 'error', title: 'No active note' });
       return;
     }
     if (!clerkingNote) {
-      alert('No active note');
+      addToast({ type: 'error', title: 'No active note' });
       return;
     }
     if (!clerkingNote.patientId || clerkingNote.patientId === 'unassigned') {
-      alert('Please assign a patient before saving to On-Call');
+      addToast({ type: 'warning', title: 'Please assign a patient before saving to On-Call' });
       return;
     }
 
-    // PHASE 1: Run safety validation before signing
-    const safetyResult = validateClerkingNote(clerkingNote);
+    const prepared = buildPreparedNote(clerkingNote);
+    const safetyResult = validateClerkingNote(prepared);
+    setClerkingNote(prepared);
 
     // If there are blockers or warnings, show modal
     if (safetyResult.blockers.length > 0 || safetyResult.warnings.length > 0) {
@@ -232,11 +249,13 @@ export default function ClerkingRoot() {
     }
 
     // If validation passes, proceed with save
-    await performSaveToOnCall();
+    await performSaveToOnCall(prepared);
   }
 
-  async function performSaveToOnCall() {
+  async function performSaveToOnCall(preparedInput?: Partial<ClerkingNote>) {
     if (!activeNoteId || !user) return;
+    const prepared = preparedInput || (clerkingNote ? buildPreparedNote(clerkingNote) : clerkingNote);
+    if (!prepared) return;
 
     const confirmed = window.confirm('Add to On-Call list?');
     if (!confirmed) return;
@@ -244,19 +263,23 @@ export default function ClerkingRoot() {
     setIsSaving(true);
     try {
       // Flush local changes first so transaction reads the latest patient linkage/content.
-      await updateClerkingNote(activeNoteId, clerkingNote!);
+      await updateClerkingNote(activeNoteId, prepared);
       const result = await saveClerkingToOnCall(activeNoteId, user.id, user.displayName);
       if (result.success) {
-        alert('✅ Added to On-Call!');
+        addToast({ type: 'success', title: 'Added to On-Call' });
         localStorage.removeItem(LOCALSTORAGE_DRAFT_KEY);
         setClerkingNote(null);
         setActiveNoteId(null);
       } else {
-        alert(`❌ Failed: ${result.error}`);
+        addToast({ type: 'error', title: 'Failed to save', message: result.error });
       }
     } catch (e) {
       console.error(e);
-      alert(`Failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      addToast({
+        type: 'error',
+        title: 'Failed to save',
+        message: e instanceof Error ? e.message : 'Unknown error',
+      });
     } finally {
       setIsSaving(false);
       setShowSafetyModal(false);
@@ -270,18 +293,17 @@ export default function ClerkingRoot() {
     setActiveNoteId(null);
   }
 
-  // PHASE 3: Quick save for 60-second clerking workflow
-  async function handleQuickSave() {
+  async function handleManualSave() {
     if (!activeNoteId || !clerkingNote) return;
     setIsSaving(true);
     try {
       await updateClerkingNote(activeNoteId, clerkingNote);
       setLastSaved(new Date());
       saveDraft();
-      alert('✅ Draft saved! You can continue editing later.');
+      addToast({ type: 'success', title: 'Draft saved' });
     } catch (e) {
-      console.error('Quick save failed:', e);
-      alert('❌ Failed to save draft');
+      console.error('Manual save failed:', e);
+      addToast({ type: 'error', title: 'Failed to save draft' });
     } finally {
       setIsSaving(false);
     }
@@ -303,8 +325,8 @@ export default function ClerkingRoot() {
             <Stethoscope className="w-8 h-8 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Clerking</h1>
-            <p className="text-sm text-slate-600">Quick patient documentation</p>
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">Practical Clerking</h1>
+            <p className="text-sm text-slate-600">Essentials first, optional details when needed</p>
           </div>
           <button onClick={handleStart} disabled={isSaving} className={clsx('w-full btn-primary py-3 flex items-center justify-center gap-2', isSaving && 'loading-pulse')}>
             <Plus className="w-5 h-5" />
@@ -322,38 +344,33 @@ export default function ClerkingRoot() {
   const history: any = clerkingNote.history || {};
   const exam: any = clerkingNote.examination || {};
   const vitals: any = exam.vitals || {};
-  const _inv: any = clerkingNote.investigations || {};
   const plan: any = clerkingNote.plan || {};
   const safety: any = clerkingNote.safety || {};
   const problemList = clerkingNote.problemList || [];
 
   const selectedPatient = patients.find((p) => p.id === clerkingNote.patientId);
 
-  // PHASE 3: Calculate completion percentage
-  const calculateCompletion = (): number => {
-    let completed = 0;
-    const total = 8;
-    if (clerkingNote.patientId && clerkingNote.patientId !== 'unassigned') completed++;
-    if (clerkingNote.presentingComplaint) completed++;
-    if (clerkingNote.workingDiagnosis) completed++;
-    if (vitals.heartRate || vitals.bloodPressureSystolic) completed++;
-    if (history.historyOfPresentingIllness) completed++;
-    if (exam.systemsNote) completed++;
-    if (plan.managementPlan) completed++;
-    if (safety.codeStatus) completed++;
-    return Math.round((completed / total) * 100);
+  const requiredChecks = {
+    patient: !!clerkingNote.patientId && clerkingNote.patientId !== 'unassigned',
+    complaint: !!clerkingNote.presentingComplaint?.trim(),
+    diagnosis: !!clerkingNote.workingDiagnosis?.trim(),
+    vitals: !!vitals.heartRate && !!vitals.bloodPressureSystolic,
+    plan: !!plan.managementPlan?.trim(),
   };
 
-  // PHASE 3: Check if minimum required fields are complete for quick save
-  const isQuickSaveReady = !!(
-    clerkingNote.patientId &&
-    clerkingNote.patientId !== 'unassigned' &&
-    clerkingNote.presentingComplaint &&
-    clerkingNote.workingDiagnosis &&
-    (vitals.heartRate || vitals.bloodPressureSystolic)
-  );
+  const completionValues = Object.values(requiredChecks);
+  const completionPercentage = Math.round((completionValues.filter(Boolean).length / completionValues.length) * 100);
 
-  const completionPercentage = calculateCompletion();
+  const missingLabels: Record<keyof typeof requiredChecks, string> = {
+    patient: 'Patient assignment',
+    complaint: 'Presenting complaint',
+    diagnosis: 'Working diagnosis',
+    vitals: 'Vitals (HR + BP systolic)',
+    plan: 'Management plan',
+  };
+  const missingRequired = (Object.keys(requiredChecks) as Array<keyof typeof requiredChecks>)
+    .filter((key) => !requiredChecks[key])
+    .map((key) => missingLabels[key]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -374,6 +391,10 @@ export default function ClerkingRoot() {
             <button onClick={handleDiscard} className="btn-secondary text-xs md:text-sm px-2 md:px-3 py-1.5">
               Discard
             </button>
+            <button onClick={handleManualSave} disabled={isSaving} className={clsx('btn-secondary text-xs md:text-sm px-2 md:px-3 py-1.5 flex items-center gap-1 md:gap-2', isSaving && 'loading-pulse')}>
+              <Save className="w-3 h-3 md:w-4 md:h-4" />
+              Draft
+            </button>
             <button onClick={handleSaveToOnCall} disabled={isSaving} className={clsx('btn-primary text-xs md:text-sm px-2 md:px-4 py-1.5 flex items-center gap-1 md:gap-2', isSaving && 'loading-pulse')}>
               <Send className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden sm:inline">Save to </span>On-Call
@@ -384,12 +405,30 @@ export default function ClerkingRoot() {
 
       {/* Main Form */}
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* PHASE 3: Progress Tracker */}
-        <ClerkingProgress
-          startTime={startTime}
-          targetSeconds={60}
-          completionPercentage={completionPercentage}
-        />
+        <div className="card p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-slate-900">Required Completion</h2>
+            <span className="text-sm font-semibold text-slate-700">{completionPercentage}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+            <div
+              className={clsx(
+                'h-full transition-all',
+                completionPercentage < 60 ? 'bg-amber-500' : 'bg-emerald-500'
+              )}
+              style={{ width: `${completionPercentage}%` }}
+            />
+          </div>
+          {missingRequired.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {missingRequired.map((item) => (
+                <span key={item} className="text-xs px-2 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700">
+                  {item}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Patient */}
         <div className="card p-4">
@@ -451,9 +490,9 @@ export default function ClerkingRoot() {
             )}
             {selectedComplaintTemplate && selectedComplaintTemplate.promptFields.length > 0 && (
               <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs font-semibold text-blue-700 mb-1">History Prompts</p>
+                <p className="text-xs font-semibold text-blue-700 mb-1">Top Prompts</p>
                 <ul className="text-xs text-blue-600 space-y-0.5">
-                  {selectedComplaintTemplate.promptFields.map((prompt, i) => (
+                  {selectedComplaintTemplate.promptFields.slice(0, 4).map((prompt, i) => (
                     <li key={i}>• {prompt}</li>
                   ))}
                 </ul>
@@ -530,7 +569,7 @@ export default function ClerkingRoot() {
                 {history.allergies?.map((allergy: Allergy, i: number) => (
                   <div key={i} className="flex items-center gap-2 p-2 bg-red-50 rounded text-sm border border-red-200">
                     <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                    <span className="flex-1">{allergy.substance} → {allergy.reaction}</span>
+                    <span className="flex-1">{allergy.substance}{' -> '}{allergy.reaction}</span>
                     <button onClick={() => update({ history: { ...history, allergies: history.allergies?.filter((_: any, idx: number) => idx !== i) } })} className="text-red-600">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -544,11 +583,11 @@ export default function ClerkingRoot() {
 
         {/* PHASE 3: Examination (Collapsible - Optional for detailed findings) */}
         <ClerkingSection
-          title="Examination & Vitals"
+          title="Vitals and Focused Examination"
           icon={<Activity className="w-5 h-5" />}
-          isRequired={false}
-          isComplete={!!(vitals.heartRate && vitals.bloodPressureSystolic && exam.systemsNote)}
-          defaultExpanded={true}
+          isRequired
+          isComplete={!!(vitals.heartRate && vitals.bloodPressureSystolic)}
+          defaultExpanded={false}
         >
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -588,9 +627,9 @@ export default function ClerkingRoot() {
         <ClerkingSection
           title="Assessment & Problem List"
           icon={<Target className="w-5 h-5" />}
-          isRequired={false}
+          isRequired
           isComplete={problemList.length > 0}
-          defaultExpanded={false}
+          defaultExpanded={true}
         >
           <div className="space-y-2">
             {problemList.map((problem: ProblemListItem, i: number) => (
@@ -631,14 +670,6 @@ export default function ClerkingRoot() {
           </div>
         </div>
       </div>
-
-      {/* PHASE 3: Quick Save Floating Button */}
-      <ClerkingQuickSave
-        isVisible={isQuickSaveReady && !isSaving}
-        onQuickSave={handleQuickSave}
-        isSaving={isSaving}
-        completionPercentage={completionPercentage}
-      />
 
       {/* Patient Dialog */}
       {showNewPatientDialog && (

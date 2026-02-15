@@ -1,7 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, AlertTriangle, Trash2 } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Trash2, FlaskConical, CheckSquare, Plus } from 'lucide-react'
 import { Tabs } from '@/components/ui/Tabs'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { PageHero } from '@/components/ui/PageHero'
 import { SafetyRails } from '@/components/features/safety/SafetyRails'
 import { OrderSetModal } from '@/components/features/orderSets/OrderSetModal'
 import { formatPatientName, formatAge } from '@/utils/formatters'
@@ -47,26 +49,71 @@ export function PatientDetailPage() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Patient Header */}
-      <div className="flex items-center gap-2">
-        <button onClick={() => navigate(-1)} aria-label="Go back" className="p-2 rounded-lg hover:bg-gray-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
-          <ArrowLeft className="h-5 w-5 text-ward-muted" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-ward-text truncate">
-            {formatPatientName(patient.firstName, patient.lastName)}
-          </h1>
-          <p className="text-xs text-ward-muted truncate">
-            MRN: {patient.mrn} · {formatAge(patient.dateOfBirth)} · Bed {patient.bedNumber}
-          </p>
-        </div>
-        <Badge variant={patient.acuity <= 2 ? 'danger' : patient.acuity === 3 ? 'warning' : 'success'} size="sm">
-          {detail.acuityInfo.label}
-        </Badge>
-        <button onClick={detail.handleDeletePatient} aria-label="Delete patient" className="p-2 rounded-lg hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
-          <Trash2 className="h-5 w-5" />
-        </button>
-      </div>
+      <PageHero
+        title={formatPatientName(patient.firstName, patient.lastName)}
+        subtitle={`MRN ${patient.mrn || '—'} · ${formatAge(patient.dateOfBirth)} · Bed ${patient.bedNumber || '—'}`}
+        icon={<span className="text-xs font-bold">{patient.bedNumber || '—'}</span>}
+        meta={(
+          <>
+            <Badge variant={patient.acuity <= 2 ? 'danger' : patient.acuity === 3 ? 'warning' : 'success'} size="sm">
+              {detail.acuityInfo.label}
+            </Badge>
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white/90 text-gray-700 border border-gray-200 inline-flex items-center gap-1">
+              <CheckSquare className="h-3 w-3" />
+              {detail.pendingTasks.length} open tasks
+            </span>
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white/90 text-gray-700 border border-gray-200 inline-flex items-center gap-1">
+              <FlaskConical className="h-3 w-3" />
+              {detail.labs.length} lab panels
+            </span>
+          </>
+        )}
+        actions={(
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<ArrowLeft className="h-4 w-4" />}
+              onClick={() => navigate(-1)}
+              className="min-h-[40px]"
+            >
+              Back
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => {
+                detail.setActiveTab('labs')
+                detail.setShowLabEntry(true)
+              }}
+              className="min-h-[40px]"
+            >
+              Add Labs
+            </Button>
+            <Button
+              size="sm"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => {
+                detail.setActiveTab('tasks')
+                detail.setShowTaskForm(true)
+              }}
+              className="min-h-[40px]"
+            >
+              Add Task
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              icon={<Trash2 className="h-4 w-4" />}
+              onClick={detail.handleDeletePatient}
+              className="min-h-[40px]"
+            >
+              Delete
+            </Button>
+          </>
+        )}
+      />
 
       {/* Critical alerts */}
       {detail.patientCriticals.length > 0 && <SafetyRails patient={patient} criticalValues={detail.patientCriticals} />}

@@ -25,6 +25,8 @@ import { useUIStore } from '@/stores/uiStore'
 import { triggerHaptic } from '@/utils/haptics'
 import { deletePatient } from '@/services/firebase/patients'
 import { SwipeableRow } from '@/components/ui/SwipeableRow'
+import { Button } from '@/components/ui/Button'
+import { PageHero } from '@/components/ui/PageHero'
 import { ACUITY_LEVELS } from '@/config/constants'
 import type { Patient, Task } from '@/types'
 
@@ -189,6 +191,54 @@ export default function WardRoot() {
 
   return (
     <div className="space-y-3 animate-fade-in">
+      <PageHero
+        title="Ward Dashboard"
+        subtitle="Monitor census, critical risks, and follow-up actions from one workspace."
+        icon={<Users className="h-5 w-5" />}
+        meta={(
+          <>
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white/90 text-gray-700 border border-gray-200">
+              {patients.length} patients
+            </span>
+            {criticalPatients.length > 0 && (
+              <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+                {criticalPatients.length} critical
+              </span>
+            )}
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+              {urgentTasks.length} urgent tasks
+            </span>
+          </>
+        )}
+        actions={(
+          <>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => {
+                triggerHaptic('tap')
+                openModal('patient-form')
+              }}
+              className="min-h-[40px]"
+            >
+              Add Patient
+            </Button>
+            <Button
+              size="sm"
+              icon={<Plus className="h-4 w-4" />}
+              onClick={() => {
+                triggerHaptic('tap')
+                openModal('task-form')
+              }}
+              className="min-h-[40px]"
+            >
+              Add Task
+            </Button>
+          </>
+        )}
+      />
+
       {/* === WARD OVERVIEW STATS === */}
       <div className="grid grid-cols-4 gap-2">
         <StatCard icon={<Users className="h-4 w-4" />} label="Census" value={patients.length} color="blue" />

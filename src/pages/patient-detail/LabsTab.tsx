@@ -36,11 +36,33 @@ export function LabsTab({
   refreshLabs,
   addToast,
 }: LabsTabProps) {
+  const criticalPanels = labs.filter((panel) =>
+    panel.values.some((value) => value.flag === 'critical_low' || value.flag === 'critical_high')
+  ).length
+  const flaggedPanels = labs.filter((panel) =>
+    panel.values.some((value) => value.flag !== 'normal')
+  ).length
+
   return (
     <div className="space-y-4">
       {!showLabEntry && (
-        <div className="flex justify-end">
-          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setShowLabEntry(true)} className="min-h-[44px]">
+        <div className="rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-sky-50 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white border border-blue-100 text-blue-700">
+              {labs.length} panels
+            </span>
+            {flaggedPanels > 0 && (
+              <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-amber-100 border border-amber-200 text-amber-700">
+                {flaggedPanels} flagged
+              </span>
+            )}
+            {criticalPanels > 0 && (
+              <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-100 border border-red-200 text-red-700">
+                {criticalPanels} critical
+              </span>
+            )}
+          </div>
+          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setShowLabEntry(true)} className="min-h-[44px] sm:self-auto self-start">
             Add Labs
           </Button>
         </div>
