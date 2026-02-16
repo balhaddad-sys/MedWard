@@ -7,7 +7,6 @@ import { clsx } from 'clsx'
 import {
   User,
   LogOut,
-  LayoutDashboard,
   CheckSquare,
   FlaskConical,
   Settings,
@@ -59,10 +58,10 @@ export default function ClinicalLayout() {
     }
 
     return [
-      { path: '/', icon: LayoutDashboard, label: 'Home' },
       { path: '/patients', icon: Users, label: 'Patients' },
       { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
       { path: '/labs', icon: FlaskConical, label: 'Labs' },
+      { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
     ]
   }, [mode])
 
