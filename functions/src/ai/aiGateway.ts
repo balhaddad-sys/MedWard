@@ -22,7 +22,7 @@ import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { callClaude, anthropicApiKey, type AIResponse } from "../utils/anthropic";
-import { checkRateLimit } from "../utils/rateLimiter";
+import { checkRateLimitDetailed } from "../utils/rateLimiter";
 import { redactPHI, normalizeForHash } from "../utils/phiRedaction";
 import { embedText, cosineSimilarity, EMBEDDING_DIMENSION } from "../utils/embeddings";
 
@@ -268,11 +268,12 @@ export const aiGateway = onCall(
     const email = request.auth.token.email || "";
 
     // ── Rate limit ──
-    const allowed = await checkRateLimit(uid, "ai-gateway");
-    if (!allowed) {
+    const limitResult = await checkRateLimitDetailed(uid, "ai-gateway");
+    if (!limitResult.allowed) {
+      const retryAfterSec = Math.ceil(limitResult.retryAfterMs / 1000);
       throw new HttpsError(
         "resource-exhausted",
-        "Rate limit exceeded. Please wait a moment and try again."
+        `Rate limit exceeded. Try again in ${retryAfterSec}s.`
       );
     }
 

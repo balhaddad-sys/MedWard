@@ -8,6 +8,7 @@ import { Dashboard } from '@/pages/Dashboard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ModalController } from '@/components/layout/ModalController'
 import { ToastContainer } from '@/components/ui/Toast'
+import { ReleaseGuard } from '@/components/ReleaseGuard'
 
 const PatientDetailPage = lazy(() => import('@/pages/PatientDetailPage').then(m => ({ default: m.PatientDetailPage })))
 const TasksPage = lazy(() => import('@/pages/TasksPage').then(m => ({ default: m.TasksPage })))
@@ -248,46 +249,48 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ModeProvider key={firebaseUser?.uid ?? 'anon'}>
-        <BrowserRouter>
-          <PilotBanner />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/mode"
-              element={
-                <ProtectedRoute>
-                  <Suspense fallback={<PageLoader />}><ModeSelectionPage /></Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              element={
-                <ProtectedRoute>
-                  <ModeRequiredLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/patients" element={<Dashboard />} />
-              <Route path="/patients/:id" element={<Suspense fallback={<PageLoader />}><PatientDetailPage /></Suspense>} />
-              <Route path="/on-call" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
-              <Route path="/shift" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
-              <Route path="/clerking" element={<Suspense fallback={<PageLoader />}><ClerkingRoot /></Suspense>} />
-              <Route path="/tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
-              <Route path="/handover" element={<Suspense fallback={<PageLoader />}><HandoverPage /></Suspense>} />
-              <Route path="/ai" element={<Suspense fallback={<PageLoader />}><AIAssistantPage /></Suspense>} />
-              <Route path="/labs" element={<Suspense fallback={<PageLoader />}><LabAnalysisPage /></Suspense>} />
-              <Route path="/drugs" element={<Suspense fallback={<PageLoader />}><DrugInfoPage /></Suspense>} />
-              <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
-            </Route>
-            <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense>} />
-            <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsPage /></Suspense>} />
-            <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFoundPage /></Suspense>} />
-          </Routes>
-          <ModalController />
-          <ToastContainer />
-          <HIPAADisclaimer />
-        </BrowserRouter>
+        <ReleaseGuard>
+          <BrowserRouter>
+            <PilotBanner />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="/mode"
+                element={
+                  <ProtectedRoute>
+                    <Suspense fallback={<PageLoader />}><ModeSelectionPage /></Suspense>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <ModeRequiredLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/patients" element={<Dashboard />} />
+                <Route path="/patients/:id" element={<Suspense fallback={<PageLoader />}><PatientDetailPage /></Suspense>} />
+                <Route path="/on-call" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
+                <Route path="/shift" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
+                <Route path="/clerking" element={<Suspense fallback={<PageLoader />}><ClerkingRoot /></Suspense>} />
+                <Route path="/tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
+                <Route path="/handover" element={<Suspense fallback={<PageLoader />}><HandoverPage /></Suspense>} />
+                <Route path="/ai" element={<Suspense fallback={<PageLoader />}><AIAssistantPage /></Suspense>} />
+                <Route path="/labs" element={<Suspense fallback={<PageLoader />}><LabAnalysisPage /></Suspense>} />
+                <Route path="/drugs" element={<Suspense fallback={<PageLoader />}><DrugInfoPage /></Suspense>} />
+                <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+              </Route>
+              <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense>} />
+              <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsPage /></Suspense>} />
+              <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFoundPage /></Suspense>} />
+            </Routes>
+            <ModalController />
+            <ToastContainer />
+            <HIPAADisclaimer />
+          </BrowserRouter>
+        </ReleaseGuard>
       </ModeProvider>
     </ErrorBoundary>
   )

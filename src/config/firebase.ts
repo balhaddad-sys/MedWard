@@ -4,6 +4,7 @@ import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase
 import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage'
 import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions'
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
+import { IS_PRODUCTION_RELEASE } from './release'
 
 interface FirebaseConfig {
   apiKey: string
@@ -70,11 +71,11 @@ function bootstrap(config: FirebaseConfig) {
     } catch {
       // Emulators already connected
     }
-  } else {
-    // SECURITY: Initialize App Check in production to prevent abuse of Cloud Functions
-    // Get ReCaptcha v3 site key from environment variable
-    const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
-    if (recaptchaSiteKey) {
+    } else {
+      // SECURITY: Initialize App Check in production to prevent abuse of Cloud Functions
+      // Get ReCaptcha v3 site key from environment variable
+      const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
+      if (recaptchaSiteKey) {
       try {
         initializeAppCheck(app, {
           provider: new ReCaptchaV3Provider(recaptchaSiteKey),
@@ -83,11 +84,15 @@ function bootstrap(config: FirebaseConfig) {
       } catch (error) {
         console.warn('App Check initialization failed:', error)
       }
-    } else {
-      console.warn('VITE_RECAPTCHA_SITE_KEY not set - App Check disabled. Cloud Functions may reject requests.')
+      } else {
+        const message = 'VITE_RECAPTCHA_SITE_KEY not set - App Check disabled. Cloud Functions may reject requests.'
+        if (IS_PRODUCTION_RELEASE) {
+          throw new Error(message)
+        }
+        console.warn(message)
+      }
     }
   }
-}
 
 // Synchronous init from env vars (covers local dev with .env)
 const envConfig = getEnvConfig()

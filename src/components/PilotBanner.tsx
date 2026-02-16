@@ -1,13 +1,25 @@
 import { AlertCircle, X } from 'lucide-react'
 import { useState } from 'react'
+import { IS_PILOT_RELEASE } from '@/config/release'
+
+const DISMISS_KEY = 'pilot-banner-dismissed-session'
 
 export function PilotBanner() {
   const [dismissed, setDismissed] = useState(() => {
-    return localStorage.getItem('pilot-banner-dismissed') === 'true'
+    if (!IS_PILOT_RELEASE) return true
+    try {
+      return sessionStorage.getItem(DISMISS_KEY) === 'true'
+    } catch {
+      return false
+    }
   })
 
   const handleDismiss = () => {
-    localStorage.setItem('pilot-banner-dismissed', 'true')
+    try {
+      sessionStorage.setItem(DISMISS_KEY, 'true')
+    } catch {
+      // Ignore storage errors; banner will remain visible on refresh.
+    }
     setDismissed(true)
   }
 

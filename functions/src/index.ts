@@ -9,3 +9,4 @@ export { generateHandover } from "./ai/generateHandover";
 export { analyzeLabImage } from "./ai/analyzeLabImage";
 export { aiGateway } from "./ai/aiGateway";
 export { cleanupCompletedTasks } from "./tasks/cleanupCompletedTasks";
+export { cleanupRateLimitDocuments, backupClinicalSnapshot } from "./tasks/maintenanceJobs";

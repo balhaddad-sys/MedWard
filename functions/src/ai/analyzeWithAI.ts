@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { callClaude, anthropicApiKey } from "../utils/anthropic";
-import { checkRateLimit } from "../utils/rateLimiter";
+import { checkRateLimitDetailed } from "../utils/rateLimiter";
 import { logAuditEvent } from "../utils/auditLog";
 import { LAB_ANALYSIS_SYSTEM_PROMPT } from "../prompts/labAnalysis";
 import { CLINICAL_ASSISTANT_SYSTEM_PROMPT } from "../prompts/clinicalAssistant";
@@ -31,9 +31,10 @@ export const analyzeWithAI = onCall(
       throw new HttpsError("invalid-argument", "Prompt is required");
     }
 
-    const allowed = await checkRateLimit(request.auth.uid, "ai-analysis");
-    if (!allowed) {
-      throw new HttpsError("resource-exhausted", "Rate limit exceeded. Please try again later.");
+    const limitResult = await checkRateLimitDetailed(request.auth.uid, "ai-analysis");
+    if (!limitResult.allowed) {
+      const retryAfterSec = Math.ceil(limitResult.retryAfterMs / 1000);
+      throw new HttpsError("resource-exhausted", `Rate limit exceeded. Try again in ${retryAfterSec}s.`);
     }
 
     try {

@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { callClaude, anthropicApiKey } from "../utils/anthropic";
-import { checkRateLimit } from "../utils/rateLimiter";
+import { checkRateLimitDetailed } from "../utils/rateLimiter";
 import { logAuditEvent } from "../utils/auditLog";
 import { HANDOVER_SYSTEM_PROMPT } from "../prompts/handover";
 
@@ -24,9 +24,10 @@ export const generateHandover = onCall(
       throw new HttpsError("invalid-argument", "Ward ID is required");
     }
 
-    const allowed = await checkRateLimit(uid, "handover-generation");
-    if (!allowed) {
-      throw new HttpsError("resource-exhausted", "Rate limit exceeded. Please try again later.");
+    const limitResult = await checkRateLimitDetailed(uid, "handover-generation");
+    if (!limitResult.allowed) {
+      const retryAfterSec = Math.ceil(limitResult.retryAfterMs / 1000);
+      throw new HttpsError("resource-exhausted", `Rate limit exceeded. Try again in ${retryAfterSec}s.`);
     }
 
     try {

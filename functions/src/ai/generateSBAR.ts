@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { callClaude, anthropicApiKey } from "../utils/anthropic";
-import { checkRateLimit } from "../utils/rateLimiter";
+import { checkRateLimitDetailed } from "../utils/rateLimiter";
 import { logAuditEvent } from "../utils/auditLog";
 import { SBAR_SYSTEM_PROMPT, SBAR_USER_PROMPT } from "../prompts/sbar";
 
@@ -58,9 +58,10 @@ export const generateSBAR = onCall(
       throw new HttpsError("invalid-argument", "Patient data is required");
     }
 
-    const allowed = await checkRateLimit(request.auth.uid, "sbar-generation");
-    if (!allowed) {
-      throw new HttpsError("resource-exhausted", "Rate limit exceeded");
+    const limitResult = await checkRateLimitDetailed(request.auth.uid, "sbar-generation");
+    if (!limitResult.allowed) {
+      const retryAfterSec = Math.ceil(limitResult.retryAfterMs / 1000);
+      throw new HttpsError("resource-exhausted", `Rate limit exceeded. Try again in ${retryAfterSec}s.`);
     }
 
     try {

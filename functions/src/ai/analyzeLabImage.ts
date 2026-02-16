@@ -1,6 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getAnthropicClient, anthropicApiKey, ANTHROPIC_MODEL } from "../utils/anthropic";
-import { checkRateLimit } from "../utils/rateLimiter";
+import { checkRateLimitDetailed } from "../utils/rateLimiter";
 import { logAuditEvent } from "../utils/auditLog";
 import { LAB_IMAGE_EXTRACTION_PROMPT } from "../prompts/labAnalysis";
 
@@ -563,11 +563,12 @@ export const analyzeLabImage = onCall(
       throw new HttpsError("invalid-argument", "Image exceeds maximum size of 10MB");
     }
 
-    const allowed = await checkRateLimit(request.auth.uid, "lab-image-analysis");
-    if (!allowed) {
+    const limitResult = await checkRateLimitDetailed(request.auth.uid, "lab-image-analysis");
+    if (!limitResult.allowed) {
+      const retryAfterSec = Math.ceil(limitResult.retryAfterMs / 1000);
       throw new HttpsError(
         "resource-exhausted",
-        "Rate limit exceeded. Please try again later."
+        `Rate limit exceeded. Try again in ${retryAfterSec}s.`
       );
     }
 

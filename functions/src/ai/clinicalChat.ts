@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { callClaude, anthropicApiKey } from "../utils/anthropic";
-import { checkRateLimit } from "../utils/rateLimiter";
+import { checkRateLimitDetailed } from "../utils/rateLimiter";
 import { logAuditEvent } from "../utils/auditLog";
 import { CLINICAL_CHAT_SYSTEM_PROMPT, CLINICAL_CHAT_WITH_CONTEXT } from "../prompts/clinicalChat";
 
@@ -26,9 +26,10 @@ export const clinicalChat = onCall(
       throw new HttpsError("invalid-argument", "Message exceeds maximum length of 10,000 characters");
     }
 
-    const allowed = await checkRateLimit(request.auth.uid, "clinical-chat");
-    if (!allowed) {
-      throw new HttpsError("resource-exhausted", "Rate limit exceeded. Please try again later.");
+    const limitResult = await checkRateLimitDetailed(request.auth.uid, "clinical-chat");
+    if (!limitResult.allowed) {
+      const retryAfterSec = Math.ceil(limitResult.retryAfterMs / 1000);
+      throw new HttpsError("resource-exhausted", `Rate limit exceeded. Try again in ${retryAfterSec}s.`);
     }
 
     try {

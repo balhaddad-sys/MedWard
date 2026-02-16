@@ -13,12 +13,21 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "preview": "vite preview",
+    "mobile:sync": "npm run build && npx cap sync",
+    "mobile:add:android": "npx cap add android",
+    "mobile:add:ios": "npx cap add ios",
+    "mobile:android": "npm run mobile:sync && npx cap open android",
+    "mobile:ios": "npm run mobile:sync && npx cap open ios",
     "firebase:emulators": "firebase emulators:start",
     "deploy": "npm run build && npm run build --prefix functions && firebase deploy",
     "deploy:hosting": "npm run build && firebase deploy --only hosting",
-    "deploy:functions": "npm run build --prefix functions && firebase deploy --only functions"
+    "deploy:functions": "npm run build --prefix functions && firebase deploy --only functions",
+    "release:check": "node scripts/release-check.mjs && npm run lint && npm run typecheck && npm run test && npm run build && npm run build --prefix functions"
   },
   "dependencies": {
+    "@capacitor/android": "^8.1.0",
+    "@capacitor/core": "^8.1.0",
+    "@capacitor/ios": "^8.1.0",
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -35,6 +44,7 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.1.0",
     "@eslint/js": "^9.39.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

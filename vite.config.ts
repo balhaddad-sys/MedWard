@@ -39,5 +39,16 @@ export default defineConfig(({ mode }) => ({
     outDir: 'dist',
     sourcemap: mode !== 'production',
     chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions', 'firebase/storage', 'firebase/app-check'],
+          'vendor-charts': ['recharts'],
+          'vendor-jspdf': ['jspdf', 'jspdf-autotable'],
+          'vendor-html2canvas': ['html2canvas'],
+        },
+      },
+    },
   },
 }))

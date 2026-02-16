@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Shield } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { IS_PILOT_RELEASE } from '@/config/release'
 
 const DISCLAIMER_KEY = 'medward-disclaimer-accepted'
 
@@ -54,6 +55,12 @@ export function HIPAADisclaimer() {
               <span className="text-primary-600 font-bold flex-shrink-0">4.</span>
               <span>You agree to the <button onClick={() => navigate('/terms')} className="text-primary-600 underline hover:text-primary-700">Terms of Service</button> and <button onClick={() => navigate('/privacy')} className="text-primary-600 underline hover:text-primary-700">Privacy Policy</button>.</span>
             </li>
+            {IS_PILOT_RELEASE && (
+              <li className="flex gap-2">
+                <span className="text-primary-600 font-bold flex-shrink-0">5.</span>
+                <span>Current deployment stage is supervised pilot; emergency and unsupervised use is prohibited.</span>
+              </li>
+            )}
           </ul>
         </div>
 
