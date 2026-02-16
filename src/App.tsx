@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect, useState, lazy, Suspense } from 'react'
 import ClinicalLayout from '@/layouts/ClinicalLayout'
 import { ModeProvider } from '@/context/ModeContext'
+import { useClinicalMode } from '@/context/useClinicalMode'
 import { Login } from '@/pages/Login'
 import { Dashboard } from '@/pages/Dashboard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -20,6 +21,7 @@ const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
 const ShiftView = lazy(() => import('@/pages/roots/ShiftView'))
 const ClerkingRoot = lazy(() => import('@/pages/roots/ClerkingRoot'))
+const ModeSelectionPage = lazy(() => import('@/pages/ModeSelectionPage').then(m => ({ default: m.ModeSelectionPage })))
 
 import { HIPAADisclaimer } from '@/components/HIPAADisclaimer'
 import { PilotBanner } from '@/components/PilotBanner'
@@ -155,10 +157,26 @@ function DataSubscriptions() {
   return null
 }
 
+function ModeRequiredLayout() {
+  const { isModeSelected } = useClinicalMode()
+
+  if (!isModeSelected) {
+    return <Navigate to="/mode" replace />
+  }
+
+  return (
+    <>
+      <DataSubscriptions />
+      <ClinicalLayout />
+    </>
+  )
+}
+
 export default function App() {
   const setFirebaseUser = useAuthStore((s) => s.setFirebaseUser)
   const setUser = useAuthStore((s) => s.setUser)
   const setLoading = useAuthStore((s) => s.setLoading)
+  const firebaseUser = useAuthStore((s) => s.firebaseUser)
 
   // null = still resolving, true = ready, false = missing config
   const [firebaseOk, setFirebaseOk] = useState<boolean | null>(null)
@@ -201,6 +219,7 @@ export default function App() {
         }
       } else {
         localStorage.removeItem('user_id')
+        sessionStorage.removeItem('clinical_mode_selected')
         setUser(null)
       }
       setLoading(false)
@@ -228,16 +247,23 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <ModeProvider>
+      <ModeProvider key={firebaseUser?.uid ?? 'anon'}>
         <BrowserRouter>
           <PilotBanner />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
+              path="/mode"
               element={
                 <ProtectedRoute>
-                  <DataSubscriptions />
-                  <ClinicalLayout />
+                  <Suspense fallback={<PageLoader />}><ModeSelectionPage /></Suspense>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              element={
+                <ProtectedRoute>
+                  <ModeRequiredLayout />
                 </ProtectedRoute>
               }
             >

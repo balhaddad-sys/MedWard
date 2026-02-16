@@ -4,6 +4,8 @@ import type { ClinicalMode } from '../config/modes'
 import { triggerHaptic } from '../utils/haptics'
 import { ModeContext } from './modeContextDef'
 
+const MODE_SELECTION_SESSION_KEY = 'clinical_mode_selected'
+
 function getInitialMode(): ClinicalMode {
   const saved = localStorage.getItem('clinical_mode') as ClinicalMode
   if (saved && saved in MODES) return saved
@@ -23,8 +25,17 @@ function getInitialMode(): ClinicalMode {
   return 'ward'
 }
 
+function getInitialModeSelection(): boolean {
+  try {
+    return sessionStorage.getItem(MODE_SELECTION_SESSION_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 export function ModeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<ClinicalMode>(getInitialMode)
+  const [isModeSelected, setIsModeSelected] = useState<boolean>(getInitialModeSelection)
 
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [lastModeSwitch, setLastModeSwitch] = useState<Date | null>(null)
@@ -66,6 +77,16 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
     [mode, lastModeSwitch, isModeLocked]
   )
 
+  const confirmModeSelection = useCallback((newMode: ClinicalMode) => {
+    setMode(newMode)
+    setIsModeSelected(true)
+    try {
+      sessionStorage.setItem(MODE_SELECTION_SESSION_KEY, '1')
+    } catch {
+      // ignore browser storage errors
+    }
+  }, [setMode])
+
   useEffect(() => {
     document.body.className = MODES[mode].theme
   }, [mode])
@@ -75,6 +96,8 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
       value={{
         mode,
         setMode,
+        isModeSelected,
+        confirmModeSelection,
         config: MODES[mode],
         isTransitioning,
         lastModeSwitch,

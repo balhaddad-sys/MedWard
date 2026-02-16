@@ -1,15 +1,10 @@
-import React from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useClinicalMode } from '../context/useClinicalMode'
-import type { ClinicalMode } from '../config/modes'
 import { triggerHaptic } from '../utils/haptics'
 import { SyncBadge } from '../components/SyncBadge'
 import { Sidebar } from '../components/layout/Sidebar'
 import { clsx } from 'clsx'
 import {
-  ClipboardList,
-  Siren,
-  Stethoscope,
   Bell,
   User,
   LogOut,
@@ -25,6 +20,7 @@ import {
   Plus,
   Phone,
   Sparkles,
+  Workflow,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
@@ -242,6 +238,13 @@ export default function ClinicalLayout() {
                   <p className="text-xs text-ward-muted">{user?.role}</p>
                 </div>
                 <button
+                  onClick={() => navigate('/mode')}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-ward-text hover:bg-gray-50 min-h-[44px]"
+                >
+                  <Workflow className="h-4 w-4" />
+                  Change Mode
+                </button>
+                <button
                   onClick={() => navigate('/settings')}
                   className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-ward-text hover:bg-gray-50 min-h-[44px]"
                 >
@@ -441,56 +444,9 @@ export default function ClinicalLayout() {
                 <span className="text-[10px] font-medium leading-tight">More</span>
               </button>
             </div>
-
-            {/* Mode Switcher Bar */}
-            <div
-              className={clsx(
-                'flex items-center justify-around border-t px-2 py-1',
-                mode === 'acute' ? 'border-gray-700' : 'border-neutral-100'
-              )}
-            >
-              <ModeNavButton id="ward" label="Ward" Icon={ClipboardList} />
-              <ModeNavButton id="acute" label="On-Call" Icon={Siren} />
-              <ModeNavButton id="clerking" label="Clerking" Icon={Stethoscope} />
-            </div>
           </nav>
         </>
       )}
     </div>
-  )
-}
-
-function ModeNavButton({
-  id,
-  label,
-  Icon,
-}: {
-  id: ClinicalMode
-  label: string
-  Icon: React.ElementType
-}) {
-  const { mode, setMode } = useClinicalMode()
-  const isActive = mode === id
-
-  return (
-    <button
-      onClick={() => {
-        triggerHaptic('tap')
-        setMode(id)
-      }}
-      className={clsx(
-        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 touch text-xs font-medium',
-        isActive && id === 'ward' && 'text-blue-600 bg-blue-50',
-        isActive && id === 'acute' && 'text-amber-500 bg-amber-500/10',
-        isActive && id === 'clerking' && 'text-stone-700 bg-stone-100',
-        !isActive &&
-          (mode === 'acute' ? 'text-gray-500 hover:text-gray-300' : 'text-neutral-400 hover:text-neutral-600')
-      )}
-      aria-label={`Switch to ${label} mode`}
-      aria-current={isActive ? 'page' : undefined}
-    >
-      <Icon className="h-3.5 w-3.5" />
-      <span className="uppercase tracking-wider">{label}</span>
-    </button>
   )
 }

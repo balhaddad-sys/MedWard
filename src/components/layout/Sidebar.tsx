@@ -8,11 +8,7 @@ import {
   FlaskConical,
   Bot,
   Pill,
-  ClipboardList,
-  Siren,
   Stethoscope,
-  Lock,
-  Unlock,
   Circle,
   Phone,
 } from 'lucide-react'
@@ -64,12 +60,6 @@ const NOTIFY_LABELS: Record<string, string> = {
   'critical-only': 'Critical only',
 }
 
-const MODE_META: Record<ClinicalMode, { icon: React.ElementType; label: string; shortLabel: string; color: string }> = {
-  ward: { icon: ClipboardList, label: 'Ward Round', shortLabel: 'Ward', color: 'blue' },
-  acute: { icon: Siren, label: 'On-Call', shortLabel: 'Acute', color: 'amber' },
-  clerking: { icon: Stethoscope, label: 'Clerking', shortLabel: 'Clerk', color: 'stone' },
-}
-
 const NAV_ITEMS = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
   { path: '/clerking', icon: Stethoscope, label: 'Clerking', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
@@ -86,7 +76,7 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { mode, setMode, config, isModeLocked, setModeLocked } = useClinicalMode()
+  const { mode, config } = useClinicalMode()
 
   const tasks = useTaskStore((s) => s.tasks)
   const patients = usePatientStore((s) => s.patients)
@@ -110,7 +100,7 @@ export function Sidebar() {
         mode === 'clerking' && 'bg-stone-50 border-stone-200'
       )}
     >
-      {/* Mode Switcher */}
+      {/* Mode Summary */}
       <div className={clsx(
         'px-3 pt-3 pb-2 border-b',
         isDark ? 'border-gray-800' : 'border-neutral-100'
@@ -125,60 +115,30 @@ export function Sidebar() {
           <button
             onClick={() => {
               triggerHaptic('tap')
-              setModeLocked(!isModeLocked)
+              navigate('/mode')
             }}
             className={clsx(
-              'p-1 rounded-md transition-colors',
-              isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              'px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border transition-colors',
+              isDark
+                ? 'border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                : 'border-neutral-200 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100'
             )}
-            aria-label={isModeLocked ? 'Unlock mode switching' : 'Lock current mode'}
-            title={isModeLocked ? 'Mode locked — click to unlock' : 'Click to lock current mode'}
+            aria-label="Change clinical mode"
           >
-            {isModeLocked ? (
-              <Lock className="h-3 w-3 text-amber-500" />
-            ) : (
-              <Unlock className={clsx('h-3 w-3', isDark ? 'text-slate-500' : 'text-neutral-400')} />
-            )}
+            Change
           </button>
         </div>
 
-        {/* Segmented control */}
         <div className={clsx(
-          'flex rounded-lg p-0.5 gap-0.5',
-          isDark ? 'bg-gray-800' : 'bg-neutral-100'
+          'rounded-lg px-2.5 py-2',
+          isDark ? 'bg-slate-800/60 border border-slate-700/70' : 'bg-neutral-50 border border-neutral-100'
         )}>
-          {(['ward', 'acute', 'clerking'] as ClinicalMode[]).map((modeId) => {
-            const meta = MODE_META[modeId]
-            const Icon = meta.icon
-            const isActive = mode === modeId
-            const disabled = isModeLocked && !isActive
-
-            return (
-              <button
-                key={modeId}
-                onClick={() => {
-                  if (disabled) return
-                  triggerHaptic('tap')
-                  setMode(modeId)
-                }}
-                disabled={disabled}
-                className={clsx(
-                  'flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[11px] font-semibold transition-all',
-                  isActive && modeId === 'ward' && 'bg-blue-600 text-white shadow-sm',
-                  isActive && modeId === 'acute' && 'bg-amber-500 text-white shadow-sm',
-                  isActive && modeId === 'clerking' && 'bg-stone-600 text-white shadow-sm',
-                  !isActive && isDark && 'text-slate-500 hover:text-slate-300',
-                  !isActive && !isDark && 'text-neutral-400 hover:text-neutral-600',
-                  disabled && 'opacity-30 cursor-not-allowed'
-                )}
-                aria-label={`Switch to ${meta.label} mode`}
-                aria-current={isActive ? 'true' : undefined}
-              >
-                <Icon className="h-3 w-3" />
-                <span>{meta.shortLabel}</span>
-              </button>
-            )
-          })}
+          <p className={clsx('text-[12px] font-semibold', isDark ? 'text-slate-200' : 'text-neutral-800')}>
+            {config.label}
+          </p>
+          <p className={clsx('text-[10px] mt-0.5 leading-relaxed', isDark ? 'text-slate-400' : 'text-neutral-500')}>
+            {config.description}
+          </p>
         </div>
       </div>
 
