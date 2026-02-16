@@ -1,4 +1,4 @@
-import { Bell, User, LogOut, LayoutDashboard, CheckSquare, FlaskConical, ArrowRightLeft, Users, ClipboardList, Siren, Stethoscope, Phone } from 'lucide-react'
+import { Bell, User, LogOut, CheckSquare, FlaskConical, ArrowRightLeft, Users, ClipboardList, Siren, Stethoscope, Phone } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -12,7 +12,6 @@ import { clsx } from 'clsx'
 import { useClickOutside } from '@/hooks/useClickOutside'
 
 const desktopNav = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { path: '/patients', icon: Users, label: 'Patients' },
   { path: '/clerking', icon: Stethoscope, label: 'Clerking' },
   { path: '/on-call', icon: Phone, label: 'On-Call' },

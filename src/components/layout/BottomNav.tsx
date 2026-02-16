@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CheckSquare, ArrowRightLeft, Settings, Bot, FlaskConical, Pill, MoreHorizontal, X, Stethoscope, Phone } from 'lucide-react'
+import { Users, CheckSquare, ArrowRightLeft, Settings, Bot, FlaskConical, Pill, MoreHorizontal, X, Stethoscope, Phone } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const primaryNav = [
-  { path: '/', icon: LayoutDashboard, label: 'Home' },
   { path: '/clerking', icon: Stethoscope, label: 'Clerking' },
   { path: '/on-call', icon: Phone, label: 'On-Call' },
+  { path: '/patients', icon: Users, label: 'Patients' },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
 ]
 
 const moreNav = [
-  { path: '/patients', icon: Users, label: 'Patients' },
   { path: '/labs', icon: FlaskConical, label: 'Labs' },
   { path: '/ai', icon: Bot, label: 'AI' },
   { path: '/drugs', icon: Pill, label: 'Drug Info' },

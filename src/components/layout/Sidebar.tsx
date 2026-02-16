@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard,
   Users,
   CheckSquare,
   ArrowRightLeft,
@@ -59,7 +58,6 @@ const NOTIFY_LABELS: Record<string, string> = {
 }
 
 const NAV_ITEMS = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard', modes: ['ward'] as ClinicalMode[] },
   { path: '/clerking', icon: Stethoscope, label: 'Clerking', modes: ['clerking'] as ClinicalMode[] },
   { path: '/on-call', icon: Phone, label: 'On-Call List', modes: ['acute', 'clerking'] as ClinicalMode[] },
   { path: '/patients', icon: Users, label: 'Patients', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'patients' as const },
