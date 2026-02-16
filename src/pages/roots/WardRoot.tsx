@@ -314,6 +314,11 @@ export default function WardRoot() {
     })
   }, [filteredPatients])
 
+  const allWardsCollapsed = useMemo(
+    () => patientsByWard.length > 0 && patientsByWard.every(([wardName]) => collapsedWards.has(wardName)),
+    [patientsByWard, collapsedWards]
+  )
+
   const pendingTasks = useMemo(
     () => tasks.filter((task) => task.status === 'pending' || task.status === 'in_progress'),
     [tasks]
@@ -520,72 +525,55 @@ export default function WardRoot() {
             </select>
           </div>
 
+          <div className="relative min-w-[200px]">
+            <select
+              value={patientFocus}
+              onChange={(event) => setPatientFocus(event.target.value as PatientFocus)}
+              className="input-field py-2 text-xs"
+              aria-label="Patient focus"
+            >
+              <option value="all">Focus: All ({focusCounts.all})</option>
+              <option value="critical">Focus: Critical ({focusCounts.critical})</option>
+              <option value="follow_up">Focus: Follow-up ({focusCounts.followUp})</option>
+              <option value="unstable">Focus: Unstable ({focusCounts.unstable})</option>
+              <option value="missing_team">Focus: Missing Team ({focusCounts.missingTeam})</option>
+            </select>
+          </div>
+
           {patientsByWard.length > 1 && (
-            <>
-              <button
-                onClick={() => setCollapsedWards(new Set())}
-                className="px-2.5 py-1.5 rounded-lg border border-ward-border bg-white text-xs font-medium text-ward-muted hover:text-ward-text hover:bg-gray-50 transition-colors"
-              >
-                Expand all wards
-              </button>
-              <button
-                onClick={() => setCollapsedWards(new Set(patientsByWard.map(([ward]) => ward)))}
-                className="px-2.5 py-1.5 rounded-lg border border-ward-border bg-white text-xs font-medium text-ward-muted hover:text-ward-text hover:bg-gray-50 transition-colors"
-              >
-                Collapse all wards
-              </button>
-            </>
+            <button
+              onClick={() => {
+                if (allWardsCollapsed) {
+                  setCollapsedWards(new Set())
+                  return
+                }
+                setCollapsedWards(new Set(patientsByWard.map(([ward]) => ward)))
+              }}
+              className="px-2.5 py-1.5 rounded-lg border border-ward-border bg-white text-xs font-medium text-ward-muted hover:text-ward-text hover:bg-gray-50 transition-colors"
+            >
+              {allWardsCollapsed ? 'Expand wards' : 'Collapse wards'}
+            </button>
           )}
         </div>
 
-        <div className="flex gap-1.5 flex-wrap">
-          {[
-            { id: 'all' as const, label: 'All', count: focusCounts.all },
-            { id: 'critical' as const, label: 'Critical', count: focusCounts.critical },
-            { id: 'follow_up' as const, label: 'Follow-up', count: focusCounts.followUp },
-            { id: 'unstable' as const, label: 'Unstable', count: focusCounts.unstable },
-            { id: 'missing_team' as const, label: 'Missing Team', count: focusCounts.missingTeam },
-          ].map((focus) => (
-            <button
-              key={focus.id}
-              onClick={() => {
-                triggerHaptic('tap')
-                setPatientFocus(focus.id)
-              }}
-              className={clsx(
-                'px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[36px]',
-                patientFocus === focus.id
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              )}
-            >
-              {focus.label}
-              <span className={clsx('ml-1.5 text-[10px] font-bold', patientFocus === focus.id ? 'text-white/80' : 'text-gray-500')}>
-                {focus.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
         {showFilters && (
-          <div className="flex gap-1.5 flex-wrap pt-1">
-            {[null, 1, 2, 3, 4, 5].map((acuity) => (
-              <button
-                key={String(acuity)}
-                onClick={() => {
-                  triggerHaptic('tap')
-                  setFilterAcuity(acuity)
-                }}
-                className={clsx(
-                  'px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[36px]',
-                  filterAcuity === acuity
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                )}
-              >
-                {acuity === null ? 'All acuity' : ACUITY_LEVELS[acuity as keyof typeof ACUITY_LEVELS]?.label ?? `Acuity ${acuity}`}
-              </button>
-            ))}
+          <div className="pt-1 max-w-[260px]">
+            <select
+              value={filterAcuity === null ? 'all' : String(filterAcuity)}
+              onChange={(event) => {
+                const value = event.target.value
+                setFilterAcuity(value === 'all' ? null : Number(value))
+              }}
+              className="input-field py-2 text-xs"
+              aria-label="Acuity filter"
+            >
+              <option value="all">Acuity: All</option>
+              <option value="1">{ACUITY_LEVELS[1].label}</option>
+              <option value="2">{ACUITY_LEVELS[2].label}</option>
+              <option value="3">{ACUITY_LEVELS[3].label}</option>
+              <option value="4">{ACUITY_LEVELS[4].label}</option>
+              <option value="5">{ACUITY_LEVELS[5].label}</option>
+            </select>
           </div>
         )}
       </section>
@@ -596,26 +584,19 @@ export default function WardRoot() {
             {filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'} across {patientsByWard.length} {patientsByWard.length === 1 ? 'ward' : 'wards'}
             {(searchQuery || filterAcuity !== null || patientFocus !== 'all') && ' matching filters'}
           </span>
-          <div className="flex items-center gap-2">
-            {!isMobile && (
-              <span className="hidden md:inline text-[11px]">
-                Shortcuts: <kbd className="px-1 py-0.5 rounded bg-gray-100 border border-gray-200">/</kbd> search, <kbd className="px-1 py-0.5 rounded bg-gray-100 border border-gray-200">Alt+N</kbd> patient, <kbd className="px-1 py-0.5 rounded bg-gray-100 border border-gray-200">Alt+T</kbd> task
-              </span>
-            )}
-            {(searchQuery || filterAcuity !== null || patientFocus !== 'all') && (
-              <button
-                onClick={() => {
-                  setSearchQuery('')
-                  setFilterAcuity(null)
-                  setPatientFocus('all')
-                  setShowFilters(false)
-                }}
-                className="text-primary-600 font-medium"
-              >
-                Reset
-              </button>
-            )}
-          </div>
+          {(searchQuery || filterAcuity !== null || patientFocus !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchQuery('')
+                setFilterAcuity(null)
+                setPatientFocus('all')
+                setShowFilters(false)
+              }}
+              className="text-primary-600 font-medium"
+            >
+              Reset
+            </button>
+          )}
         </div>
       )}
 
@@ -716,47 +697,24 @@ export default function WardRoot() {
   const renderTasksSection = (compact = false) => (
     <div className="space-y-3">
       <div className="rounded-xl border border-ward-border bg-white p-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
           <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider flex items-center gap-1">
             <Clock className="h-3.5 w-3.5" /> Operational Task View
           </h3>
-          <Button
-            size="sm"
-            icon={<Plus className="h-3.5 w-3.5" />}
-            onClick={() => {
-              triggerHaptic('tap')
-              openModal('task-form')
-            }}
-            className="min-h-[36px]"
-          >
-            Add Task
-          </Button>
         </div>
 
-        <div className="flex gap-1.5 flex-wrap">
-          {[
-            { id: 'all' as const, label: 'All', count: pendingTasks.length },
-            { id: 'overdue' as const, label: 'Overdue', count: overdueTasks.length },
-            { id: 'due_soon' as const, label: 'Due Soon', count: dueSoonTasks.length },
-            { id: 'urgent' as const, label: 'Urgent', count: urgentTasks.length },
-          ].map((filter) => (
-            <button
-              key={filter.id}
-              onClick={() => {
-                triggerHaptic('tap')
-                setTaskFocus(filter.id)
-              }}
-              className={clsx(
-                'px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[34px]',
-                taskFocus === filter.id ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              )}
-            >
-              {filter.label}
-              <span className={clsx('ml-1.5 text-[10px] font-bold', taskFocus === filter.id ? 'text-white/80' : 'text-gray-500')}>
-                {filter.count}
-              </span>
-            </button>
-          ))}
+        <div className="max-w-[220px]">
+          <select
+            value={taskFocus}
+            onChange={(event) => setTaskFocus(event.target.value as TaskFocus)}
+            className="input-field py-2 text-xs"
+            aria-label="Task focus"
+          >
+            <option value="all">All tasks ({pendingTasks.length})</option>
+            <option value="overdue">Overdue ({overdueTasks.length})</option>
+            <option value="due_soon">Due Soon ({dueSoonTasks.length})</option>
+            <option value="urgent">Urgent ({urgentTasks.length})</option>
+          </select>
         </div>
       </div>
 
@@ -903,31 +861,17 @@ export default function WardRoot() {
           </>
         )}
         actions={(
-          <>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<Plus className="h-4 w-4" />}
-              onClick={() => {
-                triggerHaptic('tap')
-                openModal('patient-form')
-              }}
-              className="min-h-[40px]"
-            >
-              Add Patient
-            </Button>
-            <Button
-              size="sm"
-              icon={<Plus className="h-4 w-4" />}
-              onClick={() => {
-                triggerHaptic('tap')
-                openModal('task-form')
-              }}
-              className="min-h-[40px]"
-            >
-              Add Task
-            </Button>
-          </>
+          <Button
+            size="sm"
+            icon={<Plus className="h-4 w-4" />}
+            onClick={() => {
+              triggerHaptic('tap')
+              openModal('task-form')
+            }}
+            className="min-h-[40px]"
+          >
+            New Task
+          </Button>
         )}
       />
 
