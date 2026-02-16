@@ -4,8 +4,6 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   CloseIcon,
-  CopyIcon,
-  CheckIcon,
   NoteIcon,
   FileListIcon,
   WarningTriangleIcon,
@@ -29,10 +27,8 @@ interface OnCallPatientCardProps {
   criticalCount: number
   notes: QuickNote[]
   expanded: boolean
-  copiedSbar: boolean
   onToggle: () => void
   onRemove: () => void
-  onCopySbar: () => void
   onAddNote: (text: string) => void
   onDeleteNote: (timestamp: number) => void
   onNavigate: (patientId: string) => void
@@ -68,10 +64,8 @@ export function OnCallPatientCard({
   criticalCount,
   notes,
   expanded,
-  copiedSbar,
   onToggle,
   onRemove,
-  onCopySbar,
   onAddNote,
   onDeleteNote,
   onNavigate,
@@ -98,14 +92,6 @@ export function OnCallPatientCard({
     triggerHaptic('escalation')
     onRemove()
     setShowDeleteConfirm(false)
-  }
-
-  const handleCopySbar = () => {
-    triggerHaptic('success')
-    onCopySbar()
-    setTimeout(() => {
-      setShowDeleteConfirm(false)
-    }, 2000)
   }
 
   return (
@@ -302,28 +288,6 @@ export function OnCallPatientCard({
 
             {/* Action Buttons */}
             <div className="space-y-2 border-t border-slate-700/40 pt-4">
-              <button
-                onClick={handleCopySbar}
-                className={clsx(
-                  'w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium transition-colors',
-                  copiedSbar
-                    ? 'bg-green-900/50 text-green-300'
-                    : 'bg-slate-700/60 hover:bg-slate-600/60 text-slate-200'
-                )}
-              >
-                {copiedSbar ? (
-                  <>
-                    <CheckIcon className="h-4 w-4" />
-                    Copied SBAR
-                  </>
-                ) : (
-                  <>
-                    <CopyIcon className="h-4 w-4" />
-                    Copy SBAR
-                  </>
-                )}
-              </button>
-
               <button
                 onClick={handleNavigate}
                 className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium bg-blue-600/90 hover:bg-blue-600 text-white transition-colors"

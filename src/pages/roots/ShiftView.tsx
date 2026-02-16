@@ -123,7 +123,6 @@ export default function ShiftView() {
   const [quickNotes, setQuickNotes] = useState<QuickNote[]>(loadNotes)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [patientLabs, setPatientLabs] = useState<Record<string, LabResultData | null>>({})
-  const [copiedSbar, setCopiedSbar] = useState<string | null>(null)
 
   // UI state
   const [showTools, setShowTools] = useState(false)
@@ -258,29 +257,6 @@ export default function ShiftView() {
     triggerHaptic('tap')
     setQuickNotes((prev) => prev.filter((n) => n.timestamp !== timestamp))
   }, [])
-
-  // SBAR copy
-  const copySbar = useCallback(async (patient: Patient) => {
-    const ptTasks = getPatientTasks(patient.id)
-    const ptCriticals = getPatientCriticals(patient.id)
-    const notes = getPatientNotes(patient.id)
-    let sbar = `SBAR — ${patient.lastName}, ${patient.firstName}\n${'—'.repeat(40)}\n`
-    sbar += `S: ${patient.firstName} ${patient.lastName}, Bed ${patient.bedNumber}, ${patient.primaryDiagnosis}`
-    if (patient.codeStatus && patient.codeStatus !== 'full') sbar += ` (${patient.codeStatus.toUpperCase()})`
-    sbar += `\nB: Acuity ${patient.acuity}/5. Allergies: ${patient.allergies?.length ? patient.allergies.join(', ') : 'NKDA'}.`
-    if (patient.diagnoses?.length) sbar += ` PMHx: ${patient.diagnoses.slice(0, 5).join(', ')}`
-    sbar += `\nA: ${ptTasks.length > 0 ? `${ptTasks.length} pending task(s). ` : 'No pending tasks. '}`
-    sbar += `${ptCriticals.length > 0 ? `${ptCriticals.length} critical lab(s).` : 'Labs stable.'}`
-    sbar += `\nR: ${ptCriticals.length > 0 ? 'Review critical labs. ' : ''}Continue management.\n`
-    if (notes.length > 0) {
-      sbar += `\nNotes:\n`
-      notes.forEach((n) => { sbar += `  [${new Date(n.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${n.text}\n` })
-    }
-    try { await navigator.clipboard.writeText(sbar) } catch { /* fallback */ }
-    triggerHaptic('success')
-    setCopiedSbar(patient.id)
-    setTimeout(() => setCopiedSbar(null), 2000)
-  }, [getPatientTasks, getPatientCriticals, getPatientNotes])
 
   // Critical items for banner
   const allCriticalItems = useMemo(() => {
@@ -592,10 +568,8 @@ export default function ShiftView() {
                     criticalCount={getPatientCriticals(patient.id).length}
                     notes={getPatientNotes(patient.id)}
                     expanded={expandedCards.has(patient.id)}
-                    copiedSbar={copiedSbar === patient.id}
                     onToggle={() => toggleCardExpanded(patient.id)}
                     onRemove={() => removeFromWorkspace(patient.id)}
-                    onCopySbar={() => copySbar(patient)}
                     onAddNote={(text) => addQuickNote(patient.id, text)}
                     onDeleteNote={deleteNote}
                     onNavigate={(id) => navigate(`/patients/${id}`)}

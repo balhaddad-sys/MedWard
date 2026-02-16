@@ -306,13 +306,6 @@ export default function ClerkingRoot() {
     }
   }
 
-  function handleDiscard() {
-    if (!window.confirm('Discard? All unsaved data will be lost.')) return;
-    localStorage.removeItem(LOCALSTORAGE_DRAFT_KEY);
-    setClerkingNote(null);
-    setActiveNoteId(null);
-  }
-
   async function handleManualSave() {
     if (!activeNoteId || !clerkingNote) return;
     setIsSaving(true);
@@ -413,9 +406,6 @@ export default function ClerkingRoot() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleDiscard} className="btn-secondary text-xs md:text-sm px-2 md:px-3 py-1.5">
-              Discard
-            </button>
             <button onClick={handleManualSave} disabled={isSaving} className={clsx('btn-secondary text-xs md:text-sm px-2 md:px-3 py-1.5 flex items-center gap-1 md:gap-2', isSaving && 'loading-pulse')}>
               <Save className="w-3 h-3 md:w-4 md:h-4" />
               Draft
@@ -457,12 +447,7 @@ export default function ClerkingRoot() {
 
         {/* Patient */}
         <div className="card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-slate-900">Patient</h2>
-            <button onClick={() => setShowNewPatientDialog(true)} className="text-blue-600 hover:text-blue-700 text-sm">
-              {clerkingNote.patientId === 'unassigned' ? 'Add' : 'Change'}
-            </button>
-          </div>
+          <h2 className="font-semibold text-slate-900 mb-3">Patient</h2>
           {clerkingNote.patientId === 'unassigned' ? (
             <div className="text-center py-4 bg-slate-50 rounded-lg">
               <p className="text-sm text-slate-600 mb-2">No patient assigned</p>

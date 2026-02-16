@@ -27,7 +27,6 @@ import { useUIStore } from '@/stores/uiStore'
 import { triggerHaptic } from '@/utils/haptics'
 import { deletePatient } from '@/services/firebase/patients'
 import { SwipeableRow } from '@/components/ui/SwipeableRow'
-import { Button } from '@/components/ui/Button'
 import { PageHero } from '@/components/ui/PageHero'
 import { ACUITY_LEVELS } from '@/config/constants'
 import type { Patient, Task } from '@/types'
@@ -859,19 +858,6 @@ export default function WardRoot() {
               </span>
             )}
           </>
-        )}
-        actions={(
-          <Button
-            size="sm"
-            icon={<Plus className="h-4 w-4" />}
-            onClick={() => {
-              triggerHaptic('tap')
-              openModal('task-form')
-            }}
-            className="min-h-[40px]"
-          >
-            New Task
-          </Button>
         )}
       />
 
