@@ -5,7 +5,6 @@ import { SyncBadge } from '../components/SyncBadge'
 import { Sidebar } from '../components/layout/Sidebar'
 import { clsx } from 'clsx'
 import {
-  Bell,
   User,
   LogOut,
   LayoutDashboard,
@@ -15,16 +14,13 @@ import {
   MoreHorizontal,
   X,
   ArrowRightLeft,
-  Pill,
   Users,
   Phone,
-  Sparkles,
+  Stethoscope,
   Workflow,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useUIStore } from '@/stores/uiStore'
-import { usePatientStore } from '@/stores/patientStore'
-import { useTaskStore } from '@/stores/taskStore'
 import { signOut } from '@/services/firebase/auth'
 import { APP_NAME } from '@/config/constants'
 import { useState, useMemo, useRef } from 'react'
@@ -34,8 +30,6 @@ export default function ClinicalLayout() {
   const { mode, isTransitioning } = useClinicalMode()
   const user = useAuthStore((s) => s.user)
   const isMobile = useUIStore((s) => s.isMobile)
-  const criticalValues = usePatientStore((s) => s.criticalValues)
-  const tasks = useTaskStore((s) => s.tasks)
   const navigate = useNavigate()
   const location = useLocation()
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -45,28 +39,49 @@ export default function ClinicalLayout() {
   // Close dropdown when clicking outside
   useClickOutside(dropdownRef, () => setShowUserMenu(false), showUserMenu)
 
-  const notificationCount = useMemo(() => {
-    const unackedCriticals = criticalValues.filter((cv) => !cv.acknowledgedAt).length
-    const criticalTasks = tasks.filter(
-      (t) => t.priority === 'critical' && t.status !== 'completed' && t.status !== 'cancelled'
-    ).length
-    return unackedCriticals + criticalTasks
-  }, [criticalValues, tasks])
+  const primaryMobileNav = useMemo(() => {
+    if (mode === 'acute') {
+      return [
+        { path: '/on-call', icon: Phone, label: 'On-Call' },
+        { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
+        { path: '/labs', icon: FlaskConical, label: 'Labs' },
+        { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
+      ]
+    }
 
-  const primaryMobileNav = [
-    { path: '/', icon: LayoutDashboard, label: 'Home' },
-    { path: '/patients', icon: Users, label: 'Patients' },
-    { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
-    { path: '/labs', icon: FlaskConical, label: 'Labs' },
-  ]
+    if (mode === 'clerking') {
+      return [
+        { path: '/clerking', icon: Stethoscope, label: 'Clerking' },
+        { path: '/patients', icon: Users, label: 'Patients' },
+        { path: '/on-call', icon: Phone, label: 'On-Call' },
+        { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
+      ]
+    }
 
-  const moreNav = [
-    { path: '/on-call', icon: Phone, label: 'On-Call' },
-    { path: '/drugs', icon: Pill, label: 'Drug Info' },
-    { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
-    { path: '/ai', icon: Sparkles, label: 'AI' },
-    { path: '/settings', icon: Settings, label: 'Settings' },
-  ]
+    return [
+      { path: '/', icon: LayoutDashboard, label: 'Home' },
+      { path: '/patients', icon: Users, label: 'Patients' },
+      { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
+      { path: '/labs', icon: FlaskConical, label: 'Labs' },
+    ]
+  }, [mode])
+
+  const moreNav = useMemo(() => {
+    if (mode === 'acute') {
+      return [
+        { path: '/patients', icon: Users, label: 'Patients' },
+      ]
+    }
+
+    if (mode === 'clerking') {
+      return []
+    }
+
+    return [
+      { path: '/on-call', icon: Phone, label: 'On-Call' },
+      { path: '/handover', icon: ArrowRightLeft, label: 'Handover' },
+    ]
+  }, [mode])
 
   const isRouteActive = (path: string) => (
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
@@ -126,28 +141,6 @@ export default function ClinicalLayout() {
           )}
 
           <SyncBadge />
-
-          {/* Notifications */}
-          <button
-            className={clsx(
-              'relative p-2 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch',
-              mode === 'acute' ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            )}
-          >
-            <Bell
-              className={clsx(
-                'h-5 w-5',
-                notificationCount > 0
-                  ? 'text-red-500'
-                  : mode === 'acute' ? 'text-slate-400' : 'text-ward-muted'
-              )}
-            />
-            {notificationCount > 0 && (
-              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center px-1">
-                {notificationCount > 99 ? '99+' : notificationCount}
-              </span>
-            )}
-          </button>
 
           {/* User menu */}
           <div className="relative">
@@ -249,7 +242,7 @@ export default function ClinicalLayout() {
       {/* Bottom Navigation (Mobile only) */}
       {isMobile && (
         <>
-          {showMore && (
+          {showMore && moreNav.length > 0 && (
             <div
               className="fixed inset-0 z-40 bg-black/30"
               onClick={() => setShowMore(false)}
@@ -356,22 +349,24 @@ export default function ClinicalLayout() {
                   </button>
                 )
               })}
-              <button
-                onClick={() => setShowMore(!showMore)}
-                className={clsx(
-                  'flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors min-h-[48px] min-w-[48px] touch',
-                  isMoreActive || showMore
-                    ? mode === 'acute'
-                      ? 'text-amber-400'
-                      : 'text-primary-600'
-                    : mode === 'acute'
-                      ? 'text-gray-500'
-                      : 'text-ward-muted'
-                )}
-              >
-                <MoreHorizontal className="h-5 w-5" />
-                <span className="text-[10px] font-medium leading-tight">More</span>
-              </button>
+              {moreNav.length > 0 && (
+                <button
+                  onClick={() => setShowMore(!showMore)}
+                  className={clsx(
+                    'flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors min-h-[48px] min-w-[48px] touch',
+                    isMoreActive || showMore
+                      ? mode === 'acute'
+                        ? 'text-amber-400'
+                        : 'text-primary-600'
+                      : mode === 'acute'
+                        ? 'text-gray-500'
+                        : 'text-ward-muted'
+                  )}
+                >
+                  <MoreHorizontal className="h-5 w-5" />
+                  <span className="text-[10px] font-medium leading-tight">More</span>
+                </button>
+              )}
             </div>
           </nav>
         </>

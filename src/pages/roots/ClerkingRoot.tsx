@@ -14,7 +14,6 @@ import {
   FileText,
   Activity,
   Target,
-  Save,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { usePatientStore } from '@/stores/patientStore';
@@ -306,23 +305,6 @@ export default function ClerkingRoot() {
     }
   }
 
-  async function handleManualSave() {
-    if (!activeNoteId || !clerkingNote) return;
-    setIsSaving(true);
-    saveDraft(clerkingNote, activeNoteId);
-    try {
-      await updateClerkingNote(activeNoteId, clerkingNote);
-      setLastSaved(new Date());
-      autosaveWarningShownRef.current = false;
-      addToast({ type: 'success', title: 'Draft saved' });
-    } catch (e) {
-      console.error('Manual save failed:', e);
-      addToast({ type: 'error', title: 'Failed to save draft' });
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
   function update(changes: Partial<ClerkingNote>) {
     setClerkingNote((prev) => {
       const next = { ...prev, ...changes };
@@ -406,10 +388,6 @@ export default function ClerkingRoot() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleManualSave} disabled={isSaving} className={clsx('btn-secondary text-xs md:text-sm px-2 md:px-3 py-1.5 flex items-center gap-1 md:gap-2', isSaving && 'loading-pulse')}>
-              <Save className="w-3 h-3 md:w-4 md:h-4" />
-              Draft
-            </button>
             <button onClick={handleSaveToOnCall} disabled={isSaving} className={clsx('btn-primary text-xs md:text-sm px-2 md:px-4 py-1.5 flex items-center gap-1 md:gap-2', isSaving && 'loading-pulse')}>
               <Send className="w-3 h-3 md:w-4 md:h-4" />
               <span className="hidden sm:inline">Save to </span>On-Call

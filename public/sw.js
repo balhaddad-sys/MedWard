@@ -1,7 +1,5 @@
 // Cache name includes a timestamp that changes on each deployment.
-// The build pipeline or deploy script should update this value.
-// Alternatively, use 'vite-plugin-pwa' for automatic precache manifests.
-const CACHE_VERSION = '20260210';
+const CACHE_VERSION = '20260216';
 const CACHE_NAME = `medward-pro-v${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   '/',
@@ -15,6 +13,13 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
+});
+
+// Allow the page to force-activate a newly installed worker.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Activate: clean old caches
@@ -50,7 +55,7 @@ self.addEventListener('fetch', (event) => {
   // Navigation requests: network-first
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(new Request(request, { cache: 'no-store' }))
         .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
@@ -61,7 +66,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Static assets: stale-while-revalidate
   if (
     request.url.includes('/assets/') ||
     request.url.endsWith('.svg') ||
@@ -70,15 +75,19 @@ self.addEventListener('fetch', (event) => {
     request.url.endsWith('.js')
   ) {
     event.respondWith(
-      caches.match(request).then(
-        (cached) =>
-          cached ||
-          fetch(request).then((response) => {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+      caches.match(request).then((cached) => {
+        const networkFetch = fetch(request)
+          .then((response) => {
+            if (response && response.status === 200) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            }
             return response;
           })
-      )
+          .catch(() => cached);
+
+        return cached || networkFetch;
+      })
     );
     return;
   }

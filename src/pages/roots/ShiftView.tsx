@@ -12,13 +12,10 @@ import { clsx } from 'clsx'
 import {
   ChevronRight,
   ChevronDown,
-  Clipboard,
-  Plus,
   Wrench,
 } from 'lucide-react'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
-import { useUIStore } from '@/stores/uiStore'
 import { triggerHaptic } from '@/utils/haptics'
 import { getLabPanels } from '@/services/firebase/labs'
 import { subscribeToOnCallList } from '@/services/firebase/onCallList'
@@ -32,7 +29,6 @@ import { OnCallPatientCard } from '@/components/features/onCall/OnCallPatientCar
 import type { QuickNote } from '@/components/features/onCall/OnCallPatientCard'
 import { TimerPanel } from '@/components/features/onCall/TimerPanel'
 import { EscalationPanel } from '@/components/features/onCall/EscalationPanel'
-import { HandoverPanel } from '@/components/features/onCall/HandoverPanel'
 import { ProtocolGrid } from '@/components/features/protocols/ProtocolGrid'
 import { ProtocolModal } from '@/components/features/protocols/ProtocolModal'
 import { CalculatorShell } from '@/components/features/calculators/CalculatorShell'
@@ -110,7 +106,6 @@ export default function ShiftView() {
   const patients = usePatientStore((s) => s.patients)
   const criticalValues = usePatientStore((s) => s.criticalValues)
   const tasks = useTaskStore((s) => s.tasks)
-  const openModal = useUIStore((s) => s.openModal)
   const navigate = useNavigate()
 
   // Workspace state
@@ -129,7 +124,6 @@ export default function ShiftView() {
   const [activeToolTab, setActiveToolTab] = useState<ToolTab>('calculators')
   const [activeCalcId, setActiveCalcId] = useState<string | null>(null)
   const [activeProtocol, setActiveProtocol] = useState<OrderSet | null>(null)
-  const [showHandover, setShowHandover] = useState(false)
 
   // Persist workspace
   useEffect(() => { saveWorkspace(workspacePatientIds) }, [workspacePatientIds])
@@ -419,17 +413,6 @@ export default function ShiftView() {
               </div>
             )}
 
-            <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
-              <button
-                onClick={() => { triggerHaptic('tap'); setShowHandover(!showHandover) }}
-                className={clsx(
-                  'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all min-h-[40px]',
-                  showHandover ? 'bg-blue-600 text-white' : 'bg-slate-700/60 border border-slate-600/40 text-slate-400 hover:text-white'
-                )}
-              >
-                <Clipboard className="w-3.5 h-3.5" /> Handover
-              </button>
-            </div>
           </div>
         )}
 
@@ -463,21 +446,8 @@ export default function ShiftView() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-2 py-3 sm:px-4 sm:py-4">
 
-          {/* Handover Panel */}
-          {showHandover && workspacePatients.length > 0 && (
-            <div className="mb-4">
-              <HandoverPanel
-                patients={workspacePatients}
-                getPatientTasks={getPatientTasks}
-                getPatientCriticals={getPatientCriticals}
-                getPatientNotes={getPatientNotes}
-                onClose={() => setShowHandover(false)}
-              />
-            </div>
-          )}
-
           {/* Critical Alerts Banner */}
-          {allCriticalItems.length > 0 && !showHandover && (
+          {allCriticalItems.length > 0 && (
             <div
               className="mb-3 rounded-xl border border-red-800/40 p-3 animate-fade-in overflow-hidden"
               style={{ background: 'linear-gradient(135deg, rgba(127,29,29,0.4) 0%, rgba(30,20,40,0.6) 100%)' }}
@@ -550,13 +520,6 @@ export default function ShiftView() {
               <p className="text-sm text-slate-500 mt-2 text-center px-4 max-w-md leading-relaxed">
                 No on-call patients yet. Use the search bar to add patients, or they will appear automatically from the on-call list.
               </p>
-              <button
-                onClick={() => { triggerHaptic('tap'); openModal('patient-form', { initialData: { wardId: 'on-call' } }) }}
-                className="mt-6 flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white transition-all min-h-[48px] shadow-lg hover:shadow-xl active:scale-[0.98]"
-                style={{ background: 'linear-gradient(to right, rgb(217, 119, 6), rgb(245, 158, 11))' }}
-              >
-                <Plus className="w-4 h-4" /> Add On-Call Patient
-              </button>
             </div>
           ) : (
             <div className="space-y-3">

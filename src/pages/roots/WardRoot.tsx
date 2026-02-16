@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  ArrowRightLeft,
   FlaskConical,
   Edit,
   Trash2,
@@ -313,11 +312,6 @@ export default function WardRoot() {
     })
   }, [filteredPatients])
 
-  const allWardsCollapsed = useMemo(
-    () => patientsByWard.length > 0 && patientsByWard.every(([wardName]) => collapsedWards.has(wardName)),
-    [patientsByWard, collapsedWards]
-  )
-
   const pendingTasks = useMemo(
     () => tasks.filter((task) => task.status === 'pending' || task.status === 'in_progress'),
     [tasks]
@@ -496,16 +490,6 @@ export default function WardRoot() {
             <Filter className="h-4 w-4" />
           </button>
 
-          <button
-            onClick={() => {
-              triggerHaptic('tap')
-              openModal('patient-form')
-            }}
-            className="p-2.5 rounded-lg bg-primary-600 text-white min-h-[44px] min-w-[44px] flex items-center justify-center touch hover:bg-primary-700"
-            aria-label="Add patient"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -539,20 +523,6 @@ export default function WardRoot() {
             </select>
           </div>
 
-          {patientsByWard.length > 1 && (
-            <button
-              onClick={() => {
-                if (allWardsCollapsed) {
-                  setCollapsedWards(new Set())
-                  return
-                }
-                setCollapsedWards(new Set(patientsByWard.map(([ward]) => ward)))
-              }}
-              className="px-2.5 py-1.5 rounded-lg border border-ward-border bg-white text-xs font-medium text-ward-muted hover:text-ward-text hover:bg-gray-50 transition-colors"
-            >
-              {allWardsCollapsed ? 'Expand wards' : 'Collapse wards'}
-            </button>
-          )}
         </div>
 
         {showFilters && (
@@ -760,17 +730,9 @@ export default function WardRoot() {
   const renderResultsSection = (compact = false) => (
     <div className="space-y-3">
       <div className="rounded-xl border border-ward-border bg-white p-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider flex items-center gap-1">
-            <FlaskConical className="h-3.5 w-3.5" /> Results Follow-Up
-          </h3>
-          <button
-            onClick={() => navigate('/labs')}
-            className="text-xs text-primary-600 font-medium touch"
-          >
-            View all labs
-          </button>
-        </div>
+        <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider flex items-center gap-1">
+          <FlaskConical className="h-3.5 w-3.5" /> Results Follow-Up
+        </h3>
       </div>
 
       {criticalValues.length > 0 ? (
@@ -810,26 +772,6 @@ export default function WardRoot() {
         </div>
       )}
 
-      {!compact && (
-        <button
-          onClick={() => {
-            triggerHaptic('tap')
-            navigate('/handover')
-          }}
-          className="w-full flex items-center justify-between p-4 rounded-xl border border-ward-border bg-white hover:bg-gray-50 transition-colors touch"
-        >
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
-              <ArrowRightLeft className="h-5 w-5 text-amber-600" />
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-semibold text-ward-text">Generate Handover</p>
-              <p className="text-xs text-ward-muted">Build structured SBAR output with current priorities</p>
-            </div>
-          </div>
-          <ChevronRight className="h-4 w-4 text-ward-muted" />
-        </button>
-      )}
     </div>
   )
 

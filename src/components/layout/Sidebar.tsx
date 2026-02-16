@@ -4,10 +4,7 @@ import {
   Users,
   CheckSquare,
   ArrowRightLeft,
-  Settings,
   FlaskConical,
-  Bot,
-  Pill,
   Stethoscope,
   Circle,
   Phone,
@@ -61,16 +58,13 @@ const NOTIFY_LABELS: Record<string, string> = {
 }
 
 const NAV_ITEMS = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
-  { path: '/clerking', icon: Stethoscope, label: 'Clerking', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
-  { path: '/on-call', icon: Phone, label: 'On-Call List', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard', modes: ['ward'] as ClinicalMode[] },
+  { path: '/clerking', icon: Stethoscope, label: 'Clerking', modes: ['clerking'] as ClinicalMode[] },
+  { path: '/on-call', icon: Phone, label: 'On-Call List', modes: ['acute', 'clerking'] as ClinicalMode[] },
   { path: '/patients', icon: Users, label: 'Patients', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'patients' as const },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'tasks' as const },
-  { path: '/labs', icon: FlaskConical, label: 'Labs', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'criticalLabs' as const },
-  { path: '/handover', icon: ArrowRightLeft, label: 'Handover', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
-  { path: '/ai', icon: Bot, label: 'AI Assistant', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
-  { path: '/drugs', icon: Pill, label: 'Drug Info', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
-  { path: '/settings', icon: Settings, label: 'Settings', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
+  { path: '/labs', icon: FlaskConical, label: 'Labs', modes: ['ward', 'acute'] as ClinicalMode[], countKey: 'criticalLabs' as const },
+  { path: '/handover', icon: ArrowRightLeft, label: 'Handover', modes: ['ward', 'acute'] as ClinicalMode[] },
 ]
 
 export function Sidebar() {
