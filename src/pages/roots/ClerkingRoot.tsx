@@ -67,6 +67,7 @@ export default function ClerkingRoot() {
   });
 
   const autosaveTimerRef = useRef<number | null>(null);
+  const autosaveWarningShownRef = useRef(false);
 
   useEffect(() => {
     loadDraft();
@@ -95,10 +96,18 @@ export default function ClerkingRoot() {
     }
   }
 
-  function saveDraft() {
-    if (!clerkingNote || !activeNoteId) return;
+  function saveDraft(
+    noteOverride?: Partial<ClerkingNote> | null,
+    noteIdOverride?: string | null
+  ) {
+    const noteToSave = noteOverride ?? clerkingNote;
+    const noteIdToSave = noteIdOverride ?? activeNoteId;
+    if (!noteToSave || !noteIdToSave) return;
     try {
-      localStorage.setItem(LOCALSTORAGE_DRAFT_KEY, JSON.stringify({ note: clerkingNote, noteId: activeNoteId }));
+      localStorage.setItem(
+        LOCALSTORAGE_DRAFT_KEY,
+        JSON.stringify({ note: noteToSave, noteId: noteIdToSave, savedAt: Date.now() })
+      );
     } catch (e) {
       console.error('Failed to save draft:', e);
     }
@@ -106,12 +115,22 @@ export default function ClerkingRoot() {
 
   async function autoSave() {
     if (!activeNoteId || !clerkingNote) return;
+    // Local-first persistence: always keep the latest draft even if cloud save fails.
+    saveDraft(clerkingNote, activeNoteId);
     try {
       await updateClerkingNote(activeNoteId, clerkingNote);
       setLastSaved(new Date());
-      saveDraft();
+      autosaveWarningShownRef.current = false;
     } catch (e) {
       console.error('Auto-save failed:', e);
+      if (!autosaveWarningShownRef.current) {
+        addToast({
+          type: 'warning',
+          title: 'Cloud sync delayed',
+          message: 'Draft is saved locally and will retry sync automatically.',
+        });
+        autosaveWarningShownRef.current = true;
+      }
     }
   }
 
@@ -154,7 +173,8 @@ export default function ClerkingRoot() {
       };
       setClerkingNote(newNote);
       setActiveNoteId(noteId);
-      saveDraft();
+      // Persist immediately with explicit values (state updates are async).
+      saveDraft(newNote, noteId);
       addToast({ type: 'success', title: 'Clerking started' });
     } catch (e) {
       console.error('Failed to start:', e);
@@ -296,10 +316,11 @@ export default function ClerkingRoot() {
   async function handleManualSave() {
     if (!activeNoteId || !clerkingNote) return;
     setIsSaving(true);
+    saveDraft(clerkingNote, activeNoteId);
     try {
       await updateClerkingNote(activeNoteId, clerkingNote);
       setLastSaved(new Date());
-      saveDraft();
+      autosaveWarningShownRef.current = false;
       addToast({ type: 'success', title: 'Draft saved' });
     } catch (e) {
       console.error('Manual save failed:', e);
@@ -310,7 +331,11 @@ export default function ClerkingRoot() {
   }
 
   function update(changes: Partial<ClerkingNote>) {
-    setClerkingNote((prev) => ({ ...prev, ...changes }));
+    setClerkingNote((prev) => {
+      const next = { ...prev, ...changes };
+      saveDraft(next, activeNoteId);
+      return next;
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
