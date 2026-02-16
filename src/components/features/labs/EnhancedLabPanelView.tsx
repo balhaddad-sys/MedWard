@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Sparkline } from '@/components/ui/Sparkline'
 import type { LabFlag, LabPanel } from '@/types'
 import { triggerHaptic } from '@/utils/haptics'
+import { useSettingsStore, type LabPriorityProfile } from '@/stores/settingsStore'
 
 interface EnhancedLabPanelViewProps {
   panels: LabPanel[]
@@ -67,32 +68,80 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
 interface DomainRule {
   label: string
-  score: number
+  scores: Record<LabPriorityProfile, number>
   pattern: RegExp
+}
+
+interface ProfileScoringConfig {
+  rapidChange20: number
+  rapidChange40: number
+  recent6h: number
+  recent24h: number
+  worseningBonus: number
+  improvingPenalty: number
+  rangeDriftScale: number
+  rangeDriftCap: number
+  criticalBoundaryBonus: number
 }
 
 const CLINICAL_PRIORITY_RULES: DomainRule[] = [
   {
     label: 'Electrolyte / Renal',
-    score: 34,
+    scores: { ward: 34, icu: 44, cardiac: 22 },
     pattern: /\b(k|potassium|na|sodium|chloride|cl|bicarbonate|hco3|co2|anion gap|creatinine|urea|bun|egfr|magnesium|phosphate|calcium)\b/i,
   },
   {
     label: 'Perfusion / Acid-Base',
-    score: 30,
+    scores: { ward: 28, icu: 48, cardiac: 20 },
     pattern: /\b(lactate|abg|ph|pco2|po2|base excess|bicarb)\b/i,
   },
   {
     label: 'Cardiac / Coag',
-    score: 28,
+    scores: { ward: 26, icu: 30, cardiac: 52 },
     pattern: /\b(troponin|bnp|nt[- ]?pro ?bnp|inr|pt\b|aptt|ptt|d[- ]?dimer)\b/i,
   },
   {
     label: 'Heme / Infection',
-    score: 20,
+    scores: { ward: 24, icu: 24, cardiac: 18 },
     pattern: /\b(wbc|neut|crp|procalcitonin|esr|hb|hgb|hemoglobin|platelet|plt)\b/i,
   },
 ]
+
+const PROFILE_SCORING: Record<LabPriorityProfile, ProfileScoringConfig> = {
+  ward: {
+    rapidChange20: 12,
+    rapidChange40: 20,
+    recent6h: 12,
+    recent24h: 8,
+    worseningBonus: 22,
+    improvingPenalty: 8,
+    rangeDriftScale: 40,
+    rangeDriftCap: 22,
+    criticalBoundaryBonus: 28,
+  },
+  icu: {
+    rapidChange20: 14,
+    rapidChange40: 24,
+    recent6h: 18,
+    recent24h: 10,
+    worseningBonus: 28,
+    improvingPenalty: 6,
+    rangeDriftScale: 48,
+    rangeDriftCap: 28,
+    criticalBoundaryBonus: 36,
+  },
+  cardiac: {
+    rapidChange20: 14,
+    rapidChange40: 24,
+    recent6h: 14,
+    recent24h: 9,
+    worseningBonus: 24,
+    improvingPenalty: 7,
+    rangeDriftScale: 44,
+    rangeDriftCap: 24,
+    criticalBoundaryBonus: 32,
+  },
+}
 
 const toMillis = (date: any): number => {
   if (!date) return 0
@@ -204,32 +253,42 @@ function referenceDotClass(flag: LabFlag): string {
   return 'bg-emerald-500'
 }
 
-function clinicalPriorityForAnalyte(name: string): { label: string | null; score: number } {
+function clinicalPriorityForAnalyte(name: string, profile: LabPriorityProfile): { label: string | null; score: number } {
   for (const rule of CLINICAL_PRIORITY_RULES) {
     if (rule.pattern.test(name)) {
-      return { label: rule.label, score: rule.score }
+      return { label: rule.label, score: rule.scores[profile] }
     }
   }
   return { label: null, score: 0 }
 }
 
-function rangeDriftScore(latest: number, referenceMin: number | null, referenceMax: number | null): number {
+function rangeDriftScore(
+  latest: number,
+  referenceMin: number | null,
+  referenceMax: number | null,
+  profileConfig: ProfileScoringConfig
+): number {
   if (referenceMin === null || referenceMax === null || referenceMax <= referenceMin) return 0
   const span = referenceMax - referenceMin
   if (latest < referenceMin) {
     const drift = (referenceMin - latest) / span
-    return Math.min(22, Math.round(drift * 40))
+    return Math.min(profileConfig.rangeDriftCap, Math.round(drift * profileConfig.rangeDriftScale))
   }
   if (latest > referenceMax) {
     const drift = (latest - referenceMax) / span
-    return Math.min(22, Math.round(drift * 40))
+    return Math.min(profileConfig.rangeDriftCap, Math.round(drift * profileConfig.rangeDriftScale))
   }
   return 0
 }
 
-function criticalBoundaryScore(latest: number, criticalMin: number | null, criticalMax: number | null): number {
-  if (criticalMin !== null && latest < criticalMin) return 28
-  if (criticalMax !== null && latest > criticalMax) return 28
+function criticalBoundaryScore(
+  latest: number,
+  criticalMin: number | null,
+  criticalMax: number | null,
+  profileConfig: ProfileScoringConfig
+): number {
+  if (criticalMin !== null && latest < criticalMin) return profileConfig.criticalBoundaryBonus
+  if (criticalMax !== null && latest > criticalMax) return profileConfig.criticalBoundaryBonus
   return 0
 }
 
@@ -271,11 +330,20 @@ function ReferenceGauge({ row }: { row: TrendRow }) {
 }
 
 export function EnhancedLabPanelView({ panels, onReview, onDelete }: EnhancedLabPanelViewProps) {
+  const labPriorityProfile = useSettingsStore((s) => s.labPriorityProfile)
   const [viewMode, setViewMode] = useState<ViewMode>('trends')
   const [filterMode, setFilterMode] = useState<FilterMode>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [nowMs, setNowMs] = useState(() => Date.now())
+  const profileConfig = PROFILE_SCORING[labPriorityProfile]
+
+  const profileLabel =
+    labPriorityProfile === 'icu'
+      ? 'ICU'
+      : labPriorityProfile === 'cardiac'
+        ? 'Cardiac'
+        : 'Ward'
 
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 60_000)
@@ -391,21 +459,21 @@ export function EnhancedLabPanelView({ panels, onReview, onDelete }: EnhancedLab
       const referenceMax = latestDefined(points, 'referenceMax')
       const criticalMin = latestDefined(points, 'criticalMin')
       const criticalMax = latestDefined(points, 'criticalMax')
-      const domainPriority = clinicalPriorityForAnalyte(entry.name)
+      const domainPriority = clinicalPriorityForAnalyte(entry.name, labPriorityProfile)
 
       let priorityScore = 0
       priorityScore += domainPriority.score
       if (isCritical(latestPoint.flag)) priorityScore += 100
       else if (isAbnormal(latestPoint.flag)) priorityScore += 60
-      if (trajectory === 'worsening') priorityScore += 22
-      if (trajectory === 'improving') priorityScore -= 8
-      if (Math.abs(deltaPct ?? 0) >= 40) priorityScore += 20
-      else if (Math.abs(deltaPct ?? 0) >= 20) priorityScore += 12
-      if (latestPoint.atMs >= nowMs - 6 * 60 * 60 * 1000) priorityScore += 12
-      else if (latestPoint.atMs >= nowMs - ONE_DAY_MS) priorityScore += 8
+      if (trajectory === 'worsening') priorityScore += profileConfig.worseningBonus
+      if (trajectory === 'improving') priorityScore -= profileConfig.improvingPenalty
+      if (Math.abs(deltaPct ?? 0) >= 40) priorityScore += profileConfig.rapidChange40
+      else if (Math.abs(deltaPct ?? 0) >= 20) priorityScore += profileConfig.rapidChange20
+      if (latestPoint.atMs >= nowMs - 6 * 60 * 60 * 1000) priorityScore += profileConfig.recent6h
+      else if (latestPoint.atMs >= nowMs - ONE_DAY_MS) priorityScore += profileConfig.recent24h
       if (points.length >= 4) priorityScore += 4
-      priorityScore += rangeDriftScore(latestPoint.value, referenceMin, referenceMax)
-      priorityScore += criticalBoundaryScore(latestPoint.value, criticalMin, criticalMax)
+      priorityScore += rangeDriftScore(latestPoint.value, referenceMin, referenceMax, profileConfig)
+      priorityScore += criticalBoundaryScore(latestPoint.value, criticalMin, criticalMax, profileConfig)
 
       rows.push({
         key,
@@ -439,7 +507,7 @@ export function EnhancedLabPanelView({ panels, onReview, onDelete }: EnhancedLab
       if (bMagnitude !== aMagnitude) return bMagnitude - aMagnitude
       return b.latestAtMs - a.latestAtMs
     })
-  }, [filteredPanels, nowMs])
+  }, [filteredPanels, nowMs, labPriorityProfile, profileConfig])
 
   const criticalCount = filterCounts.critical
   const abnormalCount = filterCounts.abnormal
@@ -472,6 +540,9 @@ export function EnhancedLabPanelView({ panels, onReview, onDelete }: EnhancedLab
                 <p className="mt-1 text-xs text-blue-100/80">
                   Prioritized by severity, direction, clinical domain, and freshness.
                 </p>
+                <div className="mt-2 inline-flex items-center rounded-full border border-blue-200/40 bg-blue-900/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-100">
+                  Priority Profile: {profileLabel}
+                </div>
               </div>
               <div className="inline-flex rounded-lg bg-white/10 p-1 backdrop-blur-sm">
                 <button

@@ -2,12 +2,15 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { ClinicalMode } from '@/config/modes'
 
+export type LabPriorityProfile = 'ward' | 'icu' | 'cardiac'
+
 interface SettingsStore {
   defaultWard: string
   defaultMode: ClinicalMode
   compactView: boolean
   showAISuggestions: boolean
   labTrendDays: number
+  labPriorityProfile: LabPriorityProfile
   notifyCriticalLabs: boolean
   notifyTaskReminders: boolean
   notifyHandoverAlerts: boolean
@@ -16,6 +19,7 @@ interface SettingsStore {
   setCompactView: (compact: boolean) => void
   setShowAISuggestions: (show: boolean) => void
   setLabTrendDays: (days: number) => void
+  setLabPriorityProfile: (profile: LabPriorityProfile) => void
   setNotifyCriticalLabs: (notify: boolean) => void
   setNotifyTaskReminders: (notify: boolean) => void
   setNotifyHandoverAlerts: (notify: boolean) => void
@@ -29,6 +33,7 @@ export const useSettingsStore = create<SettingsStore>()(
       compactView: false,
       showAISuggestions: true,
       labTrendDays: 7,
+      labPriorityProfile: 'ward',
       notifyCriticalLabs: true,
       notifyTaskReminders: true,
       notifyHandoverAlerts: true,
@@ -37,6 +42,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setCompactView: (compactView) => set({ compactView }),
       setShowAISuggestions: (showAISuggestions) => set({ showAISuggestions }),
       setLabTrendDays: (labTrendDays) => set({ labTrendDays }),
+      setLabPriorityProfile: (labPriorityProfile) => set({ labPriorityProfile }),
       setNotifyCriticalLabs: (notifyCriticalLabs) => set({ notifyCriticalLabs }),
       setNotifyTaskReminders: (notifyTaskReminders) => set({ notifyTaskReminders }),
       setNotifyHandoverAlerts: (notifyHandoverAlerts) => set({ notifyHandoverAlerts }),

@@ -570,6 +570,21 @@ export function SettingsPage() {
             </select>
             <p className="text-xs text-ward-muted mt-1">How far back to show lab trends in charts and analysis.</p>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-ward-text mb-1">Lab Priority Profile</label>
+            <select
+              className="input-field"
+              value={settings.labPriorityProfile}
+              onChange={(e) => settings.setLabPriorityProfile(e.target.value as 'ward' | 'icu' | 'cardiac')}
+            >
+              <option value="ward">Ward — balanced electrolyte, infection, and trend signals</option>
+              <option value="icu">ICU — heavy weight on perfusion, acid-base, and rapid drift</option>
+              <option value="cardiac">Cardiac — heavy weight on troponin, BNP, and coagulation</option>
+            </select>
+            <p className="text-xs text-ward-muted mt-1">
+              Changes how analytes are ranked in the Labs Trend Matrix.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
