@@ -8,6 +8,7 @@ import {
   Stethoscope,
   Circle,
   Phone,
+  Pill,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useClinicalMode } from '@/context/useClinicalMode'
@@ -64,6 +65,7 @@ const NAV_ITEMS = [
   { path: '/patients', icon: Users, label: 'Patients', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'patients' as const },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[], countKey: 'tasks' as const },
   { path: '/labs', icon: FlaskConical, label: 'Labs', modes: ['ward', 'acute'] as ClinicalMode[], countKey: 'criticalLabs' as const },
+  { path: '/drugs', icon: Pill, label: 'Drug Info', modes: ['ward', 'acute', 'clerking'] as ClinicalMode[] },
   { path: '/handover', icon: ArrowRightLeft, label: 'Handover', modes: ['ward', 'acute'] as ClinicalMode[] },
 ]
 
