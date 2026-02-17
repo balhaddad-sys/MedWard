@@ -640,8 +640,18 @@ export default function AcuteRoot() {
               </div>
             )}
 
-            {/* Handover button */}
+            {/* Add Patient + Handover buttons */}
             <div className="ml-auto flex items-center gap-1.5">
+              <button
+                onClick={() => {
+                  triggerHaptic('tap')
+                  openModal('patient-form', { initialData: { wardId: 'on-call' } })
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors min-h-[44px] bg-amber-600/80 text-white hover:bg-amber-500 active:bg-amber-600"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add
+              </button>
               <button
                 onClick={() => {
                   triggerHaptic('tap')

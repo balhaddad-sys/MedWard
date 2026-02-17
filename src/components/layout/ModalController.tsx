@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { useUIStore } from '@/stores/uiStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useTaskStore } from '@/stores/taskStore'
+import { usePatientStore } from '@/stores/patientStore'
 import { createPatient, updatePatient } from '@/services/firebase/patients'
 import { createTask, updateTask, completeTask, deleteTask } from '@/services/firebase/tasks'
 import { CheckCircle, Edit, Trash2, Clock, User } from 'lucide-react'
@@ -25,6 +26,7 @@ export function ModalController() {
   const addTask = useTaskStore((s) => s.addTask)
   const storeUpdateTask = useTaskStore((s) => s.updateTask)
   const storeRemoveTask = useTaskStore((s) => s.removeTask)
+  const patients = usePatientStore((s) => s.patients)
 
   const handlePatientSubmit = async (data: PatientFormData) => {
     if (!firebaseUser) {
@@ -68,10 +70,16 @@ export function ModalController() {
         storeUpdateTask(taskId, rest as unknown as Partial<Task>)
         addToast({ type: 'success', title: 'Task updated successfully' })
       } else {
-        // Create new task
+        // Create new task — enrich with patient name and bed number
         const userName = user?.displayName || 'Unknown'
-        const id = await createTask(data, firebaseUser.uid, userName)
-        addTask({ id, ...data, status: 'pending', createdAt: new Date(), updatedAt: new Date() } as never)
+        const patient = data.patientId ? patients.find((p) => p.id === data.patientId) : null
+        const enrichedData = {
+          ...data,
+          patientName: patient ? `${patient.firstName} ${patient.lastName}`.trim() : '',
+          bedNumber: patient?.bedNumber || '',
+        }
+        const id = await createTask(enrichedData, firebaseUser.uid, userName)
+        addTask({ id, ...enrichedData, status: 'pending', createdAt: new Date(), updatedAt: new Date() } as never)
         addToast({ type: 'success', title: 'Task created successfully' })
       }
       closeModal()

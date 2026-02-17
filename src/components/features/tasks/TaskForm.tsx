@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { usePatientStore } from '@/stores/patientStore'
 import type { TaskFormData, TaskPriority, TaskCategory } from '@/types'
 
 interface TaskFormProps {
@@ -28,6 +29,9 @@ const priorities: { value: TaskPriority; label: string; color: string; descripti
 ]
 
 export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFormProps) {
+  const patients = usePatientStore((s) => s.patients)
+  const showPatientSelector = !patientId
+
   const [data, setData] = useState<TaskFormData>({
     patientId: patientId || '',
     title: '',
@@ -39,18 +43,26 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
   })
   const [loading, setLoading] = useState(false)
   const [titleError, setTitleError] = useState('')
+  const [patientError, setPatientError] = useState('')
 
   const handleChange = (field: keyof TaskFormData, value: unknown) => {
     setData((prev) => ({ ...prev, [field]: value }))
     if (field === 'title') setTitleError('')
+    if (field === 'patientId') setPatientError('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    let hasError = false
     if (!data.title.trim()) {
       setTitleError('Task title is required')
-      return
+      hasError = true
     }
+    if (showPatientSelector && !data.patientId) {
+      setPatientError('Please select a patient')
+      hasError = true
+    }
+    if (hasError) return
     setLoading(true)
     try { await onSubmit(data) } finally { setLoading(false) }
   }
@@ -59,6 +71,27 @@ export function TaskForm({ initialData, patientId, onSubmit, onCancel }: TaskFor
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      {showPatientSelector && (
+        <div>
+          <label className="block text-sm font-medium text-ward-text mb-1">Patient <span className="text-red-500">*</span></label>
+          <select
+            className={`input-field ${patientError ? 'border-red-300 focus:ring-red-500' : ''}`}
+            value={data.patientId}
+            onChange={(e) => handleChange('patientId', e.target.value)}
+          >
+            <option value="">Select a patient…</option>
+            {patients
+              .filter((p) => p.state !== 'discharged')
+              .sort((a, b) => (a.bedNumber || '').localeCompare(b.bedNumber || ''))
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.bedNumber ? `Bed ${p.bedNumber} — ` : ''}{p.firstName} {p.lastName} {p.mrn ? `(${p.mrn})` : ''}
+                </option>
+              ))}
+          </select>
+          {patientError && <p className="text-xs text-red-500 mt-1">{patientError}</p>}
+        </div>
+      )}
       <div>
         <label className="block text-sm font-medium text-ward-text mb-1">Title <span className="text-red-500">*</span></label>
         <input

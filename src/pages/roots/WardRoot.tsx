@@ -490,6 +490,17 @@ export default function WardRoot() {
             <Filter className="h-4 w-4" />
           </button>
 
+          <button
+            onClick={() => {
+              triggerHaptic('tap')
+              openModal('patient-form')
+            }}
+            className="p-2.5 rounded-lg border border-primary-300 bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch"
+            aria-label="Add patient"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
