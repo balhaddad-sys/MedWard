@@ -162,8 +162,8 @@ export async function generateSBAR(patientData: string): Promise<SBARResult> {
   }
 }
 
-export async function generateHandoverSummary(wardId: string): Promise<string> {
-  const fn = httpsCallable<{ wardId: string }, AIResponse>(functions, 'generateHandover')
-  const result = await callWithRetry(fn, { wardId }, 'generateHandoverSummary')
+export async function generateHandoverSummary(wardId: string, patientIds?: string[]): Promise<string> {
+  const fn = httpsCallable<{ wardId: string; patientIds?: string[] }, AIResponse>(functions, 'generateHandover')
+  const result = await callWithRetry(fn, { wardId, patientIds }, 'generateHandoverSummary')
   return result.data.content
 }

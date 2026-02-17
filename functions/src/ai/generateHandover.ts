@@ -18,11 +18,15 @@ export const generateHandover = onCall(
 
     const uid = request.auth.uid;
     const email = request.auth.token.email || "";
-    const { wardId } = request.data;
+    const { wardId, patientIds } = request.data;
 
     if (!wardId || typeof wardId !== "string") {
       throw new HttpsError("invalid-argument", "Ward ID is required");
     }
+
+    const filterByPatientIds = Array.isArray(patientIds) && patientIds.length > 0
+      ? new Set(patientIds.filter((id: unknown) => typeof id === "string"))
+      : null;
 
     const limitResult = await checkRateLimitDetailed(uid, "handover-generation");
     if (!limitResult.allowed) {
@@ -47,7 +51,10 @@ export const generateHandover = onCall(
           const data = doc.data();
           const createdBy = typeof data.createdBy === "string" ? data.createdBy : "";
           const assignedClinicians = Array.isArray(data.assignedClinicians) ? data.assignedClinicians : [];
-          return createdBy === uid || assignedClinicians.includes(uid);
+          if (!(createdBy === uid || assignedClinicians.includes(uid))) return false;
+          // Filter to selected patients if specified
+          if (filterByPatientIds && !filterByPatientIds.has(doc.id)) return false;
+          return true;
         })
         .sort((a, b) => {
           const acuityA = typeof a.data().acuity === "number" ? a.data().acuity : 999;
