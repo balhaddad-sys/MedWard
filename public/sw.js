@@ -3,7 +3,7 @@ const CACHE_VERSION = '20260216';
 const CACHE_NAME = `medward-pro-v${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   '/',
-  '/favicon.svg',
+  '/favicon.png',
   '/manifest.json',
 ];
 
@@ -70,6 +70,7 @@ self.addEventListener('fetch', (event) => {
   if (
     request.url.includes('/assets/') ||
     request.url.endsWith('.svg') ||
+    request.url.endsWith('.png') ||
     request.url.endsWith('.woff2') ||
     request.url.endsWith('.css') ||
     request.url.endsWith('.js')
