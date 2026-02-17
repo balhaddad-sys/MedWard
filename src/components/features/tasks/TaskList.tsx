@@ -27,7 +27,8 @@ function groupByPatient(tasks: Task[]): PatientGroup[] {
   const map = new Map<string, PatientGroup>()
 
   for (const task of tasks) {
-    const pid = task.patientId || '_unassigned'
+    // Group tasks without a valid patient name together under '_unassigned'
+    const pid = (task.patientId && task.patientName) ? task.patientId : '_unassigned'
     let group = map.get(pid)
     if (!group) {
       group = {
@@ -93,9 +94,9 @@ function PatientSection({ group, openModal }: { group: PatientGroup; openModal: 
           'h-7 w-7 rounded-lg flex items-center justify-center text-[11px] font-bold flex-shrink-0',
           group.criticalCount > 0
             ? 'bg-red-100 text-red-700'
-            : 'bg-blue-100 text-blue-700'
+            : group.patientId === '_unassigned' ? 'bg-gray-200 text-gray-500' : 'bg-blue-100 text-blue-700'
         )}>
-          {group.bedNumber}
+          {group.patientId === '_unassigned' ? <User className="h-3.5 w-3.5" /> : group.bedNumber}
         </div>
 
         <div className="flex-1 min-w-0">

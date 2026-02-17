@@ -29,9 +29,11 @@ export function TaskCard({ task, onComplete, onClick }: TaskCardProps) {
                 {priority}
               </Badge>
             </div>
-            <p className="text-xs text-ward-muted mt-1">
-              {task.patientName} - Bed {task.bedNumber}
-            </p>
+            {task.patientName ? (
+              <p className="text-xs text-ward-muted mt-1">
+                {task.patientName}{task.bedNumber ? ` - Bed ${task.bedNumber}` : ''}
+              </p>
+            ) : null}
           </div>
           {status !== 'completed' && onComplete && (
             <button
