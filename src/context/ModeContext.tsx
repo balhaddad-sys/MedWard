@@ -4,6 +4,13 @@ import type { ClinicalMode } from '../config/modes'
 import { triggerHaptic } from '../utils/haptics'
 import { ModeContext } from './modeContextDef'
 
+const THEME_CLASSES = Object.values(MODES).map((m) => m.theme)
+
+function applyThemeClass(theme: string) {
+  document.body.classList.remove(...THEME_CLASSES)
+  document.body.classList.add(theme)
+}
+
 const MODE_SELECTION_SESSION_KEY = 'clinical_mode_selected'
 
 function getInitialMode(): ClinicalMode {
@@ -65,7 +72,7 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
       setIsTransitioning(true)
       triggerHaptic('modeSwitch')
 
-      document.body.className = MODES[newMode].theme
+      applyThemeClass(MODES[newMode].theme)
       localStorage.setItem('clinical_mode', newMode)
 
       setTimeout(() => {
@@ -88,7 +95,7 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
   }, [setMode])
 
   useEffect(() => {
-    document.body.className = MODES[mode].theme
+    applyThemeClass(MODES[mode].theme)
   }, [mode])
 
   return (
