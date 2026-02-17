@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, User } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useTaskStore } from '@/stores/taskStore'
 import { useUIStore } from '@/stores/uiStore'
+import { usePatientStore } from '@/stores/patientStore'
 import { TaskCard } from './TaskCard'
 import { Tabs } from '@/components/ui/Tabs'
 import type { Task } from '@/types'
@@ -138,20 +139,37 @@ export function TaskList() {
   const setFilterStatus = useTaskStore((s) => s.setFilterStatus)
   const loading = useTaskStore((s) => s.loading)
   const openModal = useUIStore((s) => s.openModal)
+  const patients = usePatientStore((s) => s.patients)
+
+  // Enrich tasks with patient data from store when Firestore fields are missing
+  const enrichedTasks = useMemo(() => {
+    const patientMap = new Map(patients.map((p) => [p.id, p]))
+    return allTasks.map((task) => {
+      if (task.patientName && task.bedNumber) return task
+      if (!task.patientId) return task
+      const patient = patientMap.get(task.patientId)
+      if (!patient) return task
+      return {
+        ...task,
+        patientName: task.patientName || `${patient.firstName} ${patient.lastName}`.trim(),
+        bedNumber: task.bedNumber || patient.bedNumber || '',
+      }
+    })
+  }, [allTasks, patients])
 
   const tasks = useMemo(() => {
-    if (filterStatus === 'all') return allTasks
-    return allTasks.filter((t) => (t.status ?? 'pending') === filterStatus)
-  }, [allTasks, filterStatus])
+    if (filterStatus === 'all') return enrichedTasks
+    return enrichedTasks.filter((t) => (t.status ?? 'pending') === filterStatus)
+  }, [enrichedTasks, filterStatus])
 
   const patientGroups = useMemo(() => groupByPatient(tasks), [tasks])
 
-  const pendingCount = allTasks.filter((t) => (t.status ?? 'pending') === 'pending').length
-  const inProgressCount = allTasks.filter((t) => (t.status ?? 'pending') === 'in_progress').length
-  const completedCount = allTasks.filter((t) => (t.status ?? 'pending') === 'completed').length
+  const pendingCount = enrichedTasks.filter((t) => (t.status ?? 'pending') === 'pending').length
+  const inProgressCount = enrichedTasks.filter((t) => (t.status ?? 'pending') === 'in_progress').length
+  const completedCount = enrichedTasks.filter((t) => (t.status ?? 'pending') === 'completed').length
 
   const tabs = [
-    { id: 'all', label: 'All', count: allTasks.length },
+    { id: 'all', label: 'All', count: enrichedTasks.length },
     { id: 'pending', label: 'Pending', count: pendingCount },
     { id: 'in_progress', label: 'In Progress', count: inProgressCount },
     { id: 'completed', label: 'Done', count: completedCount },

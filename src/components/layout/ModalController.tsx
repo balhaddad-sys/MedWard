@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { PatientForm } from '@/components/features/patients/PatientForm'
 import { TaskForm } from '@/components/features/tasks/TaskForm'
@@ -126,10 +127,21 @@ export function ModalController() {
     })
   }
 
-  // Find the current task for task-detail modal
-  const currentTask = activeModal === 'task-detail'
-    ? tasks.find((t) => t.id === modalData?.taskId)
-    : null
+  // Find the current task for task-detail modal and enrich with patient data
+  const currentTask = useMemo(() => {
+    if (activeModal !== 'task-detail') return null
+    const task = tasks.find((t) => t.id === modalData?.taskId)
+    if (!task) return null
+    if (task.patientName && task.bedNumber) return task
+    if (!task.patientId) return task
+    const patient = patients.find((p) => p.id === task.patientId)
+    if (!patient) return task
+    return {
+      ...task,
+      patientName: task.patientName || `${patient.firstName} ${patient.lastName}`.trim(),
+      bedNumber: task.bedNumber || patient.bedNumber || '',
+    }
+  }, [activeModal, tasks, modalData?.taskId, patients])
 
   return (
     <>
