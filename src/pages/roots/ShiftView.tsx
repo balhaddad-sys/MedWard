@@ -1,19 +1,12 @@
 /**
- * On-Call Dashboard (Premium Redesign)
- *
- * Hospital-grade on-call workspace with glassmorphism design,
- * custom SVG medical icons, mobile-first bottom sheet for tools,
- * and premium visual polish throughout.
+ * On-Call Dashboard
+ * Acute mode workspace — dark theme, patient workspace, clinical tools.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
-import {
-  ChevronRight,
-  ChevronDown,
-  Wrench,
-} from 'lucide-react'
+import { ChevronRight, ChevronDown, Wrench, X } from 'lucide-react'
 import { usePatientStore } from '@/stores/patientStore'
 import { useTaskStore } from '@/stores/taskStore'
 import { triggerHaptic } from '@/utils/haptics'
@@ -23,7 +16,6 @@ import type { Patient } from '@/types'
 import type { LabResultData } from '@/components/features/labs/LabResultTable'
 import { LabResultTable } from '@/components/features/labs/LabResultTable'
 
-// Extracted components
 import { GlobalSearch } from '@/components/features/onCall/GlobalSearch'
 import { OnCallPatientCard } from '@/components/features/onCall/OnCallPatientCard'
 import type { QuickNote } from '@/components/features/onCall/OnCallPatientCard'
@@ -46,7 +38,6 @@ import {
 } from '@/components/icons/MedicalIcons'
 import { CALCULATOR_ICON_MAP } from '@/components/icons/calculatorIconMap'
 
-// Calculator components
 import { MAPCalculator } from '@/components/features/calculators/MAPCalculator'
 import { GCSCalculator } from '@/components/features/calculators/GCSCalculator'
 import { NEWS2Calculator } from '@/components/features/calculators/NEWS2Calculator'
@@ -57,30 +48,26 @@ import { CHA2DS2VASc } from '@/components/features/calculators/CHA2DS2VASc'
 import { WellsScore } from '@/components/features/calculators/WellsScore'
 import { AnionGapCalculator } from '@/components/features/calculators/AnionGapCalculator'
 
-// Persistence keys
+// ─── Persistence ─────────────────────────────────────────────────────────────
+
 const WORKSPACE_KEY = 'oncall_workspace'
-const NOTES_KEY = 'oncall_notes'
+const NOTES_KEY     = 'oncall_notes'
 
 function loadWorkspace(): string[] {
-  try {
-    const stored = localStorage.getItem(WORKSPACE_KEY)
-    return stored ? JSON.parse(stored) : []
-  } catch { return [] }
+  try { return JSON.parse(localStorage.getItem(WORKSPACE_KEY) ?? '[]') } catch { return [] }
 }
 function saveWorkspace(ids: string[]) {
   localStorage.setItem(WORKSPACE_KEY, JSON.stringify(ids))
 }
 function loadNotes(): QuickNote[] {
-  try {
-    const stored = localStorage.getItem(NOTES_KEY)
-    return stored ? JSON.parse(stored) : []
-  } catch { return [] }
+  try { return JSON.parse(localStorage.getItem(NOTES_KEY) ?? '[]') } catch { return [] }
 }
 function saveNotes(notes: QuickNote[]) {
   localStorage.setItem(NOTES_KEY, JSON.stringify(notes))
 }
 
-// Calculator component map
+// ─── Calculator map ───────────────────────────────────────────────────────────
+
 const CALCULATOR_COMPONENTS: Record<string, React.ComponentType> = {
   map: MAPCalculator,
   gcs: GCSCalculator,
@@ -96,52 +83,73 @@ const CALCULATOR_COMPONENTS: Record<string, React.ComponentType> = {
 type ToolTab = 'calculators' | 'protocols' | 'timers' | 'escalation'
 
 const TOOL_TABS: { id: ToolTab; label: string; Icon: React.FC<{ className?: string }> }[] = [
-  { id: 'calculators', label: 'Calc', Icon: StethoscopeIcon },
-  { id: 'protocols', label: 'Protocols', Icon: SyringeIcon },
-  { id: 'timers', label: 'Timers', Icon: StopwatchIcon },
-  { id: 'escalation', label: 'Escalate', Icon: EmergencySignIcon },
+  { id: 'calculators', label: 'Calculators', Icon: StethoscopeIcon },
+  { id: 'protocols',   label: 'Protocols',   Icon: SyringeIcon },
+  { id: 'timers',      label: 'Timers',      Icon: StopwatchIcon },
+  { id: 'escalation',  label: 'Escalate',    Icon: EmergencySignIcon },
 ]
 
+// ─── Stat pill ────────────────────────────────────────────────────────────────
+
+function StatPill({ icon, value, label, variant = 'neutral' }: {
+  icon: React.ReactNode
+  value: number
+  label: string
+  variant?: 'neutral' | 'red' | 'amber' | 'blue'
+}) {
+  const styles = {
+    neutral: 'bg-slate-800/60 border-slate-700/40 text-slate-300',
+    red:     'bg-red-500/10 border-red-500/20 text-red-400',
+    amber:   'bg-amber-500/10 border-amber-500/20 text-amber-400',
+    blue:    'bg-blue-500/10 border-blue-500/20 text-blue-400',
+  }
+  return (
+    <div className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-full border flex-shrink-0', styles[variant])}>
+      {icon}
+      <span className="font-bold text-sm tabular-nums">{value}</span>
+      <span className="text-[10px] opacity-70">{label}</span>
+    </div>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function ShiftView() {
-  const patients = usePatientStore((s) => s.patients)
+  const patients      = usePatientStore((s) => s.patients)
   const criticalValues = usePatientStore((s) => s.criticalValues)
-  const tasks = useTaskStore((s) => s.tasks)
-  const navigate = useNavigate()
+  const tasks         = useTaskStore((s) => s.tasks)
+  const navigate      = useNavigate()
 
   // Workspace state
   const [workspacePatientIds, setWorkspacePatientIds] = useState<string[]>(() => {
     const saved = loadWorkspace()
     if (saved.length > 0) return saved
-    const storePatients = usePatientStore.getState().patients
-    return storePatients.filter((p) => p.acuity <= 2).map((p) => p.id)
+    return usePatientStore.getState().patients.filter((p) => p.acuity <= 2).map((p) => p.id)
   })
-  const [quickNotes, setQuickNotes] = useState<QuickNote[]>(loadNotes)
+  const [quickNotes, setQuickNotes]   = useState<QuickNote[]>(loadNotes)
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [patientLabs, setPatientLabs] = useState<Record<string, LabResultData | null>>({})
 
-  // UI state
-  const [showTools, setShowTools] = useState(false)
-  const [activeToolTab, setActiveToolTab] = useState<ToolTab>('calculators')
-  const [activeCalcId, setActiveCalcId] = useState<string | null>(null)
+  // Tool panel state
+  const [showTools, setShowTools]           = useState(false)
+  const [activeToolTab, setActiveToolTab]   = useState<ToolTab>('calculators')
+  const [activeCalcId, setActiveCalcId]     = useState<string | null>(null)
   const [activeProtocol, setActiveProtocol] = useState<OrderSet | null>(null)
 
-  // Persist workspace
+  // Persist
   useEffect(() => { saveWorkspace(workspacePatientIds) }, [workspacePatientIds])
   useEffect(() => { saveNotes(quickNotes) }, [quickNotes])
 
-  // Subscribe to on-call list
+  // On-call list subscription
   useEffect(() => {
     const unsubscribe = subscribeToOnCallList((entries) => {
-      const onCallPatientIds = entries.map((e) => e.patientId)
-      setWorkspacePatientIds((prev) => {
-        const merged = new Set([...prev, ...onCallPatientIds])
-        return Array.from(merged)
-      })
+      const ids = entries.map((e) => e.patientId)
+      setWorkspacePatientIds((prev) => Array.from(new Set([...prev, ...ids])))
     })
     return () => unsubscribe()
   }, [])
 
-  // Auto-load critical patients
+  // Auto-load critical patients when store populates
   useEffect(() => {
     if (usePatientStore.getState().patients.length > 0) return
     const unsub = usePatientStore.subscribe((state) => {
@@ -162,16 +170,13 @@ export default function ShiftView() {
     try {
       const labs = await getLabPanels(patientId, 5)
       if (labs.length > 0) {
-        const latestLab = labs[0]
+        const latest = labs[0]
         const labData: LabResultData = {
-          patientName: latestLab.panelName,
-          collectionDate: latestLab.collectedAt
-            ? new Date(latestLab.collectedAt.seconds * 1000).toLocaleDateString()
-            : undefined,
-          results: (latestLab.values || []).map((v) => ({
-            test: v.name,
-            value: v.value,
-            unit: v.unit,
+          patientName: latest.panelName,
+          collectionDate: latest.collectedAt
+            ? new Date(latest.collectedAt.seconds * 1000).toLocaleDateString() : undefined,
+          results: (latest.values || []).map((v) => ({
+            test: v.name, value: v.value, unit: v.unit,
             flag: v.flag === 'critical_high' || v.flag === 'critical_low' ? 'Critical'
               : v.flag === 'high' ? 'High' : v.flag === 'low' ? 'Low' : 'Normal',
             refRange: v.referenceMin !== undefined && v.referenceMax !== undefined
@@ -187,7 +192,7 @@ export default function ShiftView() {
     }
   }, [])
 
-  // Resolve workspace patients sorted by acuity
+  // Sorted workspace patients
   const workspacePatients = useMemo(
     () => patients
       .filter((p) => workspacePatientIds.includes(p.id) || p.wardId === 'on-call')
@@ -195,7 +200,7 @@ export default function ShiftView() {
     [patients, workspacePatientIds]
   )
 
-  // Load labs on expand
+  // Load labs when patients change
   useEffect(() => {
     workspacePatients.forEach((p) => {
       if (labsLoadedRef.current.has(p.id)) return
@@ -204,7 +209,7 @@ export default function ShiftView() {
     })
   }, [workspacePatients, loadPatientLabs])
 
-  // Patient data helpers
+  // Helpers
   const getPatientTasks = useCallback(
     (patientId: string) => tasks.filter((t) => t.patientId === patientId && t.status !== 'completed' && t.status !== 'cancelled'),
     [tasks]
@@ -235,8 +240,7 @@ export default function ShiftView() {
     triggerHaptic('tap')
     setExpandedCards((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }, [])
@@ -247,12 +251,13 @@ export default function ShiftView() {
     triggerHaptic('success')
     setQuickNotes((prev) => [{ patientId, text: text.trim(), timestamp: Date.now() }, ...prev])
   }, [])
+
   const deleteNote = useCallback((timestamp: number) => {
     triggerHaptic('tap')
     setQuickNotes((prev) => prev.filter((n) => n.timestamp !== timestamp))
   }, [])
 
-  // Critical items for banner
+  // Aggregates
   const allCriticalItems = useMemo(() => {
     const items: { type: 'lab' | 'task'; patientName: string; bedNumber: string; detail: string; patientId: string }[] = []
     workspacePatients.forEach((p) => {
@@ -266,12 +271,11 @@ export default function ShiftView() {
     return items
   }, [workspacePatients, getPatientCriticals, getPatientTasks])
 
-  // Stats
-  const critCount = workspacePatients.filter((p) => p.acuity <= 2).length
-  const totalPendingTasks = workspacePatients.reduce((acc, p) => acc + getPatientTasks(p.id).length, 0)
-  const totalCriticalLabs = workspacePatients.reduce((acc, p) => acc + getPatientCriticals(p.id).length, 0)
+  const critCount       = workspacePatients.filter((p) => p.acuity <= 2).length
+  const totalTasks      = workspacePatients.reduce((a, p) => a + getPatientTasks(p.id).length, 0)
+  const totalCritLabs   = workspacePatients.reduce((a, p) => a + getPatientCriticals(p.id).length, 0)
 
-  // Search handlers
+  // Tool handlers
   const handleSelectCalc = useCallback((calcId: string) => {
     setActiveCalcId(calcId)
     setShowTools(true)
@@ -284,268 +288,223 @@ export default function ShiftView() {
   }, [])
 
   const ActiveCalcComponent = activeCalcId ? CALCULATOR_COMPONENTS[activeCalcId] : null
-  const activeCalcMeta = activeCalcId ? CALCULATORS.find((c) => c.id === activeCalcId) : null
+  const activeCalcMeta      = activeCalcId ? CALCULATORS.find((c) => c.id === activeCalcId) : null
 
-  // Tool tab bar (shared between desktop panel and bottom sheet)
-  const toolTabBar = (
-    <div className="flex gap-1 p-1.5 bg-slate-800/60 rounded-xl">
-      {TOOL_TABS.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => { triggerHaptic('tap'); setActiveToolTab(tab.id) }}
-          className={clsx(
-            'flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all',
-            activeToolTab === tab.id
-              ? 'bg-amber-500/20 text-amber-400 shadow-sm'
-              : 'text-slate-400 hover:text-white hover:bg-slate-700/40'
-          )}
-        >
-          <tab.Icon className="h-3.5 w-3.5" />
-          <span className="hidden xs:inline">{tab.label}</span>
-        </button>
-      ))}
-    </div>
-  )
+  // ─── Tool panel content ────────────────────────────────────────────────────
 
-  // Tool content (shared between desktop panel and bottom sheet)
   const toolContent = (
-    <div className="p-3 sm:p-4">
-      {/* Calculators Grid */}
+    <div className="p-3">
       {activeToolTab === 'calculators' && (
-        <div>
-          {activeCalcId && ActiveCalcComponent && activeCalcMeta ? (
-            <div>
-              <button
-                onClick={() => setActiveCalcId(null)}
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-white mb-3 transition-colors"
-              >
-                <ChevronDown className="w-3 h-3 rotate-90" /> Back to calculators
-              </button>
-              <CalculatorShell
-                title={activeCalcMeta.name}
-                icon={(() => {
-                  const IconComp = CALCULATOR_ICON_MAP[activeCalcId]
-                  return IconComp ? <IconComp className={clsx('w-5 h-5', activeCalcMeta.color)} /> : <StethoscopeIcon className={clsx('w-5 h-5', activeCalcMeta.color)} />
-                })()}
-              >
-                <ActiveCalcComponent />
-              </CalculatorShell>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
-              {CALCULATORS.map((calc) => {
-                const IconComp = CALCULATOR_ICON_MAP[calc.id]
-                return (
-                  <button
-                    key={calc.id}
-                    onClick={() => { triggerHaptic('tap'); setActiveCalcId(calc.id) }}
-                    className="group flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-900/40 border border-slate-700/50 hover:border-slate-500/60 hover:bg-slate-800/60 transition-all text-center"
-                  >
-                    {IconComp ? (
-                      <IconComp className={clsx('w-7 h-7 transition-transform group-hover:scale-110', calc.color)} />
-                    ) : (
-                      <StethoscopeIcon className={clsx('w-7 h-7 transition-transform group-hover:scale-110', calc.color)} />
-                    )}
-                    <span className={clsx('text-xs font-bold', calc.color)}>{calc.shortName}</span>
-                    <span className="text-[10px] text-slate-500 leading-tight">{calc.name}</span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        activeCalcId && ActiveCalcComponent && activeCalcMeta ? (
+          <div>
+            <button
+              onClick={() => setActiveCalcId(null)}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-white mb-3 transition-colors"
+            >
+              <ChevronDown className="w-3 h-3 rotate-90" />
+              Back to calculators
+            </button>
+            <CalculatorShell
+              title={activeCalcMeta.name}
+              icon={(() => {
+                const IconComp = CALCULATOR_ICON_MAP[activeCalcId]
+                return IconComp
+                  ? <IconComp className={clsx('w-5 h-5', activeCalcMeta.color)} />
+                  : <StethoscopeIcon className={clsx('w-5 h-5', activeCalcMeta.color)} />
+              })()}
+            >
+              <ActiveCalcComponent />
+            </CalculatorShell>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2">
+            {CALCULATORS.map((calc) => {
+              const IconComp = CALCULATOR_ICON_MAP[calc.id]
+              return (
+                <button
+                  key={calc.id}
+                  onClick={() => { triggerHaptic('tap'); setActiveCalcId(calc.id) }}
+                  className="group flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-900/60 border border-slate-700/50
+                             hover:border-slate-500 hover:bg-slate-800/70 transition-all text-center"
+                >
+                  {IconComp
+                    ? <IconComp className={clsx('w-7 h-7 group-hover:scale-110 transition-transform', calc.color)} />
+                    : <StethoscopeIcon className={clsx('w-7 h-7', calc.color)} />}
+                  <span className={clsx('text-xs font-bold', calc.color)}>{calc.shortName}</span>
+                  <span className="text-[10px] text-slate-500 leading-tight">{calc.name}</span>
+                </button>
+              )
+            })}
+          </div>
+        )
       )}
-
-      {/* Protocols */}
-      {activeToolTab === 'protocols' && (
-        <ProtocolGrid onSelectProtocol={handleSelectProtocol} />
-      )}
-
-      {/* Timers */}
-      {activeToolTab === 'timers' && <TimerPanel />}
-
-      {/* Escalation */}
+      {activeToolTab === 'protocols'  && <ProtocolGrid onSelectProtocol={handleSelectProtocol} />}
+      {activeToolTab === 'timers'     && <TimerPanel />}
       {activeToolTab === 'escalation' && <EscalationPanel />}
     </div>
   )
 
+  // ─── Render ────────────────────────────────────────────────────────────────
+
   return (
-    <div className="animate-fade-in flex flex-col h-full -mx-3 -mt-3 sm:-mx-4 sm:-mt-4 md:-mx-6 md:-mt-6">
-      {/* STICKY HEADER */}
-      <div
-        className="sticky top-0 z-20 border-b border-slate-700/40"
-        style={{
-          background: 'rgba(15, 23, 42, 0.8)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          boxShadow: '0 1px 20px -4px rgba(0,0,0,0.4)',
-        }}
-      >
-        {/* Stats strip */}
-        {workspacePatients.length > 0 && (
-          <div className="flex items-center gap-2 px-3 pt-2.5 pb-1 max-w-4xl mx-auto overflow-x-auto scrollbar-hide">
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-700/60 border border-slate-600/40 flex-shrink-0">
-              <BedPatientIcon className="w-3.5 h-3.5 text-blue-400" />
-              <span className="font-bold text-white text-xs">{workspacePatients.length}</span>
-              <span className="text-[10px] text-slate-400">active</span>
-            </div>
+    <div className="animate-fade-in space-y-4">
 
-            {critCount > 0 && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 flex-shrink-0">
-                <EmergencySignIcon className="w-3.5 h-3.5 text-red-400" />
-                <span className="font-bold text-red-400 text-xs">{critCount}</span>
-                <span className="text-[10px] text-red-400/60">critical</span>
-              </div>
-            )}
-
-            {totalPendingTasks > 0 && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 flex-shrink-0">
-                <span className="font-bold text-amber-400 text-xs">{totalPendingTasks}</span>
-                <span className="text-[10px] text-amber-400/60">tasks</span>
-              </div>
-            )}
-
-            {totalCriticalLabs > 0 && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 animate-pulse flex-shrink-0">
-                <FlaskIcon className="w-3.5 h-3.5 text-red-400" />
-                <span className="font-bold text-red-400 text-xs">{totalCriticalLabs}</span>
-                <span className="text-[10px] text-red-400/60">crit labs</span>
-              </div>
-            )}
-
-          </div>
-        )}
-
-        {/* Search bar */}
-        <div className="px-3 pb-2.5 pt-1.5 max-w-4xl mx-auto flex items-center gap-2">
-          <div className="flex-1">
-            <GlobalSearch
-              patients={patients}
-              onSelectPatient={addToWorkspace}
-              onSelectCalculator={handleSelectCalc}
-              onSelectProtocol={handleSelectProtocol}
-              onSelectDrug={() => {}}
-            />
-          </div>
-
-          <button
-            onClick={() => { triggerHaptic('tap'); setShowTools(!showTools) }}
-            className={clsx(
-              'relative flex items-center justify-center p-2.5 rounded-xl border transition-all min-h-[42px] min-w-[42px]',
-              showTools
-                ? 'bg-amber-600 border-amber-500 text-white shadow-[0_0_12px_rgba(245,158,11,0.2)]'
-                : 'bg-slate-700/60 border-slate-600/40 text-slate-300 hover:bg-slate-700'
-            )}
-          >
-            <Wrench className="w-4 h-4" />
-          </button>
+      {/* Page header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <BedPatientIcon className="w-5 h-5 text-amber-400" />
+            On-Call Console
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {workspacePatients.length} patients · {totalTasks} tasks
+          </p>
         </div>
+
+        {/* Tools toggle */}
+        <button
+          onClick={() => { triggerHaptic('tap'); setShowTools(!showTools) }}
+          className={clsx(
+            'flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-all min-h-[44px]',
+            showTools
+              ? 'bg-amber-500 border-amber-400 text-white shadow-lg shadow-amber-900/30'
+              : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-600 hover:text-white'
+          )}
+        >
+          <Wrench className="h-4 w-4" />
+          Tools
+        </button>
       </div>
 
-      {/* MAIN CONTENT */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-2 py-3 sm:px-4 sm:py-4">
+      {/* Stat strip */}
+      {workspacePatients.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <StatPill icon={<BedPatientIcon className="w-3.5 h-3.5" />} value={workspacePatients.length} label="on-call" variant="blue" />
+          {critCount > 0     && <StatPill icon={<EmergencySignIcon className="w-3.5 h-3.5" />} value={critCount}     label="critical"  variant="red" />}
+          {totalTasks > 0    && <StatPill icon={null}                                           value={totalTasks}    label="tasks"     variant="amber" />}
+          {totalCritLabs > 0 && <StatPill icon={<FlaskIcon className="w-3.5 h-3.5" />}          value={totalCritLabs} label="crit labs" variant="red" />}
+        </div>
+      )}
 
-          {/* Critical Alerts Banner */}
-          {allCriticalItems.length > 0 && (
-            <div
-              className="mb-3 rounded-xl border border-red-800/40 p-3 animate-fade-in overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, rgba(127,29,29,0.4) 0%, rgba(30,20,40,0.6) 100%)' }}
-            >
-              <h3 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <EmergencySignIcon className="w-3.5 h-3.5" />
-                Action Required ({allCriticalItems.length})
-              </h3>
-              <div className="space-y-1.5">
-                {allCriticalItems.slice(0, 6).map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      triggerHaptic('tap')
-                      setExpandedCards((prev) => new Set(prev).add(item.patientId))
-                      document.getElementById(`patient-${item.patientId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                    }}
-                    className="w-full flex items-center gap-2 text-xs p-2 rounded-lg bg-slate-900/50 backdrop-blur-sm border border-slate-700/30 hover:bg-slate-800/60 transition-colors text-left"
-                  >
-                    <span className={clsx(
-                      'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase flex-shrink-0',
-                      item.type === 'lab' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-                    )}>
-                      {item.type === 'lab' ? 'LAB' : 'TASK'}
-                    </span>
-                    <span className="text-slate-400 flex-shrink-0">Bed {item.bedNumber}</span>
-                    <span className="text-white font-medium truncate">{item.detail}</span>
-                    <ChevronRight className="w-3 h-3 text-slate-600 ml-auto flex-shrink-0" />
-                  </button>
-                ))}
-                {allCriticalItems.length > 6 && (
-                  <p className="text-[10px] text-red-400/60 text-center pt-1">+{allCriticalItems.length - 6} more</p>
-                )}
-              </div>
-            </div>
-          )}
+      {/* Search */}
+      <GlobalSearch
+        patients={patients}
+        onSelectPatient={addToWorkspace}
+        onSelectCalculator={handleSelectCalc}
+        onSelectProtocol={handleSelectProtocol}
+        onSelectDrug={() => {}}
+      />
 
-          {/* TOOLS PANEL */}
-          {showTools && (
-            <div className="mb-4 glass-card rounded-xl overflow-hidden animate-fade-in">
-              <div className="p-3 pb-0">
-                {toolTabBar}
-              </div>
-              {toolContent}
-            </div>
-          )}
-
-          {/* PATIENT WORKSPACE */}
-          {workspacePatients.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 sm:py-24 select-none">
-              {/* Circular icon container */}
-              <div className="relative w-20 h-20 rounded-full bg-slate-800/40 border border-slate-700/40 flex items-center justify-center mb-5">
-                <StethoscopeIcon className="w-10 h-10 text-slate-600" />
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-slate-900 border border-slate-700/50 flex items-center justify-center">
-                  <MedicalCrossIcon className="w-4 h-4 text-slate-500" />
-                </div>
-              </div>
-
-              <h2
-                className="text-lg sm:text-xl font-bold uppercase tracking-widest"
-                style={{
-                  background: 'linear-gradient(to right, rgb(148, 163, 184), rgb(71, 85, 105))',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
+      {/* Critical alerts */}
+      {allCriticalItems.length > 0 && (
+        <div className="rounded-2xl border border-red-800/40 bg-red-950/30 p-3 animate-fade-in">
+          <h3 className="text-[10px] font-bold text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <EmergencySignIcon className="w-3.5 h-3.5" />
+            Action Required ({allCriticalItems.length})
+          </h3>
+          <div className="space-y-1.5">
+            {allCriticalItems.slice(0, 6).map((item, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  triggerHaptic('tap')
+                  setExpandedCards((prev) => new Set(prev).add(item.patientId))
+                  document.getElementById(`patient-${item.patientId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                 }}
+                className="w-full flex items-center gap-2 text-xs p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/50 hover:border-slate-700 hover:bg-slate-800/60 transition-colors text-left"
               >
-                On-Call Console
-              </h2>
-              <p className="text-sm text-slate-500 mt-2 text-center px-4 max-w-md leading-relaxed">
-                No on-call patients yet. Use the search bar to add patients, or they will appear automatically from the on-call list.
+                <span className={clsx(
+                  'px-1.5 py-0.5 rounded-lg text-[9px] font-bold uppercase flex-shrink-0',
+                  item.type === 'lab' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                )}>
+                  {item.type === 'lab' ? 'LAB' : 'TASK'}
+                </span>
+                <span className="text-slate-400 flex-shrink-0 font-mono">Bed {item.bedNumber}</span>
+                <span className="text-white font-semibold truncate">{item.detail}</span>
+                <ChevronRight className="w-3 h-3 text-slate-600 ml-auto flex-shrink-0" />
+              </button>
+            ))}
+            {allCriticalItems.length > 6 && (
+              <p className="text-[10px] text-red-400/60 text-center pt-1">
+                +{allCriticalItems.length - 6} more
               </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {workspacePatients.map((patient) => (
-                <div key={patient.id} id={`patient-${patient.id}`}>
-                  <OnCallPatientCard
-                    patient={patient}
-                    tasks={getPatientTasks(patient.id)}
-                    criticalCount={getPatientCriticals(patient.id).length}
-                    notes={getPatientNotes(patient.id)}
-                    expanded={expandedCards.has(patient.id)}
-                    onToggle={() => toggleCardExpanded(patient.id)}
-                    onRemove={() => removeFromWorkspace(patient.id)}
-                    onAddNote={(text) => addQuickNote(patient.id, text)}
-                    onDeleteNote={deleteNote}
-                    onNavigate={(id) => navigate(`/patients/${id}`)}
-                    labData={patientLabs[patient.id] ? <LabResultTable data={patientLabs[patient.id]!} /> : undefined}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Protocol Modal */}
+      {/* Tools panel (inline) */}
+      {showTools && (
+        <div className="rounded-2xl border border-slate-700 bg-slate-900/80 overflow-hidden animate-fade-in">
+          {/* Tool tab bar */}
+          <div className="flex gap-1 p-2 border-b border-slate-800">
+            {TOOL_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { triggerHaptic('tap'); setActiveToolTab(tab.id) }}
+                className={clsx(
+                  'flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all',
+                  activeToolTab === tab.id
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/60'
+                )}
+              >
+                <tab.Icon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+            <button
+              onClick={() => setShowTools(false)}
+              className="p-2 rounded-xl text-slate-600 hover:text-slate-400 hover:bg-slate-800/60 transition-colors flex-shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {toolContent}
+        </div>
+      )}
+
+      {/* Patient workspace */}
+      {workspacePatients.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center select-none">
+          <div className="relative w-20 h-20 rounded-2xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-center mb-5">
+            <StethoscopeIcon className="w-10 h-10 text-slate-600" />
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center">
+              <MedicalCrossIcon className="w-4 h-4 text-slate-500" />
+            </div>
+          </div>
+          <h2 className="text-lg font-bold text-slate-400 uppercase tracking-widest">
+            On-Call Console
+          </h2>
+          <p className="text-sm text-slate-600 mt-2 max-w-sm leading-relaxed">
+            Search for patients to add to your workspace, or they will appear automatically from the on-call list.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {workspacePatients.map((patient) => (
+            <div key={patient.id} id={`patient-${patient.id}`}>
+              <OnCallPatientCard
+                patient={patient}
+                tasks={getPatientTasks(patient.id)}
+                criticalCount={getPatientCriticals(patient.id).length}
+                notes={getPatientNotes(patient.id)}
+                expanded={expandedCards.has(patient.id)}
+                onToggle={() => toggleCardExpanded(patient.id)}
+                onRemove={() => removeFromWorkspace(patient.id)}
+                onAddNote={(text) => addQuickNote(patient.id, text)}
+                onDeleteNote={deleteNote}
+                onNavigate={(id) => navigate(`/patients/${id}`)}
+                labData={patientLabs[patient.id]
+                  ? <LabResultTable data={patientLabs[patient.id]!} />
+                  : undefined}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Protocol modal */}
       {activeProtocol && (
         <ProtocolModal
           protocol={activeProtocol}
