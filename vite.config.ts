@@ -46,7 +46,6 @@ export default defineConfig(({ mode }) => ({
           'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions', 'firebase/storage', 'firebase/app-check'],
           'vendor-charts': ['recharts'],
           'vendor-jspdf': ['jspdf', 'jspdf-autotable'],
-          'vendor-html2canvas': ['html2canvas'],
         },
       },
     },

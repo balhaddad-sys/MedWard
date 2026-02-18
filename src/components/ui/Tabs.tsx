@@ -1,51 +1,89 @@
-import { clsx } from 'clsx'
+import { useRef, useEffect, useState, type ReactNode } from 'react';
+import { clsx } from 'clsx';
 
-interface Tab {
-  id: string
-  label: string
-  count?: number
-  icon?: React.ReactNode
+export interface TabItem {
+  id: string;
+  label: string;
+  icon?: ReactNode;
 }
 
-interface TabsProps {
-  tabs: Tab[]
-  activeTab: string
-  onChange: (tabId: string) => void
-  className?: string
+export interface TabsProps {
+  items: TabItem[];
+  activeId: string;
+  onChange: (id: string) => void;
+  className?: string;
 }
 
-export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
+function Tabs({ items, activeId, onChange, className }: TabsProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState<{
+    left: number;
+    width: number;
+  }>({ left: 0, width: 0 });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const activeButton = container.querySelector<HTMLButtonElement>(
+      `[data-tab-id="${activeId}"]`,
+    );
+    if (!activeButton) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const buttonRect = activeButton.getBoundingClientRect();
+
+    setIndicatorStyle({
+      left: buttonRect.left - containerRect.left + container.scrollLeft,
+      width: buttonRect.width,
+    });
+  }, [activeId, items]);
+
   return (
-    <div role="tablist" className={clsx('flex gap-1 p-1 bg-ward-card border border-ward-border rounded-lg overflow-x-auto scrollbar-hide min-w-0', className)}>
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          role="tab"
-          aria-selected={activeTab === tab.id}
-          aria-controls={`tabpanel-${tab.id}`}
-          id={`tab-${tab.id}`}
-          onClick={() => onChange(tab.id)}
-          className={clsx(
-            'flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 min-h-[36px]',
-            activeTab === tab.id
-              ? 'bg-primary-600 text-white shadow-sm'
-              : 'text-ward-muted hover:text-ward-text'
-          )}
-        >
-          {tab.icon}
-          {tab.label}
-          {tab.count !== undefined && (
-            <span
-              className={clsx(
-                'ml-0.5 sm:ml-1 px-1 sm:px-1.5 py-0.5 rounded-full text-[10px] font-bold',
-                activeTab === tab.id ? 'bg-primary-700 text-white' : 'bg-ward-border text-ward-muted'
-              )}
-            >
-              {tab.count}
-            </span>
-          )}
-        </button>
-      ))}
+    <div
+      ref={containerRef}
+      role="tablist"
+      className={clsx(
+        'relative flex items-center gap-1 border-b border-gray-200 overflow-x-auto',
+        className,
+      )}
+    >
+      {items.map((item) => {
+        const isActive = item.id === activeId;
+
+        return (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            data-tab-id={item.id}
+            onClick={() => onChange(item.id)}
+            className={clsx(
+              'relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap',
+              'transition-colors duration-150 ease-in-out',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:rounded',
+              isActive
+                ? 'text-blue-600'
+                : 'text-gray-500 hover:text-gray-700',
+            )}
+          >
+            {item.icon && <span className="shrink-0">{item.icon}</span>}
+            {item.label}
+          </button>
+        );
+      })}
+
+      {/* Animated active indicator */}
+      <span
+        className="absolute bottom-0 h-0.5 bg-blue-600 rounded-full transition-all duration-200 ease-in-out"
+        style={{
+          left: indicatorStyle.left,
+          width: indicatorStyle.width,
+        }}
+      />
     </div>
-  )
+  );
 }
+
+export { Tabs };
