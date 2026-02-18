@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRightLeft, Download, Sparkles, CheckSquare, Square } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { ArrowRightLeft, Download, Sparkles, CheckSquare, Square, Users, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { usePatientStore } from '@/stores/patientStore'
@@ -9,6 +8,7 @@ import { generateHandoverSummary } from '@/services/ai/claude'
 import { exportHandoverReport } from '@/services/export/pdfExport'
 import { Markdown } from '@/components/ui/Markdown'
 import { ACUITY_LEVELS } from '@/config/constants'
+import { clsx } from 'clsx'
 
 export function HandoverPage() {
   const patients = usePatientStore((s) => s.patients)
@@ -22,29 +22,21 @@ export function HandoverPage() {
   const wardOptions = useMemo(() => {
     const set = new Set<string>()
     if (defaultWard) set.add(defaultWard)
-    for (const p of patients) {
-      if (p.wardId) set.add(p.wardId)
-    }
+    for (const p of patients) { if (p.wardId) set.add(p.wardId) }
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [patients, defaultWard])
 
   useEffect(() => {
     if (selectedWard) return
-    if (defaultWard) {
-      setSelectedWard(defaultWard)
-      return
-    }
-    if (wardOptions.length === 1) {
-      setSelectedWard(wardOptions[0])
-    }
+    if (defaultWard) { setSelectedWard(defaultWard); return }
+    if (wardOptions.length === 1) setSelectedWard(wardOptions[0])
   }, [selectedWard, defaultWard, wardOptions])
 
-  const wardPatients = useMemo(() => {
-    if (!selectedWard) return patients
-    return patients.filter((p) => p.wardId === selectedWard)
-  }, [patients, selectedWard])
+  const wardPatients = useMemo(
+    () => !selectedWard ? patients : patients.filter((p) => p.wardId === selectedWard),
+    [patients, selectedWard]
+  )
 
-  // Select all patients when ward changes
   useEffect(() => {
     setSummary(null)
     setSelectedPatientIds(new Set(wardPatients.map((p) => p.id)))
@@ -56,18 +48,14 @@ export function HandoverPage() {
   const togglePatient = (id: string) => {
     setSelectedPatientIds((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
       return next
     })
   }
 
   const toggleAll = () => {
-    if (allSelected) {
-      setSelectedPatientIds(new Set())
-    } else {
-      setSelectedPatientIds(new Set(wardPatients.map((p) => p.id)))
-    }
+    if (allSelected) setSelectedPatientIds(new Set())
+    else setSelectedPatientIds(new Set(wardPatients.map((p) => p.id)))
   }
 
   const selectedPatients = useMemo(
@@ -77,20 +65,12 @@ export function HandoverPage() {
 
   const handleGenerate = async () => {
     const wardId = selectedWard || defaultWard || wardOptions[0]
-    if (!wardId) {
-      setSummary('Select a ward first to generate handover.')
-      return
-    }
-    if (noneSelected) {
-      setSummary('Select at least one patient to generate handover.')
-      return
-    }
-
+    if (!wardId) { setSummary('Select a ward first to generate handover.'); return }
+    if (noneSelected) { setSummary('Select at least one patient.'); return }
     setGenerating(true)
     try {
       const patientIds = selectedPatientIds.size < wardPatients.length
-        ? Array.from(selectedPatientIds)
-        : undefined
+        ? Array.from(selectedPatientIds) : undefined
       const result = await generateHandoverSummary(wardId, patientIds)
       setSummary(result)
     } catch {
@@ -103,135 +83,191 @@ export function HandoverPage() {
   const handleExport = () => {
     if (!summary) return
     const wardLabel = selectedWard || defaultWard || 'Ward'
-    exportHandoverReport(
-      wardLabel,
-      summary,
-      selectedPatients.map((p) => ({
-        name: `${p.firstName} ${p.lastName}`,
-        bed: p.bedNumber,
-        summary: p.primaryDiagnosis,
-      }))
-    )
+    exportHandoverReport(wardLabel, summary, selectedPatients.map((p) => ({
+      name: `${p.firstName} ${p.lastName}`, bed: p.bedNumber, summary: p.primaryDiagnosis,
+    })))
   }
 
+  const sortedWardPatients = [...wardPatients].sort((a, b) => a.acuity - b.acuity)
+
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="space-y-4 animate-fade-in max-w-3xl mx-auto">
+
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-ward-text flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 sm:h-6 sm:w-6" /> Handover
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <ArrowRightLeft className="h-5 w-5 text-blue-600" />
+            Handover
           </h1>
-          <p className="text-sm text-ward-muted mt-1">Generate shift handover reports</p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-          <select
-            value={selectedWard}
-            onChange={(e) => setSelectedWard(e.target.value)}
-            className="input-field text-sm min-h-[44px]"
-          >
-            <option value="">Select ward</option>
-            {wardOptions.map((ward) => (
-              <option key={ward} value={ward}>
-                {ward}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<Download className="h-4 w-4" />}
-              onClick={handleExport}
-              disabled={!summary}
-              className="min-h-[44px] flex-1 sm:flex-none"
-            >
-              Export PDF
-            </Button>
-            <Button
-              size="sm"
-              icon={<Sparkles className="h-4 w-4" />}
-              onClick={handleGenerate}
-              loading={generating}
-              disabled={wardOptions.length === 0 || noneSelected}
-              className="min-h-[44px] flex-1 sm:flex-none"
-            >
-              Generate{selectedPatientIds.size > 0 && selectedPatientIds.size < wardPatients.length ? ` (${selectedPatientIds.size})` : ''}
-            </Button>
-          </div>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Generate AI-powered shift handover reports
+          </p>
         </div>
       </div>
 
-      {summary && (
-        <Card>
-          <CardHeader><CardTitle>AI-Generated Handover Summary</CardTitle></CardHeader>
-          <CardContent>
-            <div className="prose prose-sm max-w-none">
-              <Markdown content={summary} className="text-ward-text" />
-            </div>
-            <p className="text-xs text-ward-muted mt-4 italic">
-              AI-generated content - verify all information with primary sources.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      {/* Ward selector + actions */}
+      <div className="card p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex-shrink-0">Ward</label>
+          <select
+            value={selectedWard}
+            onChange={(e) => setSelectedWard(e.target.value)}
+            className="input-field flex-1"
+          >
+            <option value="">All wards</option>
+            {wardOptions.map((ward) => (
+              <option key={ward} value={ward}>{ward}</option>
+            ))}
+          </select>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>
-              Patient List ({selectedPatientIds.size}/{wardPatients.length} selected){selectedWard ? ` - ${selectedWard}` : ''}
-            </CardTitle>
-            {wardPatients.length > 0 && (
-              <button
-                onClick={toggleAll}
-                className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors px-2 py-1 rounded hover:bg-primary-50"
-              >
-                {allSelected ? 'Deselect All' : 'Select All'}
-              </button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {wardPatients.length === 0 ? (
-            <p className="text-ward-muted text-sm py-4 text-center">No patients on the selected ward</p>
-          ) : (
-            <div className="divide-y divide-ward-border">
-              {wardPatients
-                .sort((a, b) => a.acuity - b.acuity)
-                .map((patient) => {
-                  const isSelected = selectedPatientIds.has(patient.id)
-                  return (
-                    <button
-                      key={patient.id}
-                      onClick={() => togglePatient(patient.id)}
-                      className="py-3 flex items-center justify-between w-full text-left hover:bg-gray-50 -mx-4 px-4 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        {isSelected
-                          ? <CheckSquare className="h-4.5 w-4.5 text-primary-600 flex-shrink-0" />
-                          : <Square className="h-4.5 w-4.5 text-gray-300 flex-shrink-0" />
-                        }
-                        <span className="text-sm font-mono font-medium w-8 text-center">{patient.bedNumber}</span>
-                        <div>
-                          <p className="text-sm font-medium">{patient.lastName}, {patient.firstName}</p>
-                          <p className="text-xs text-ward-muted">{patient.primaryDiagnosis}</p>
-                        </div>
-                      </div>
-                      <Badge
-                        variant={patient.acuity <= 2 ? 'danger' : patient.acuity === 3 ? 'warning' : 'success'}
-                        size="sm"
-                      >
-                        {ACUITY_LEVELS[(patient.acuity >= 1 && patient.acuity <= 5 ? patient.acuity : 3) as keyof typeof ACUITY_LEVELS].label}
-                      </Badge>
-                    </button>
-                  )
-                })}
-            </div>
+        {/* Selection summary */}
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-600">
+            <span className="font-bold text-gray-900">{selectedPatientIds.size}</span>
+            {' '}of{' '}
+            <span className="font-bold text-gray-900">{wardPatients.length}</span>
+            {' '}patients selected
+          </span>
+          {wardPatients.length > 0 && (
+            <button
+              onClick={toggleAll}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+            >
+              {allSelected ? 'Deselect all' : 'Select all'}
+            </button>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={<Download className="h-4 w-4" />}
+            onClick={handleExport}
+            disabled={!summary}
+            className="flex-1"
+          >
+            Export PDF
+          </Button>
+          <Button
+            size="sm"
+            icon={<Sparkles className="h-4 w-4" />}
+            onClick={handleGenerate}
+            loading={generating}
+            disabled={wardOptions.length === 0 || noneSelected}
+            className="flex-1"
+          >
+            {generating ? 'Generating…' : `Generate${selectedPatientIds.size > 0 && selectedPatientIds.size < wardPatients.length ? ` (${selectedPatientIds.size})` : ''}`}
+          </Button>
+        </div>
+      </div>
+
+      {/* Patient list */}
+      <div className="card overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+          <Users className="h-4 w-4 text-gray-400" />
+          <span className="text-sm font-bold text-gray-800">
+            Patient List{selectedWard ? ` — ${selectedWard}` : ''}
+          </span>
+          <span className="badge badge-info ml-auto">{wardPatients.length}</span>
+        </div>
+
+        {wardPatients.length === 0 ? (
+          <div className="py-10 text-center text-gray-400">
+            <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">No patients on selected ward</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {sortedWardPatients.map((patient) => {
+              const isSelected = selectedPatientIds.has(patient.id)
+              const acuityLevel = ACUITY_LEVELS[(patient.acuity >= 1 && patient.acuity <= 5 ? patient.acuity : 3) as keyof typeof ACUITY_LEVELS]
+              const isHighAcuity = patient.acuity <= 2
+
+              return (
+                <button
+                  key={patient.id}
+                  onClick={() => togglePatient(patient.id)}
+                  className={clsx(
+                    'w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors touch',
+                    isSelected && isHighAcuity && 'bg-red-50/30'
+                  )}
+                >
+                  {/* Checkbox */}
+                  <div className={clsx(
+                    'h-5 w-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors',
+                    isSelected
+                      ? 'bg-blue-600 border-blue-600'
+                      : 'border-gray-300 bg-white'
+                  )}>
+                    {isSelected && (
+                      <svg className="h-3 w-3 text-white" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </div>
+
+                  {/* Acuity dot */}
+                  <div className={clsx(
+                    'h-2.5 w-2.5 rounded-full flex-shrink-0',
+                    patient.acuity <= 2 ? 'bg-red-500' : patient.acuity === 3 ? 'bg-amber-500' : 'bg-emerald-500'
+                  )} />
+
+                  {/* Bed */}
+                  <span className="text-xs font-mono font-bold text-gray-600 w-8 flex-shrink-0">
+                    {patient.bedNumber || '?'}
+                  </span>
+
+                  {/* Name + dx */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className={clsx('text-sm font-semibold truncate', isSelected ? 'text-gray-900' : 'text-gray-600')}>
+                        {patient.lastName}, {patient.firstName}
+                      </p>
+                      {isHighAcuity && (
+                        <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />
+                      )}
+                    </div>
+                    {patient.primaryDiagnosis && (
+                      <p className="text-xs text-gray-400 truncate">{patient.primaryDiagnosis}</p>
+                    )}
+                  </div>
+
+                  {/* Acuity badge */}
+                  <Badge
+                    variant={patient.acuity <= 2 ? 'danger' : patient.acuity === 3 ? 'warning' : 'success'}
+                    size="sm"
+                  >
+                    {acuityLevel.label}
+                  </Badge>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* AI Summary */}
+      {summary && (
+        <div className="card overflow-hidden animate-fade-in">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <Sparkles className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-bold text-blue-900">AI-Generated Handover Summary</span>
+          </div>
+          <div className="p-4">
+            <div className="prose prose-sm max-w-none">
+              <Markdown content={summary} className="text-gray-800" />
+            </div>
+            <p className="text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100 italic flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3" />
+              AI-generated — verify all clinical information with primary sources before handover
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

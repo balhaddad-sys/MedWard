@@ -1,22 +1,10 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search,
-  Filter,
-  Plus,
-  ChevronRight,
-  ChevronDown,
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  FlaskConical,
-  Edit,
-  Trash2,
-  X,
-  Users,
-  Activity,
-  AlertCircle,
-  ArrowUpDown,
+  Search, Plus, ChevronRight, ChevronDown,
+  AlertTriangle, CheckCircle2, Clock, FlaskConical,
+  Edit, Trash2, X, Users, Activity, AlertCircle,
+  ArrowUpDown, Filter,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { formatDistanceToNowStrict } from 'date-fns'
@@ -26,7 +14,6 @@ import { useUIStore } from '@/stores/uiStore'
 import { triggerHaptic } from '@/utils/haptics'
 import { deletePatient } from '@/services/firebase/patients'
 import { SwipeableRow } from '@/components/ui/SwipeableRow'
-import { PageHero } from '@/components/ui/PageHero'
 import { ACUITY_LEVELS } from '@/config/constants'
 import type { Patient, Task } from '@/types'
 
@@ -36,18 +23,15 @@ type PatientFocus = 'all' | 'critical' | 'follow_up' | 'unstable' | 'missing_tea
 type TaskFocus = 'all' | 'overdue' | 'due_soon' | 'urgent'
 
 const TASK_PRIORITY_ORDER: Record<Task['priority'], number> = {
-  critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
+  critical: 0, high: 1, medium: 2, low: 3,
 }
 
-const STATE_STYLES: Record<string, string> = {
-  incoming: 'bg-blue-100 text-blue-700',
-  active: 'bg-emerald-100 text-emerald-700',
-  unstable: 'bg-red-100 text-red-700',
-  ready_dc: 'bg-amber-100 text-amber-700',
-  discharged: 'bg-gray-100 text-gray-600',
+const STATE_CHIP_CLASS: Record<string, string> = {
+  incoming:  'state-incoming',
+  active:    'state-active',
+  unstable:  'state-unstable',
+  ready_dc:  'state-ready-dc',
+  discharged:'state-discharged',
 }
 
 function naturalCompare(a: string, b: string): number {
@@ -55,11 +39,8 @@ function naturalCompare(a: string, b: string): number {
   const bx: (string | number)[] = []
   a.replace(/(\d+)|(\D+)/g, (_, n, s) => { ax.push(n ? +n : s); return '' })
   b.replace(/(\d+)|(\D+)/g, (_, n, s) => { bx.push(n ? +n : s); return '' })
-
   for (let i = 0; i < Math.max(ax.length, bx.length); i++) {
-    const ai = ax[i] ?? ''
-    const bi = bx[i] ?? ''
-
+    const ai = ax[i] ?? ''; const bi = bx[i] ?? ''
     if (typeof ai === 'number' && typeof bi === 'number') {
       if (ai !== bi) return ai - bi
     } else {
@@ -67,57 +48,37 @@ function naturalCompare(a: string, b: string): number {
       if (cmp !== 0) return cmp
     }
   }
-
   return 0
 }
 
 function getWardLabel(wardId: string): string {
-  if (!wardId || wardId === 'default') return 'Unassigned'
-  return wardId
+  return (!wardId || wardId === 'default') ? 'Unassigned' : wardId
 }
 
 function toDate(value: unknown): Date | null {
   if (!value) return null
   if (value instanceof Date) return value
-
   if (typeof value === 'string' || typeof value === 'number') {
-    const date = new Date(value)
-    return Number.isNaN(date.getTime()) ? null : date
+    const d = new Date(value)
+    return Number.isNaN(d.getTime()) ? null : d
   }
-
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    'toDate' in value &&
-    typeof (value as { toDate?: unknown }).toDate === 'function'
-  ) {
+  if (typeof value === 'object' && value !== null && 'toDate' in value &&
+    typeof (value as { toDate?: unknown }).toDate === 'function') {
     return (value as { toDate: () => Date }).toDate()
   }
-
   return null
 }
 
 function toMs(value: unknown): number | null {
-  const date = toDate(value)
-  return date ? date.getTime() : null
+  const d = toDate(value); return d ? d.getTime() : null
 }
 
 function getTaskDueMeta(task: Task, nowMs: number) {
   const dueAtMs = toMs(task.dueAt)
-
-  if (!dueAtMs) {
-    return {
-      dueAtMs: null,
-      dueLabel: null,
-      isOverdue: false,
-      isDueSoon: false,
-    }
-  }
-
+  if (!dueAtMs) return { dueAtMs: null, dueLabel: null, isOverdue: false, isDueSoon: false }
   const deltaMs = dueAtMs - nowMs
   const isOverdue = deltaMs < 0
   const isDueSoon = deltaMs >= 0 && deltaMs <= 2 * 60 * 60 * 1000
-
   return {
     dueAtMs,
     dueLabel: isOverdue
@@ -133,6 +94,204 @@ function isTypingElement(target: EventTarget | null): boolean {
   const tag = target.tagName.toLowerCase()
   return target.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select'
 }
+
+// ─── Stat Tile ─────────────────────────────────────────────────────────────
+
+function StatTile({ icon, label, value, variant = 'neutral' }: {
+  icon: React.ReactNode
+  label: string
+  value: number
+  variant?: 'neutral' | 'red' | 'amber' | 'green' | 'blue'
+}) {
+  const styles = {
+    neutral: 'bg-white border-gray-200 text-gray-700',
+    red:     'bg-red-50 border-red-200 text-red-700',
+    amber:   'bg-amber-50 border-amber-200 text-amber-700',
+    green:   'bg-emerald-50 border-emerald-200 text-emerald-700',
+    blue:    'bg-blue-50 border-blue-200 text-blue-700',
+  }
+
+  return (
+    <div className={clsx('flex flex-col items-center justify-center rounded-2xl p-3 text-center border', styles[variant])}>
+      <div className="opacity-60 mb-1">{icon}</div>
+      <p className="text-2xl font-bold tabular-nums leading-none">{value}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wider mt-1 opacity-60">{label}</p>
+    </div>
+  )
+}
+
+// ─── Patient Row ────────────────────────────────────────────────────────────
+
+function WardPatientRow({
+  patient, taskCount, hasCritical, onTap, onEdit, onDelete,
+}: {
+  patient: Patient
+  taskCount: number
+  hasCritical: boolean
+  onTap: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const [confirming, setConfirming] = useState(false)
+
+  const acuityDotClass =
+    patient.acuity <= 2 ? 'bg-red-500' :
+    patient.acuity === 3 ? 'bg-amber-500' : 'bg-emerald-500'
+
+  const rightActions = confirming
+    ? [
+        { label: 'Cancel',  icon: <X className="h-4 w-4" />,     color: 'bg-gray-500', onClick: () => setConfirming(false) },
+        { label: 'Confirm', icon: <Trash2 className="h-4 w-4" />, color: 'bg-red-600',  onClick: () => { onDelete(); setConfirming(false) } },
+      ]
+    : [
+        { label: 'Edit',   icon: <Edit className="h-4 w-4" />,   color: 'bg-blue-500', onClick: onEdit },
+        { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, color: 'bg-red-500',  onClick: () => setConfirming(true) },
+      ]
+
+  const stateChip = STATE_CHIP_CLASS[patient.state] ?? STATE_CHIP_CLASS.active
+
+  return (
+    <SwipeableRow rightActions={rightActions}>
+      <button
+        onClick={onTap}
+        className={clsx(
+          'w-full flex items-center gap-3 px-3 py-3 bg-white hover:bg-gray-50 active:bg-gray-100',
+          'transition-colors duration-100 text-left touch',
+          hasCritical && 'bg-red-50/40 hover:bg-red-50/60'
+        )}
+      >
+        {/* Acuity dot */}
+        <div className={clsx('h-2.5 w-2.5 rounded-full flex-shrink-0', acuityDotClass)} />
+
+        {/* Bed */}
+        <div className="w-10 text-xs font-mono font-bold text-gray-800 flex-shrink-0 text-center">
+          {patient.bedNumber || '—'}
+        </div>
+
+        {/* Patient info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="text-sm font-bold text-gray-900 truncate">
+              {patient.lastName?.toUpperCase()}
+              {patient.firstName && `, ${patient.firstName}`}
+            </p>
+            <span className={stateChip}>{patient.state || 'active'}</span>
+            {hasCritical && (
+              <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />
+            )}
+            {patient.codeStatus && patient.codeStatus !== 'full' && (
+              <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold uppercase">
+                {patient.codeStatus}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-500 truncate mt-0.5">
+            {patient.primaryDiagnosis || 'No diagnosis'}
+          </p>
+          <p className="text-[11px] text-gray-400 truncate">
+            {patient.team || 'No team'}
+            {patient.attendingPhysician ? ` · Dr. ${patient.attendingPhysician}` : ''}
+          </p>
+          {patient.allergies && patient.allergies.length > 0 && (
+            <p className="text-[10px] text-red-600 font-semibold truncate">
+              ⚠ {patient.allergies.join(', ')}
+            </p>
+          )}
+        </div>
+
+        {/* Task badge */}
+        {taskCount > 0 && (
+          <span className="flex-shrink-0 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold border border-amber-200">
+            {taskCount}
+          </span>
+        )}
+
+        <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
+      </button>
+    </SwipeableRow>
+  )
+}
+
+// ─── Task Row ────────────────────────────────────────────────────────────────
+
+function TaskRow({
+  task, variant, patientMap, nowMs,
+}: {
+  task: Task
+  variant: 'urgent' | 'normal' | 'completed'
+  patientMap: Map<string, Patient>
+  nowMs: number
+}) {
+  const navigate = useNavigate()
+  const patient = patientMap.get(task.patientId)
+  const dueMeta = getTaskDueMeta(task, nowMs)
+
+  const priorityDot: Record<string, string> = {
+    critical: 'bg-red-500',
+    high:     'bg-orange-500',
+    medium:   'bg-amber-400',
+    low:      'bg-emerald-500',
+  }
+
+  const priorityBadge: Record<string, string> = {
+    critical: 'bg-red-100 text-red-700 border-red-200',
+    high:     'bg-orange-100 text-orange-700 border-orange-200',
+    medium:   'bg-amber-100 text-amber-700 border-amber-200',
+    low:      'bg-gray-100 text-gray-600 border-gray-200',
+  }
+
+  return (
+    <button
+      onClick={() => { triggerHaptic('tap'); if (task.patientId) navigate(`/patients/${task.patientId}`) }}
+      className={clsx(
+        'w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left touch',
+        variant === 'urgent'    && 'bg-red-50 border-red-200 hover:bg-red-100',
+        variant === 'completed' && 'bg-gray-50 border-gray-200 opacity-60',
+        variant === 'normal'    && 'bg-white border-gray-200 hover:bg-gray-50'
+      )}
+    >
+      <div className={clsx(
+        'h-2 w-2 rounded-full flex-shrink-0',
+        variant === 'completed' ? 'bg-emerald-500' : priorityDot[task.priority] ?? 'bg-gray-400'
+      )} />
+
+      <div className="flex-1 min-w-0">
+        <p className={clsx(
+          'text-sm font-semibold truncate',
+          variant === 'completed' ? 'text-gray-400 line-through' : 'text-gray-900'
+        )}>
+          {task.title}
+        </p>
+        <div className="flex flex-wrap items-center gap-x-2 text-xs">
+          <span className="text-gray-500 truncate">
+            {patient
+              ? `Bed ${patient.bedNumber} · ${patient.lastName}, ${patient.firstName}`
+              : task.patientName || 'Unassigned'}
+          </span>
+          {dueMeta.dueLabel && (
+            <span className={clsx(
+              'font-semibold',
+              dueMeta.isOverdue ? 'text-red-600' : dueMeta.isDueSoon ? 'text-amber-700' : 'text-gray-400'
+            )}>
+              {dueMeta.isOverdue ? `Overdue ${dueMeta.dueLabel}` : dueMeta.dueLabel}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {variant !== 'completed' && (
+        <span className={clsx(
+          'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full flex-shrink-0 border',
+          priorityBadge[task.priority] ?? 'bg-gray-100 text-gray-600 border-gray-200'
+        )}>
+          {task.priority}
+        </span>
+      )}
+    </button>
+  )
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function WardRoot() {
   const patients = usePatientStore((s) => s.patients)
@@ -160,151 +319,86 @@ export default function WardRoot() {
   }, [])
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isTypingElement(event.target)) return
-
-      if (event.key === '/') {
-        event.preventDefault()
-        searchInputRef.current?.focus()
-        return
-      }
-
-      if (event.altKey && event.key.toLowerCase() === 'n') {
-        event.preventDefault()
-        triggerHaptic('tap')
-        openModal('patient-form')
-        return
-      }
-
-      if (event.altKey && event.key.toLowerCase() === 't') {
-        event.preventDefault()
-        triggerHaptic('tap')
-        openModal('task-form')
-      }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isTypingElement(e.target)) return
+      if (e.key === '/') { e.preventDefault(); searchInputRef.current?.focus(); return }
+      if (e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); triggerHaptic('tap'); openModal('patient-form'); return }
+      if (e.altKey && e.key.toLowerCase() === 't') { e.preventDefault(); triggerHaptic('tap'); openModal('task-form') }
     }
-
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [openModal])
 
-  const criticalPatients = useMemo(
-    () => patients.filter((patient) => patient.acuity <= 2),
-    [patients]
-  )
-
-  const patientById = useMemo(
-    () => new Map(patients.map((patient) => [patient.id, patient])),
-    [patients]
-  )
+  const criticalPatients = useMemo(() => patients.filter((p) => p.acuity <= 2), [patients])
+  const patientById = useMemo(() => new Map(patients.map((p) => [p.id, p])), [patients])
 
   const patientTaskCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-
     for (const task of tasks) {
       if (task.patientId && (task.status === 'pending' || task.status === 'in_progress')) {
         counts[task.patientId] = (counts[task.patientId] || 0) + 1
       }
     }
-
     return counts
   }, [tasks])
 
   const patientsWithCriticals = useMemo(() => {
     const ids = new Set<string>()
-    for (const critical of criticalValues) ids.add(critical.patientId)
+    for (const c of criticalValues) ids.add(c.patientId)
     return ids
   }, [criticalValues])
 
   const focusCounts = useMemo(() => {
-    let critical = 0
-    let followUp = 0
-    let unstable = 0
-    let missingTeam = 0
-
-    for (const patient of patients) {
-      if (patient.acuity <= 2 || patientsWithCriticals.has(patient.id)) critical += 1
-      if ((patientTaskCounts[patient.id] || 0) > 0) followUp += 1
-      if (patient.state === 'unstable') unstable += 1
-      if (!patient.team?.trim() || !patient.attendingPhysician?.trim()) missingTeam += 1
+    let critical = 0, followUp = 0, unstable = 0, missingTeam = 0
+    for (const p of patients) {
+      if (p.acuity <= 2 || patientsWithCriticals.has(p.id)) critical++
+      if ((patientTaskCounts[p.id] || 0) > 0) followUp++
+      if (p.state === 'unstable') unstable++
+      if (!p.team?.trim() || !p.attendingPhysician?.trim()) missingTeam++
     }
-
-    return {
-      all: patients.length,
-      critical,
-      followUp,
-      unstable,
-      missingTeam,
-    }
+    return { all: patients.length, critical, followUp, unstable, missingTeam }
   }, [patients, patientsWithCriticals, patientTaskCounts])
 
   const filteredPatients = useMemo(() => {
     let filtered = [...patients]
-
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        (patient) =>
-          `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(q) ||
-          patient.mrn?.toLowerCase().includes(q) ||
-          patient.bedNumber?.toLowerCase().includes(q) ||
-          patient.wardId?.toLowerCase().includes(q)
+      filtered = filtered.filter((p) =>
+        `${p.firstName} ${p.lastName}`.toLowerCase().includes(q) ||
+        p.mrn?.toLowerCase().includes(q) ||
+        p.bedNumber?.toLowerCase().includes(q) ||
+        p.wardId?.toLowerCase().includes(q)
       )
     }
-
-    if (filterAcuity !== null) {
-      filtered = filtered.filter((patient) => patient.acuity === filterAcuity)
-    }
-
-    if (patientFocus === 'critical') {
-      filtered = filtered.filter((patient) => patient.acuity <= 2 || patientsWithCriticals.has(patient.id))
-    }
-
-    if (patientFocus === 'follow_up') {
-      filtered = filtered.filter((patient) => (patientTaskCounts[patient.id] || 0) > 0)
-    }
-
-    if (patientFocus === 'unstable') {
-      filtered = filtered.filter((patient) => patient.state === 'unstable')
-    }
-
-    if (patientFocus === 'missing_team') {
-      filtered = filtered.filter((patient) => !patient.team?.trim() || !patient.attendingPhysician?.trim())
-    }
+    if (filterAcuity !== null) filtered = filtered.filter((p) => p.acuity === filterAcuity)
+    if (patientFocus === 'critical')      filtered = filtered.filter((p) => p.acuity <= 2 || patientsWithCriticals.has(p.id))
+    if (patientFocus === 'follow_up')     filtered = filtered.filter((p) => (patientTaskCounts[p.id] || 0) > 0)
+    if (patientFocus === 'unstable')      filtered = filtered.filter((p) => p.state === 'unstable')
+    if (patientFocus === 'missing_team')  filtered = filtered.filter((p) => !p.team?.trim() || !p.attendingPhysician?.trim())
 
     filtered.sort((a, b) => {
-      if (patientSort === 'name') {
-        return naturalCompare(`${a.lastName} ${a.firstName}`, `${b.lastName} ${b.firstName}`)
-      }
-
-      if (patientSort === 'updated') {
-        return (toMs(b.updatedAt) ?? 0) - (toMs(a.updatedAt) ?? 0)
-      }
-
+      if (patientSort === 'name') return naturalCompare(`${a.lastName} ${a.firstName}`, `${b.lastName} ${b.firstName}`)
+      if (patientSort === 'updated') return (toMs(b.updatedAt) ?? 0) - (toMs(a.updatedAt) ?? 0)
       if (patientSort === 'bed') {
-        const wardSort = naturalCompare(getWardLabel(a.wardId), getWardLabel(b.wardId))
-        if (wardSort !== 0) return wardSort
+        const ws = naturalCompare(getWardLabel(a.wardId), getWardLabel(b.wardId))
+        if (ws !== 0) return ws
         return naturalCompare(a.bedNumber || '', b.bedNumber || '')
       }
-
       if (a.acuity !== b.acuity) return a.acuity - b.acuity
-      if (patientsWithCriticals.has(a.id) !== patientsWithCriticals.has(b.id)) {
+      if (patientsWithCriticals.has(a.id) !== patientsWithCriticals.has(b.id))
         return patientsWithCriticals.has(a.id) ? -1 : 1
-      }
       return naturalCompare(a.bedNumber || '', b.bedNumber || '')
     })
-
     return filtered
   }, [patients, searchQuery, filterAcuity, patientFocus, patientSort, patientsWithCriticals, patientTaskCounts])
 
   const patientsByWard = useMemo(() => {
     const groups = new Map<string, Patient[]>()
-
-    for (const patient of filteredPatients) {
-      const key = getWardLabel(patient.wardId)
+    for (const p of filteredPatients) {
+      const key = getWardLabel(p.wardId)
       if (!groups.has(key)) groups.set(key, [])
-      groups.get(key)!.push(patient)
+      groups.get(key)!.push(p)
     }
-
     return [...groups.entries()].sort((a, b) => {
       if (a[0] === 'Unassigned') return 1
       if (b[0] === 'Unassigned') return -1
@@ -312,93 +406,57 @@ export default function WardRoot() {
     })
   }, [filteredPatients])
 
-  const pendingTasks = useMemo(
-    () => tasks.filter((task) => task.status === 'pending' || task.status === 'in_progress'),
-    [tasks]
-  )
+  const pendingTasks = useMemo(() => tasks.filter((t) => t.status === 'pending' || t.status === 'in_progress'), [tasks])
+  const urgentTasks  = useMemo(() => pendingTasks.filter((t) => t.priority === 'critical' || t.priority === 'high'), [pendingTasks])
 
-  const urgentTasks = useMemo(
-    () => pendingTasks.filter((task) => task.priority === 'critical' || task.priority === 'high'),
-    [pendingTasks]
-  )
+  const sortedPendingTasks = useMemo(() => [...pendingTasks].sort((a, b) => {
+    const am = getTaskDueMeta(a, nowMs); const bm = getTaskDueMeta(b, nowMs)
+    if (am.isOverdue !== bm.isOverdue) return am.isOverdue ? -1 : 1
+    if (am.isDueSoon !== bm.isDueSoon) return am.isDueSoon ? -1 : 1
+    const ap = TASK_PRIORITY_ORDER[a.priority] ?? 99; const bp = TASK_PRIORITY_ORDER[b.priority] ?? 99
+    if (ap !== bp) return ap - bp
+    if (am.dueAtMs && bm.dueAtMs) return am.dueAtMs - bm.dueAtMs
+    if (am.dueAtMs) return -1
+    if (bm.dueAtMs) return 1
+    return (toMs(b.updatedAt) ?? 0) - (toMs(a.updatedAt) ?? 0)
+  }), [pendingTasks, nowMs])
 
-  const sortedPendingTasks = useMemo(() => {
-    return [...pendingTasks].sort((a, b) => {
-      const aMeta = getTaskDueMeta(a, nowMs)
-      const bMeta = getTaskDueMeta(b, nowMs)
-
-      if (aMeta.isOverdue !== bMeta.isOverdue) return aMeta.isOverdue ? -1 : 1
-      if (aMeta.isDueSoon !== bMeta.isDueSoon) return aMeta.isDueSoon ? -1 : 1
-
-      const aPriority = TASK_PRIORITY_ORDER[a.priority] ?? 99
-      const bPriority = TASK_PRIORITY_ORDER[b.priority] ?? 99
-      if (aPriority !== bPriority) return aPriority - bPriority
-
-      if (aMeta.dueAtMs && bMeta.dueAtMs) return aMeta.dueAtMs - bMeta.dueAtMs
-      if (aMeta.dueAtMs) return -1
-      if (bMeta.dueAtMs) return 1
-
-      return (toMs(b.updatedAt) ?? 0) - (toMs(a.updatedAt) ?? 0)
-    })
-  }, [pendingTasks, nowMs])
-
-  const overdueTasks = useMemo(
-    () => sortedPendingTasks.filter((task) => getTaskDueMeta(task, nowMs).isOverdue),
-    [sortedPendingTasks, nowMs]
-  )
-
-  const dueSoonTasks = useMemo(
-    () => sortedPendingTasks.filter((task) => getTaskDueMeta(task, nowMs).isDueSoon),
-    [sortedPendingTasks, nowMs]
-  )
+  const overdueTasks  = useMemo(() => sortedPendingTasks.filter((t) => getTaskDueMeta(t, nowMs).isOverdue), [sortedPendingTasks, nowMs])
+  const dueSoonTasks  = useMemo(() => sortedPendingTasks.filter((t) => getTaskDueMeta(t, nowMs).isDueSoon), [sortedPendingTasks, nowMs])
 
   const focusedTasks = useMemo(() => {
     if (taskFocus === 'overdue') return overdueTasks
     if (taskFocus === 'due_soon') return dueSoonTasks
-    if (taskFocus === 'urgent') {
-      return sortedPendingTasks.filter((task) => task.priority === 'critical' || task.priority === 'high')
-    }
+    if (taskFocus === 'urgent') return sortedPendingTasks.filter((t) => t.priority === 'critical' || t.priority === 'high')
     return sortedPendingTasks
   }, [taskFocus, overdueTasks, dueSoonTasks, sortedPendingTasks])
 
-  const urgentTaskIds = useMemo(
-    () => new Set(urgentTasks.map((task) => task.id)),
-    [urgentTasks]
-  )
-
-  const overdueTaskIds = useMemo(
-    () => new Set(overdueTasks.map((task) => task.id)),
-    [overdueTasks]
-  )
+  const urgentTaskIds  = useMemo(() => new Set(urgentTasks.map((t) => t.id)), [urgentTasks])
+  const overdueTaskIds = useMemo(() => new Set(overdueTasks.map((t) => t.id)), [overdueTasks])
 
   const completedToday = useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    return tasks.filter((task) => {
-      if (task.status !== 'completed' || !task.completedAt) return false
-      const completed = task.completedAt.toDate
-        ? task.completedAt.toDate()
-        : new Date(task.completedAt as unknown as string)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    return tasks.filter((t) => {
+      if (t.status !== 'completed' || !t.completedAt) return false
+      const completed = t.completedAt.toDate ? t.completedAt.toDate() : new Date(t.completedAt as unknown as string)
       return completed >= today
     })
   }, [tasks])
 
   const rapidRoundQueue = useMemo(() => {
-    const ranked = filteredPatients
-      .map((patient) => {
+    return filteredPatients
+      .map((p) => {
         let score = 0
-        if (patientsWithCriticals.has(patient.id)) score += 110
-        if (patient.acuity <= 2) score += 80
-        if (patient.state === 'unstable') score += 60
-        score += Math.min((patientTaskCounts[patient.id] || 0) * 6, 24)
-        return { patient, score }
+        if (patientsWithCriticals.has(p.id)) score += 110
+        if (p.acuity <= 2) score += 80
+        if (p.state === 'unstable') score += 60
+        score += Math.min((patientTaskCounts[p.id] || 0) * 6, 24)
+        return { patient: p, score }
       })
-      .filter((entry) => entry.score > 0)
+      .filter((e) => e.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
-
-    return ranked.map((entry) => entry.patient)
+      .map((e) => e.patient)
   }, [filteredPatients, patientsWithCriticals, patientTaskCounts])
 
   const toggleWard = useCallback((wardName: string) => {
@@ -416,20 +474,12 @@ export default function WardRoot() {
     openModal('patient-form', {
       patientId: patient.id,
       initialData: {
-        mrn: patient.mrn,
-        firstName: patient.firstName,
-        lastName: patient.lastName,
-        dateOfBirth: patient.dateOfBirth,
-        gender: patient.gender,
-        wardId: patient.wardId,
-        bedNumber: patient.bedNumber,
-        acuity: patient.acuity,
-        primaryDiagnosis: patient.primaryDiagnosis,
-        diagnoses: patient.diagnoses,
-        allergies: patient.allergies,
-        codeStatus: patient.codeStatus,
-        attendingPhysician: patient.attendingPhysician,
-        team: patient.team,
+        mrn: patient.mrn, firstName: patient.firstName, lastName: patient.lastName,
+        dateOfBirth: patient.dateOfBirth, gender: patient.gender,
+        wardId: patient.wardId, bedNumber: patient.bedNumber, acuity: patient.acuity,
+        primaryDiagnosis: patient.primaryDiagnosis, diagnoses: patient.diagnoses,
+        allergies: patient.allergies, codeStatus: patient.codeStatus,
+        attendingPhysician: patient.attendingPhysician, team: patient.team,
       },
     })
   }, [openModal])
@@ -438,35 +488,33 @@ export default function WardRoot() {
     try {
       await deletePatient(patientId)
       triggerHaptic('tap')
-      addToast({ type: 'success', title: 'Patient deleted' })
-    } catch (error) {
-      console.error('Delete patient failed:', error)
-      addToast({
-        type: 'error',
-        title: 'Failed to delete patient',
-        message: 'Check permissions or try again.',
-      })
+      addToast({ type: 'success', title: 'Patient removed' })
+    } catch {
+      addToast({ type: 'error', title: 'Failed to delete patient', message: 'Check permissions or try again.' })
     }
   }, [addToast])
 
+  // ─── Sub-renders ─────────────────────────────────────────────────────────
+
   const renderPatientsSection = () => (
     <div className="space-y-3">
-      <section className="rounded-xl border border-ward-border bg-white p-3 space-y-3">
+      {/* Search + controls */}
+      <div className="card p-3 space-y-3">
         <div className="flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ward-muted" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search by name, MRN, bed, or ward..."
+              placeholder="Name, MRN, bed, ward…"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className="input-field pl-9 pr-8 text-sm"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input-field pl-9 pr-8"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-ward-muted hover:text-ward-text"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-gray-400 hover:text-gray-700"
                 aria-label="Clear"
               >
                 <X className="h-3.5 w-3.5" />
@@ -475,104 +523,90 @@ export default function WardRoot() {
           </div>
 
           <button
-            onClick={() => {
-              triggerHaptic('tap')
-              setShowFilters(!showFilters)
-            }}
+            onClick={() => { triggerHaptic('tap'); setShowFilters(!showFilters) }}
             className={clsx(
-              'p-2.5 rounded-lg border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch',
+              'p-2.5 rounded-xl border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center',
               showFilters
-                ? 'border-primary-300 bg-primary-50 text-primary-600'
-                : 'border-ward-border text-ward-muted hover:bg-gray-50'
+                ? 'border-blue-300 bg-blue-50 text-blue-600'
+                : 'border-gray-200 text-gray-500 hover:bg-gray-50'
             )}
-            aria-label="Toggle filters"
+            aria-label="Filters"
           >
             <Filter className="h-4 w-4" />
           </button>
 
           <button
-            onClick={() => {
-              triggerHaptic('tap')
-              openModal('patient-form')
-            }}
-            className="p-2.5 rounded-lg border border-primary-300 bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch"
+            onClick={() => { triggerHaptic('tap'); openModal('patient-form') }}
+            className="p-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shadow-sm shadow-blue-200"
             aria-label="Add patient"
           >
             <Plus className="h-4 w-4" />
           </button>
-
         </div>
 
+        {/* Sort + Focus */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[170px]">
-            <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ward-muted" />
+          <div className="relative">
+            <ArrowUpDown className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
             <select
               value={patientSort}
-              onChange={(event) => setPatientSort(event.target.value as PatientSort)}
-              className="input-field pl-8 pr-8 py-2 text-xs"
+              onChange={(e) => setPatientSort(e.target.value as PatientSort)}
+              className="input-field-sm pl-8 pr-7 min-w-[160px]"
               aria-label="Sort patients"
             >
-              <option value="acuity">Sort: Acuity first</option>
-              <option value="bed">Sort: Ward and bed</option>
-              <option value="name">Sort: Last name</option>
-              <option value="updated">Sort: Recently updated</option>
+              <option value="acuity">Acuity first</option>
+              <option value="bed">Ward / Bed</option>
+              <option value="name">Last name</option>
+              <option value="updated">Recently updated</option>
             </select>
           </div>
 
-          <div className="relative min-w-[200px]">
-            <select
-              value={patientFocus}
-              onChange={(event) => setPatientFocus(event.target.value as PatientFocus)}
-              className="input-field py-2 text-xs"
-              aria-label="Patient focus"
-            >
-              <option value="all">Focus: All ({focusCounts.all})</option>
-              <option value="critical">Focus: Critical ({focusCounts.critical})</option>
-              <option value="follow_up">Focus: Follow-up ({focusCounts.followUp})</option>
-              <option value="unstable">Focus: Unstable ({focusCounts.unstable})</option>
-              <option value="missing_team">Focus: Missing Team ({focusCounts.missingTeam})</option>
-            </select>
-          </div>
-
+          <select
+            value={patientFocus}
+            onChange={(e) => setPatientFocus(e.target.value as PatientFocus)}
+            className="input-field-sm pr-7 min-w-[160px]"
+            aria-label="Patient focus"
+          >
+            <option value="all">All ({focusCounts.all})</option>
+            <option value="critical">Critical ({focusCounts.critical})</option>
+            <option value="follow_up">Follow-up ({focusCounts.followUp})</option>
+            <option value="unstable">Unstable ({focusCounts.unstable})</option>
+            <option value="missing_team">No team ({focusCounts.missingTeam})</option>
+          </select>
         </div>
 
+        {/* Acuity filter */}
         {showFilters && (
-          <div className="pt-1 max-w-[260px]">
-            <select
-              value={filterAcuity === null ? 'all' : String(filterAcuity)}
-              onChange={(event) => {
-                const value = event.target.value
-                setFilterAcuity(value === 'all' ? null : Number(value))
-              }}
-              className="input-field py-2 text-xs"
-              aria-label="Acuity filter"
-            >
-              <option value="all">Acuity: All</option>
-              <option value="1">{ACUITY_LEVELS[1].label}</option>
-              <option value="2">{ACUITY_LEVELS[2].label}</option>
-              <option value="3">{ACUITY_LEVELS[3].label}</option>
-              <option value="4">{ACUITY_LEVELS[4].label}</option>
-              <option value="5">{ACUITY_LEVELS[5].label}</option>
-            </select>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {[null, 1, 2, 3, 4, 5].map((a) => (
+              <button
+                key={a ?? 'all'}
+                onClick={() => setFilterAcuity(a)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors',
+                  filterAcuity === a
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-700'
+                )}
+              >
+                {a === null ? 'All acuity' : ACUITY_LEVELS[a as keyof typeof ACUITY_LEVELS].label}
+              </button>
+            ))}
           </div>
         )}
-      </section>
+      </div>
 
+      {/* Count + reset */}
       {filteredPatients.length > 0 && (
-        <div className="flex items-center justify-between text-xs text-ward-muted">
+        <div className="flex items-center justify-between text-xs text-gray-500">
           <span>
-            {filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'} across {patientsByWard.length} {patientsByWard.length === 1 ? 'ward' : 'wards'}
-            {(searchQuery || filterAcuity !== null || patientFocus !== 'all') && ' matching filters'}
+            {filteredPatients.length} {filteredPatients.length === 1 ? 'patient' : 'patients'}
+            {(searchQuery || filterAcuity !== null || patientFocus !== 'all') && ' · filtered'}
           </span>
           {(searchQuery || filterAcuity !== null || patientFocus !== 'all') && (
             <button
-              onClick={() => {
-                setSearchQuery('')
-                setFilterAcuity(null)
-                setPatientFocus('all')
-                setShowFilters(false)
-              }}
-              className="text-primary-600 font-medium"
+              onClick={() => { setSearchQuery(''); setFilterAcuity(null); setPatientFocus('all'); setShowFilters(false) }}
+              className="text-blue-600 font-semibold"
             >
               Reset
             </button>
@@ -580,34 +614,25 @@ export default function WardRoot() {
         </div>
       )}
 
+      {/* Empty state */}
       {filteredPatients.length === 0 ? (
-        <div className="text-center py-12 text-ward-muted rounded-xl border border-dashed border-ward-border bg-white">
-          {searchQuery || filterAcuity !== null || patientFocus !== 'all' ? (
+        <div className="text-center py-14 text-gray-400 card">
+          {(searchQuery || filterAcuity !== null || patientFocus !== 'all') ? (
             <>
               <Search className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-medium">No patients match current filters</p>
-              <button
-                onClick={() => {
-                  setSearchQuery('')
-                  setFilterAcuity(null)
-                  setPatientFocus('all')
-                  setShowFilters(false)
-                }}
-                className="text-xs text-primary-600 font-medium mt-1"
-              >
+              <p className="text-sm font-semibold text-gray-600">No patients match</p>
+              <button onClick={() => { setSearchQuery(''); setFilterAcuity(null); setPatientFocus('all') }} className="text-xs text-blue-600 font-semibold mt-1">
                 Clear filters
               </button>
             </>
           ) : (
             <>
-              <Plus className="h-8 w-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-medium">No patients on the ward</p>
+              <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm font-semibold text-gray-600 mb-1">No patients on the ward</p>
+              <p className="text-xs text-gray-400 mb-4">Add your first patient to get started</p>
               <button
-                onClick={() => {
-                  triggerHaptic('tap')
-                  openModal('patient-form')
-                }}
-                className="inline-flex items-center gap-1.5 px-4 py-2 mt-3 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
+                onClick={() => { triggerHaptic('tap'); openModal('patient-form') }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200"
               >
                 <Plus className="h-4 w-4" /> Add Patient
               </button>
@@ -615,36 +640,29 @@ export default function WardRoot() {
           )}
         </div>
       ) : (
+        /* Patient list grouped by ward */
         <div className="space-y-2">
           {patientsByWard.map(([wardName, wardPatients]) => {
             const isCollapsed = collapsedWards.has(wardName)
-            const wardTaskCount = wardPatients.reduce((total, patient) => total + (patientTaskCounts[patient.id] || 0), 0)
-            const wardCriticalCount = wardPatients.filter((patient) => patientsWithCriticals.has(patient.id) || patient.acuity <= 2).length
+            const wardTaskCount = wardPatients.reduce((sum, p) => sum + (patientTaskCounts[p.id] || 0), 0)
+            const wardCriticalCount = wardPatients.filter((p) => patientsWithCriticals.has(p.id) || p.acuity <= 2).length
 
             return (
-              <div key={wardName} className="border border-ward-border rounded-xl overflow-hidden bg-white">
+              <div key={wardName} className="card overflow-hidden">
                 <button
                   onClick={() => toggleWard(wardName)}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors touch"
+                  className="ward-header touch"
                 >
-                  {isCollapsed ? (
-                    <ChevronRight className="h-4 w-4 text-ward-muted flex-shrink-0" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-ward-muted flex-shrink-0" />
-                  )}
-                  <span className="text-sm font-bold text-ward-text">{wardName}</span>
-                  <span className="text-[10px] font-bold bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full">
-                    {wardPatients.length}
-                  </span>
+                  {isCollapsed
+                    ? <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    : <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                  <span className="text-sm font-bold text-gray-800 flex-1 text-left">{wardName}</span>
+                  <span className="badge badge-info">{wardPatients.length}</span>
                   {wardTaskCount > 0 && (
-                    <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                      {wardTaskCount} tasks
-                    </span>
+                    <span className="badge badge-warning">{wardTaskCount} tasks</span>
                   )}
                   {wardCriticalCount > 0 && (
-                    <span className="ml-auto text-[10px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                      {wardCriticalCount} watch
-                    </span>
+                    <span className="badge badge-critical ml-auto">{wardCriticalCount} critical</span>
                   )}
                 </button>
 
@@ -656,10 +674,7 @@ export default function WardRoot() {
                         patient={patient}
                         taskCount={patientTaskCounts[patient.id] || 0}
                         hasCritical={patientsWithCriticals.has(patient.id)}
-                        onTap={() => {
-                          triggerHaptic('tap')
-                          navigate(`/patients/${patient.id}`)
-                        }}
+                        onTap={() => { triggerHaptic('tap'); navigate(`/patients/${patient.id}`) }}
                         onEdit={() => handleEditPatient(patient)}
                         onDelete={() => handleDeletePatient(patient.id)}
                       />
@@ -676,21 +691,19 @@ export default function WardRoot() {
 
   const renderTasksSection = (compact = false) => (
     <div className="space-y-3">
-      <div className="rounded-xl border border-ward-border bg-white p-3 space-y-3">
-        <div className="flex items-center gap-2">
-          <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" /> Operational Task View
-          </h3>
-        </div>
-
-        <div className="max-w-[220px]">
+      <div className="card p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-gray-400" />
+            <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Task View</span>
+          </div>
           <select
             value={taskFocus}
-            onChange={(event) => setTaskFocus(event.target.value as TaskFocus)}
-            className="input-field py-2 text-xs"
+            onChange={(e) => setTaskFocus(e.target.value as TaskFocus)}
+            className="input-field-sm min-w-[150px]"
             aria-label="Task focus"
           >
-            <option value="all">All tasks ({pendingTasks.length})</option>
+            <option value="all">All ({pendingTasks.length})</option>
             <option value="overdue">Overdue ({overdueTasks.length})</option>
             <option value="due_soon">Due Soon ({dueSoonTasks.length})</option>
             <option value="urgent">Urgent ({urgentTasks.length})</option>
@@ -700,9 +713,9 @@ export default function WardRoot() {
 
       <div className="space-y-1.5">
         {focusedTasks.length === 0 ? (
-          <div className="text-center py-8 text-ward-muted rounded-xl border border-ward-border bg-white">
-            <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            <p className="text-sm font-medium">No tasks in this focus view</p>
+          <div className="text-center py-8 text-gray-400 card">
+            <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40 text-emerald-400" />
+            <p className="text-sm font-semibold text-emerald-600">All clear</p>
           </div>
         ) : (
           focusedTasks.slice(0, compact ? 12 : 36).map((task) => (
@@ -719,18 +732,12 @@ export default function WardRoot() {
 
       {!compact && completedToday.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-2 flex items-center gap-1">
+          <p className="section-label mb-2 flex items-center gap-1.5 text-emerald-600">
             <CheckCircle2 className="h-3.5 w-3.5" /> Done Today ({completedToday.length})
-          </h3>
-          <div className="space-y-1">
+          </p>
+          <div className="space-y-1.5">
             {completedToday.slice(0, 12).map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                variant="completed"
-                patientMap={patientById}
-                nowMs={nowMs}
-              />
+              <TaskRow key={task.id} task={task} variant="completed" patientMap={patientById} nowMs={nowMs} />
             ))}
           </div>
         </div>
@@ -740,10 +747,12 @@ export default function WardRoot() {
 
   const renderResultsSection = (compact = false) => (
     <div className="space-y-3">
-      <div className="rounded-xl border border-ward-border bg-white p-3">
-        <h3 className="text-xs font-semibold text-ward-muted uppercase tracking-wider flex items-center gap-1">
-          <FlaskConical className="h-3.5 w-3.5" /> Results Follow-Up
-        </h3>
+      <div className="card p-3 flex items-center gap-2">
+        <FlaskConical className="h-4 w-4 text-gray-400" />
+        <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Critical Labs</span>
+        {criticalValues.length > 0 && (
+          <span className="badge badge-critical ml-auto">{criticalValues.length}</span>
+        )}
       </div>
 
       {criticalValues.length > 0 ? (
@@ -753,22 +762,19 @@ export default function WardRoot() {
             return (
               <button
                 key={`${critical.patientId}-${critical.labName}-${index}`}
-                onClick={() => {
-                  triggerHaptic('tap')
-                  navigate(`/patients/${critical.patientId}`)
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 transition-colors text-left touch"
+                onClick={() => { triggerHaptic('tap'); navigate(`/patients/${critical.patientId}`) }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 transition-colors text-left touch"
               >
                 <div className="h-2.5 w-2.5 rounded-full bg-red-500 flex-shrink-0 animate-pulse" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-red-800 truncate">
+                  <p className="text-sm font-bold text-red-800 truncate">
                     {critical.labName}: {critical.value} {critical.unit}
                   </p>
                   <p className="text-xs text-red-600 truncate">
-                    {patient ? `Bed ${patient.bedNumber} · ${patient.lastName}, ${patient.firstName}` : 'Unknown patient'}
+                    {patient ? `Bed ${patient.bedNumber} · ${patient.lastName}, ${patient.firstName}` : 'Unknown'}
                   </p>
                 </div>
-                <span className="text-[10px] font-bold text-red-600 uppercase px-2 py-0.5 bg-red-100 rounded-full border border-red-200 flex-shrink-0">
+                <span className="badge badge-critical flex-shrink-0">
                   {critical.flag === 'critical_high' ? 'HIGH' : 'LOW'}
                 </span>
               </button>
@@ -776,90 +782,90 @@ export default function WardRoot() {
           })}
         </div>
       ) : (
-        <div className="text-center py-8 text-ward-muted rounded-xl border border-ward-border bg-white">
-          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40 text-green-400" />
-          <p className="text-sm font-medium text-green-600">No critical values</p>
-          <p className="text-xs mt-1">All recent results are within alert thresholds.</p>
+        <div className="text-center py-8 card text-gray-400">
+          <CheckCircle2 className="h-8 w-8 mx-auto mb-2 opacity-40 text-emerald-400" />
+          <p className="text-sm font-semibold text-emerald-600">No critical values</p>
+          <p className="text-xs mt-0.5">All results within alert thresholds</p>
         </div>
       )}
-
     </div>
   )
 
+  // ─── Root render ────────────────────────────────────────────────────────
+
   return (
     <div className="space-y-4 animate-fade-in">
-      <PageHero
-        title="Ward Dashboard"
-        subtitle="Prioritize by risk, move quickly between patient actions, and keep operational flow visible."
-        icon={<Users className="h-5 w-5" />}
-        meta={(
-          <>
-            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white/90 text-gray-700 border border-gray-200">
-              {patients.length} patients
-            </span>
-            {criticalPatients.length > 0 && (
-              <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
-                {criticalPatients.length} critical
-              </span>
-            )}
-            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-              {urgentTasks.length} urgent tasks
-            </span>
-            {overdueTasks.length > 0 && (
-              <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
-                {overdueTasks.length} overdue
-              </span>
-            )}
-          </>
-        )}
-      />
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-        <StatCard icon={<Users className="h-4 w-4" />} label="Census" value={patients.length} color="blue" />
-        <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Critical" value={criticalPatients.length} color={criticalPatients.length > 0 ? 'red' : 'green'} />
-        <StatCard icon={<Clock className="h-4 w-4" />} label="Open Tasks" value={pendingTasks.length} color={pendingTasks.length > 0 ? 'amber' : 'green'} />
-        <StatCard icon={<AlertCircle className="h-4 w-4" />} label="Overdue" value={overdueTasks.length} color={overdueTasks.length > 0 ? 'red' : 'green'} />
-        <StatCard icon={<Activity className="h-4 w-4" />} label="Lab Flags" value={criticalValues.length} color={criticalValues.length > 0 ? 'red' : 'green'} />
+      {/* Page header */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-600" />
+            Ward Dashboard
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {patients.length} patients · {pendingTasks.length} open tasks
+          </p>
+        </div>
+        <button
+          onClick={() => { triggerHaptic('tap'); openModal('patient-form') }}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 shadow-sm shadow-blue-200 flex-shrink-0"
+          title="Add patient (Alt+N)"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Add Patient</span>
+        </button>
       </div>
 
+      {/* Stat tiles */}
+      <div className="grid grid-cols-5 gap-2">
+        <StatTile icon={<Users className="h-4 w-4" />}         label="Census"    value={patients.length}        variant="blue" />
+        <StatTile icon={<AlertTriangle className="h-4 w-4" />} label="Critical"  value={criticalPatients.length} variant={criticalPatients.length > 0 ? 'red' : 'green'} />
+        <StatTile icon={<Clock className="h-4 w-4" />}         label="Tasks"     value={pendingTasks.length}     variant={pendingTasks.length > 0 ? 'amber' : 'green'} />
+        <StatTile icon={<AlertCircle className="h-4 w-4" />}   label="Overdue"   value={overdueTasks.length}     variant={overdueTasks.length > 0 ? 'red' : 'green'} />
+        <StatTile icon={<Activity className="h-4 w-4" />}      label="Lab Flags" value={criticalValues.length}   variant={criticalValues.length > 0 ? 'red' : 'green'} />
+      </div>
+
+      {/* Rapid Round Queue */}
       {rapidRoundQueue.length > 0 && (
-        <section className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-3">
-          <div className="flex items-center justify-between mb-2">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+          <div className="flex items-center justify-between mb-2.5">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-700" />
-              <h2 className="text-sm font-semibold text-amber-800">Rapid Round Queue</h2>
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-bold text-amber-800">Priority Round Queue</span>
             </div>
-            <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-white border border-amber-200 text-amber-700">
-              {rapidRoundQueue.length} prioritized
-            </span>
+            <span className="badge badge-warning">{rapidRoundQueue.length}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {rapidRoundQueue.map((patient) => (
               <button
                 key={patient.id}
                 onClick={() => navigate(`/patients/${patient.id}`)}
-                className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-left hover:bg-amber-50 transition-colors"
+                className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl bg-white border border-amber-200 hover:bg-amber-50 transition-colors text-left"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-amber-900 truncate">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-amber-900 truncate">
                     Bed {patient.bedNumber || '?'} · {patient.lastName}, {patient.firstName}
                   </p>
-                  <ChevronRight className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  <p className="text-xs text-amber-700 truncate">
+                    {patient.primaryDiagnosis || 'No diagnosis documented'}
+                  </p>
                 </div>
-                <p className="text-xs text-amber-700 truncate">
-                  {patient.primaryDiagnosis || 'No diagnosis documented'}
-                </p>
+                <ChevronRight className="h-4 w-4 text-amber-400 flex-shrink-0" />
               </button>
             ))}
           </div>
-        </section>
+        </div>
       )}
 
+      {/* Critical values banner */}
       {criticalValues.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 animate-fade-in">
-          <div className="flex items-center gap-2 mb-1.5">
+        <div className="card-critical p-3 animate-fade-in">
+          <div className="flex items-center gap-2 mb-2">
             <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-            <span className="text-xs font-bold text-red-700 uppercase tracking-wider">Critical Values ({criticalValues.length})</span>
+            <span className="text-xs font-bold text-red-700 uppercase tracking-wider">
+              Critical Lab Values ({criticalValues.length})
+            </span>
           </div>
           <div className="space-y-1">
             {criticalValues.slice(0, 5).map((critical, index) => {
@@ -868,44 +874,55 @@ export default function WardRoot() {
                 <button
                   key={`${critical.patientId}-${critical.labName}-${index}`}
                   onClick={() => navigate(`/patients/${critical.patientId}`)}
-                  className="w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-red-100 transition-colors text-xs"
+                  className="w-full text-left flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-red-100 transition-colors text-xs"
                 >
-                  <span className="font-bold text-red-700 w-12 flex-shrink-0">Bed {patient?.bedNumber || '?'}</span>
-                  <span className="text-red-800 font-medium truncate">{patient?.lastName}, {patient?.firstName}</span>
-                  <span className="text-red-600 ml-auto flex-shrink-0 font-mono">{critical.labName}: {critical.value} {critical.unit}</span>
+                  <span className="font-bold text-red-700 w-16 flex-shrink-0 font-mono">
+                    Bed {patient?.bedNumber || '?'}
+                  </span>
+                  <span className="text-red-800 font-semibold truncate">
+                    {patient?.lastName}, {patient?.firstName}
+                  </span>
+                  <span className="text-red-600 ml-auto flex-shrink-0 font-mono font-semibold">
+                    {critical.labName}: {critical.value} {critical.unit}
+                  </span>
                 </button>
               )
             })}
             {criticalValues.length > 5 && (
-              <p className="text-[10px] text-red-500 text-center pt-1">+{criticalValues.length - 5} more</p>
+              <p className="text-[10px] text-red-500 text-center pt-0.5">
+                +{criticalValues.length - 5} more critical values
+              </p>
             )}
           </div>
         </div>
       )}
 
+      {/* Mobile tab switcher */}
       {isMobile ? (
         <>
-          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
             {([
               { id: 'patients' as const, label: 'Patients', count: filteredPatients.length },
-              { id: 'tasks' as const, label: 'Tasks', count: pendingTasks.length },
-              { id: 'results' as const, label: 'Results', count: criticalValues.length },
+              { id: 'tasks'    as const, label: 'Tasks',    count: pendingTasks.length },
+              { id: 'results'  as const, label: 'Results',  count: criticalValues.length },
             ]).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => {
-                  triggerHaptic('tap')
-                  setActiveSection(tab.id)
-                }}
+                onClick={() => { triggerHaptic('tap'); setActiveSection(tab.id) }}
                 className={clsx(
-                  'flex-1 py-2 px-3 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors touch',
-                  activeSection === tab.id ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  'flex-1 py-2 px-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors touch',
+                  activeSection === tab.id
+                    ? 'bg-white text-blue-700 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
                 )}
               >
                 {tab.label}
                 {tab.count > 0 && (
-                  <span className={clsx('ml-1.5 text-[10px] font-bold', tab.id === 'results' && criticalValues.length > 0 ? 'text-red-500' : 'opacity-70')}>
-                    ({tab.count})
+                  <span className={clsx(
+                    'ml-1 font-bold',
+                    tab.id === 'results' && tab.count > 0 ? 'text-red-500' : 'opacity-60'
+                  )}>
+                    {tab.count}
                   </span>
                 )}
               </button>
@@ -913,10 +930,11 @@ export default function WardRoot() {
           </div>
 
           {activeSection === 'patients' && renderPatientsSection()}
-          {activeSection === 'tasks' && renderTasksSection(false)}
-          {activeSection === 'results' && renderResultsSection(false)}
+          {activeSection === 'tasks'    && renderTasksSection(false)}
+          {activeSection === 'results'  && renderResultsSection(false)}
         </>
       ) : (
+        /* Desktop: 8/4 split */
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
           <div className="xl:col-span-8">{renderPatientsSection()}</div>
           <div className="xl:col-span-4 space-y-4 xl:sticky xl:top-4 self-start">
@@ -926,141 +944,5 @@ export default function WardRoot() {
         </div>
       )}
     </div>
-  )
-}
-
-function StatCard({ icon, label, value, sub, color }: { icon: React.ReactNode; label: string; value: number; sub?: string; color: 'blue' | 'red' | 'amber' | 'green' }) {
-  const colors = {
-    blue: 'bg-blue-50 text-blue-700',
-    red: 'bg-red-50 text-red-700',
-    amber: 'bg-amber-50 text-amber-700',
-    green: 'bg-green-50 text-green-700',
-  }
-
-  return (
-    <div className={clsx('rounded-xl p-2.5 text-center', colors[color])}>
-      <div className="flex items-center justify-center mb-1 opacity-70">{icon}</div>
-      <p className="text-lg font-bold font-mono leading-none">
-        {value}
-        {sub && <span className="text-xs opacity-60">{sub}</span>}
-      </p>
-      <p className="text-[10px] font-medium uppercase tracking-wider mt-0.5 opacity-70">{label}</p>
-    </div>
-  )
-}
-
-function WardPatientRow({ patient, taskCount, hasCritical, onTap, onEdit, onDelete }: { patient: Patient; taskCount: number; hasCritical: boolean; onTap: () => void; onEdit: () => void; onDelete: () => void }) {
-  const [confirming, setConfirming] = useState(false)
-  const acuityColor = patient.acuity <= 2 ? 'bg-red-500' : patient.acuity === 3 ? 'bg-yellow-500' : 'bg-green-500'
-  const stateClass = STATE_STYLES[patient.state] || STATE_STYLES.active
-
-  const rightActions = confirming
-    ? [
-      { label: 'Cancel', icon: <X className="h-4 w-4" />, color: 'bg-gray-500', onClick: () => setConfirming(false) },
-      { label: 'Confirm', icon: <Trash2 className="h-4 w-4" />, color: 'bg-red-600', onClick: () => { onDelete(); setConfirming(false) } },
-    ]
-    : [
-      { label: 'Edit', icon: <Edit className="h-4 w-4" />, color: 'bg-blue-500', onClick: onEdit },
-      { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, color: 'bg-red-500', onClick: () => setConfirming(true) },
-    ]
-
-  return (
-    <SwipeableRow rightActions={rightActions}>
-      <button onClick={onTap} className={clsx('w-full flex items-center gap-3 p-3 bg-white hover:bg-gray-50 transition-all text-left touch', hasCritical && 'bg-red-50/30')}>
-        <div className={clsx('h-2.5 w-2.5 rounded-full flex-shrink-0', acuityColor)} />
-        <div className="w-10 text-xs font-mono font-bold text-ward-text flex-shrink-0">{patient.bedNumber || '—'}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="text-sm font-semibold text-ward-text truncate">
-              {patient.lastName?.toUpperCase()}
-              {patient.firstName && `, ${patient.firstName}`}
-            </p>
-            <span className={clsx('px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase', stateClass)}>
-              {patient.state || 'active'}
-            </span>
-            {hasCritical && <AlertTriangle className="h-3 w-3 text-red-500 flex-shrink-0" />}
-          </div>
-          <p className="text-xs text-ward-muted truncate">{patient.primaryDiagnosis || 'No diagnosis'}</p>
-          <p className="text-[11px] text-ward-muted truncate">
-            {patient.team || 'No team'}{patient.attendingPhysician ? ` · Dr. ${patient.attendingPhysician}` : ' · Attending not set'}
-          </p>
-          {patient.allergies && patient.allergies.length > 0 && (
-            <p className="text-[10px] text-red-600 font-medium truncate">Allergy: {patient.allergies.join(', ')}</p>
-          )}
-        </div>
-        {patient.codeStatus && patient.codeStatus !== 'full' && (
-          <span className="flex-shrink-0 px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold uppercase">
-            {patient.codeStatus}
-          </span>
-        )}
-        {taskCount > 0 && (
-          <span className="flex-shrink-0 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold">
-            {taskCount}
-          </span>
-        )}
-        <ChevronRight className="h-4 w-4 text-ward-muted flex-shrink-0" />
-      </button>
-    </SwipeableRow>
-  )
-}
-
-function TaskRow({
-  task,
-  variant,
-  patientMap,
-  nowMs,
-}: {
-  task: Task
-  variant: 'urgent' | 'normal' | 'completed'
-  patientMap: Map<string, Patient>
-  nowMs: number
-}) {
-  const navigate = useNavigate()
-  const patient = patientMap.get(task.patientId)
-  const dueMeta = getTaskDueMeta(task, nowMs)
-  const priorityColors: Record<string, string> = {
-    critical: 'bg-red-500',
-    high: 'bg-orange-500',
-    medium: 'bg-yellow-500',
-    low: 'bg-green-500',
-  }
-
-  return (
-    <button
-      onClick={() => {
-        triggerHaptic('tap')
-        if (task.patientId) navigate(`/patients/${task.patientId}`)
-      }}
-      className={clsx(
-        'w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left touch',
-        variant === 'urgent'
-          ? 'bg-red-50 border-red-200 hover:bg-red-100'
-          : variant === 'completed'
-            ? 'bg-gray-50 border-gray-200 opacity-70'
-            : 'bg-white border-ward-border hover:bg-gray-50'
-      )}
-    >
-      <div className={clsx('h-2 w-2 rounded-full flex-shrink-0', variant === 'completed' ? 'bg-green-500' : priorityColors[task.priority] || 'bg-gray-400')} />
-      <div className="flex-1 min-w-0">
-        <p className={clsx('text-sm font-medium truncate', variant === 'completed' ? 'text-gray-500 line-through' : 'text-ward-text')}>
-          {task.title}
-        </p>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-          <p className="text-ward-muted truncate">
-            {patient ? `Bed ${patient.bedNumber} · ${patient.lastName}, ${patient.firstName}` : task.patientName || 'Unassigned'}
-          </p>
-          {dueMeta.dueLabel && (
-            <span className={clsx('font-medium', dueMeta.isOverdue ? 'text-red-600' : dueMeta.isDueSoon ? 'text-amber-700' : 'text-ward-muted')}>
-              {dueMeta.isOverdue ? `Overdue ${dueMeta.dueLabel}` : dueMeta.dueLabel}
-            </span>
-          )}
-        </div>
-      </div>
-      {variant !== 'completed' && (
-        <span className={clsx('text-[10px] font-bold uppercase px-2 py-0.5 rounded-full flex-shrink-0', task.priority === 'critical' ? 'bg-red-100 text-red-700' : task.priority === 'high' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600')}>
-          {task.priority}
-        </span>
-      )}
-    </button>
   )
 }
