@@ -11,13 +11,12 @@ import {
   Beaker,
   Phone,
   ArrowRight,
-  Activity,
   Stethoscope,
   LayoutDashboard,
 } from 'lucide-react';
 import { usePatientStore } from '@/stores/patientStore';
 import { useTaskStore } from '@/stores/taskStore';
-import { useModeContext } from '@/context/ModeContext';
+import { useModeContext } from '@/context/useModeContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';

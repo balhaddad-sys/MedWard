@@ -13,7 +13,7 @@ import {
   Stethoscope,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useModeContext } from '@/context/ModeContext'
+import { useModeContext } from '@/context/useModeContext'
 import { useAuthStore } from '@/stores/authStore'
 import type { ClinicalMode } from '@/config/modes'
 

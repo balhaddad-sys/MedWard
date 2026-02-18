@@ -33,7 +33,6 @@ import { STATE_METADATA } from '@/types/patientState';
 import type { Patient, PatientFormData } from '@/types/patient';
 import type { PatientHistory } from '@/types/history';
 import type { LabPanel, LabFlag } from '@/types/lab';
-import type { Task } from '@/types/task';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';

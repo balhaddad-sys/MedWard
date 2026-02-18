@@ -6,7 +6,6 @@ import {
   Beaker,
   Monitor,
   Info,
-  Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -16,7 +15,6 @@ import { APP_NAME, APP_VERSION } from '@/config/constants';
 import { RELEASE_STAGE } from '@/config/release';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Select } from '@/components/ui/Input';
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);

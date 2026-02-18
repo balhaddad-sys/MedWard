@@ -1,23 +1,16 @@
 import {
-  createContext,
-  useContext,
   useState,
   useCallback,
   useMemo,
 } from 'react'
 import type { ReactNode } from 'react'
 import { MODES } from '@/config/modes'
-import type { ClinicalMode, ModeConfig } from '@/config/modes'
+import type { ClinicalMode } from '@/config/modes'
+import { ModeContext } from './modeContextDef'
 
 // ---------------------------------------------------------------------------
-// Context shape
+// Persistence helpers
 // ---------------------------------------------------------------------------
-
-interface ModeContextValue {
-  mode: ClinicalMode
-  setMode: (mode: ClinicalMode) => void
-  modeConfig: ModeConfig
-}
 
 const STORAGE_KEY = 'medward:clinical-mode'
 
@@ -34,12 +27,6 @@ function readPersistedMode(): ClinicalMode {
   }
   return DEFAULT_MODE
 }
-
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
-
-const ModeContext = createContext<ModeContextValue | null>(null)
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -63,22 +50,10 @@ export function ModeProvider({ children }: ModeProviderProps) {
 
   const modeConfig = useMemo(() => MODES[mode], [mode])
 
-  const value = useMemo<ModeContextValue>(
+  const value = useMemo(
     () => ({ mode, setMode, modeConfig }),
     [mode, setMode, modeConfig],
   )
 
   return <ModeContext.Provider value={value}>{children}</ModeContext.Provider>
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-export function useModeContext(): ModeContextValue {
-  const ctx = useContext(ModeContext)
-  if (!ctx) {
-    throw new Error('useModeContext must be used within a <ModeProvider>')
-  }
-  return ctx
 }

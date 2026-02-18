@@ -10,7 +10,7 @@ import {
   FileText,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useModeContext } from '@/context/ModeContext'
+import { useModeContext } from '@/context/useModeContext'
 import type { ClinicalMode } from '@/config/modes'
 
 // ---------------------------------------------------------------------------

@@ -1,14 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { clsx } from 'clsx';
 import {
   Beaker,
   Upload,
-  Image,
   X,
   AlertTriangle,
-  CheckCircle2,
-  Loader2,
-  ChevronDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
@@ -32,7 +28,7 @@ export default function LabAnalysisPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [, setUploadedImageUrl] = useState<string | null>(null);
   const [extractedResults, setExtractedResults] = useState<LabPanel | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [patientLabs, setPatientLabs] = useState<LabPanel[]>([]);
@@ -135,7 +131,7 @@ export default function LabAnalysisPage() {
       };
 
       setUploadProgress(80);
-      const panelId = await addLabPanel(selectedPatientId, mockPanel);
+      await addLabPanel(selectedPatientId, mockPanel);
       setUploadProgress(100);
 
       // Refresh labs list

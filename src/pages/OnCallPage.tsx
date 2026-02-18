@@ -3,12 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { clsx } from 'clsx';
 import {
   Phone,
-  AlertTriangle,
   Clock,
-  User,
   Flag,
   ChevronRight,
-  ArrowUpDown,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { subscribeToOnCallList } from '@/services/firebase/onCallList';

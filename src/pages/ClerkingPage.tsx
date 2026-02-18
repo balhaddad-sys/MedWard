@@ -1,13 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { clsx } from 'clsx';
 import {
   FileText,
-  Check,
   ChevronDown,
   ChevronUp,
   Save,
   Pen,
-  AlertCircle,
   Activity,
   Beaker,
   ClipboardList,
@@ -21,12 +19,10 @@ import {
   updateClerkingNote,
   signClerkingNote,
 } from '@/services/firebase/clerkingNotes';
-import type { ClerkingNote, HistoryData, ExaminationData, PlanData, SafetyChecklist, SectionStatus } from '@/types/clerking';
+import type { HistoryData, SectionStatus } from '@/types/clerking';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Input, Textarea, Select } from '@/components/ui/Input';
-import { Spinner } from '@/components/ui/Spinner';
 
 type StepKey = 'history' | 'examination' | 'investigations' | 'assessment' | 'plan' | 'safety';
 
@@ -772,7 +768,7 @@ interface CollapsibleSectionProps {
 
 function CollapsibleSection({
   title,
-  stepKey,
+  stepKey: _stepKey,
   icon: Icon,
   status,
   expanded,

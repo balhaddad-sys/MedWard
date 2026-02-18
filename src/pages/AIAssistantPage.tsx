@@ -9,13 +9,11 @@ import {
   Pill,
   Beaker,
   Loader2,
-  ChevronDown,
 } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 
@@ -33,7 +31,7 @@ const quickPrompts = [
 ];
 
 export default function AIAssistantPage() {
-  const user = useAuthStore((s) => s.user);
+  const _user = useAuthStore((s) => s.user);
   const patients = usePatientStore((s) => s.patients);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
