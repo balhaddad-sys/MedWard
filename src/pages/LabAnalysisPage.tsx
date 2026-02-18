@@ -255,14 +255,15 @@ export default function LabAnalysisPage() {
           panelName = panels.map((p) => p.panel_name).join(', ');
           for (const panel of panels) {
             for (const r of panel.results || []) {
-              labValues.push({
+              const labVal: LabValue = {
                 name: r.test_name,
                 value: r.value_raw || String(r.value ?? ''),
                 unit: r.unit || '',
-                referenceMin: r.ref_low ?? undefined,
-                referenceMax: r.ref_high ?? undefined,
                 flag: (r.flag as LabFlag) || 'normal',
-              });
+              };
+              if (r.ref_low != null) labVal.referenceMin = r.ref_low;
+              if (r.ref_high != null) labVal.referenceMax = r.ref_high;
+              labValues.push(labVal);
             }
           }
         }
@@ -348,21 +349,21 @@ export default function LabAnalysisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20 sm:pb-6">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center gap-3">
-            <Beaker size={24} className="text-gray-400" />
-            <h1 className="text-2xl font-bold text-gray-900">Lab Analysis</h1>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center gap-2">
+            <Beaker size={20} className="text-gray-400" />
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Lab Analysis</h1>
           </div>
-          <p className="mt-1 text-sm text-gray-500">
-            Upload lab images for AI-powered extraction and analysis
+          <p className="mt-0.5 text-xs sm:text-sm text-gray-500">
+            Upload lab images for AI-powered extraction
           </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Patient selector */}
         <Card padding="md">
           <Select
@@ -445,34 +446,36 @@ export default function LabAnalysisPage() {
                 ))}
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    {files.length} image{files.length > 1 ? 's' : ''} selected
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {(files.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB total
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {files.length} image{files.length > 1 ? 's' : ''} selected
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {(files.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB total
+                    </p>
                     {compressionInfo && (
-                      <span className="ml-2 text-emerald-600">
+                      <p className="text-xs text-emerald-600 mt-0.5">
                         <ImageDown size={10} className="inline mr-0.5" />
                         {compressionInfo}
-                      </span>
+                      </p>
                     )}
-                  </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); clearFiles(); }}
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    Clear all
+                  </button>
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); clearFiles(); }}
-                  className="text-gray-500"
-                >
-                  Clear all
-                </Button>
                 <Button
                   onClick={handleUpload}
                   loading={uploading}
                   disabled={!selectedPatientId}
                   iconLeft={!uploading ? <Upload size={16} /> : undefined}
+                  className="w-full"
                 >
                   {uploading ? 'Analyzing...' : `Upload & Analyze${files.length > 1 ? ` (${files.length})` : ''}`}
                 </Button>
