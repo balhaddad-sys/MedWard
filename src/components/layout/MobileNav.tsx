@@ -13,9 +13,11 @@ import {
   Settings,
   X,
   Repeat,
+  LayoutDashboard,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useModeContext } from '@/context/useModeContext'
+import { useTaskStore } from '@/stores/taskStore'
 import type { ClinicalMode } from '@/config/modes'
 import { useState } from 'react'
 
@@ -31,22 +33,22 @@ interface MobileNavItem {
 
 const MOBILE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
+    { to: '/', label: 'Home', icon: LayoutDashboard },
     { to: '/patients', label: 'Patients', icon: Users },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
-    { to: '/labs', label: 'Labs', icon: FlaskConical },
   ],
   acute: [
+    { to: '/', label: 'Home', icon: LayoutDashboard },
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/shift', label: 'Shift', icon: Activity },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
-    { to: '/labs', label: 'Labs', icon: FlaskConical },
   ],
   clerking: [
+    { to: '/', label: 'Home', icon: LayoutDashboard },
     { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
-    { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
   ],
 }
 
@@ -54,6 +56,7 @@ const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
     { to: '/ai', label: 'AI Assistant', icon: Bot },
     { to: '/drugs', label: 'Drug Info', icon: Pill },
+    { to: '/labs', label: 'Labs', icon: FlaskConical },
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/settings', label: 'Settings', icon: Settings },
     { to: '/mode', label: 'Change Mode', icon: Repeat },
@@ -85,8 +88,19 @@ export default function MobileNav() {
   const [showMore, setShowMore] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const tasks = useTaskStore((s) => s.tasks)
 
   const isMoreActive = moreItems.some((item) => location.pathname.startsWith(item.to))
+
+  // Count overdue tasks for badge
+  const overdueTaskCount = tasks.filter((t) => {
+    if (t.status === 'completed' || t.status === 'cancelled') return false
+    if (!t.dueAt) return false
+    const due = typeof t.dueAt === 'object' && 'toDate' in t.dueAt
+      ? (t.dueAt as { toDate: () => Date }).toDate()
+      : new Date(t.dueAt as unknown as string)
+    return due < new Date()
+  }).length
 
   return (
     <>
@@ -145,6 +159,7 @@ export default function MobileNav() {
             <NavLink
               key={to}
               to={to}
+              end={to === '/'}
               className={({ isActive }) =>
                 [
                   'flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium transition-colors duration-150',
@@ -156,13 +171,19 @@ export default function MobileNav() {
             >
               {({ isActive }) => (
                 <>
-                  <Icon
-                    size={22}
-                    strokeWidth={isActive ? 2.25 : 1.75}
-                    className={
-                      isActive ? 'text-primary-600' : 'text-slate-400'
-                    }
-                  />
+                  <div className="relative">
+                    <Icon
+                      size={22}
+                      strokeWidth={isActive ? 2.25 : 1.75}
+                      className={isActive ? 'text-primary-600' : 'text-slate-400'}
+                    />
+                    {/* Overdue task badge */}
+                    {to === '/tasks' && overdueTaskCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white px-0.5">
+                        {overdueTaskCount > 9 ? '9+' : overdueTaskCount}
+                      </span>
+                    )}
+                  </div>
                   <span>{label}</span>
                 </>
               )}
