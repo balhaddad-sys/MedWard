@@ -100,8 +100,8 @@ export default function LabAnalysisPage() {
   const patients = usePatientStore((s) => s.patients);
 
   const [selectedPatientId, setSelectedPatientId] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadStep, setUploadStep] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -127,31 +127,40 @@ export default function LabAnalysisPage() {
       .finally(() => setLabsLoading(false));
   }, [selectedPatientId]);
 
-  const handleFileSelect = useCallback((selectedFile: File) => {
-    if (!selectedFile.type.startsWith('image/')) {
-      setUploadError('Please select an image file (JPG, PNG, etc.)');
-      return;
+  const handleFileSelect = useCallback((selectedFiles: File[]) => {
+    const validFiles: File[] = [];
+    for (const f of selectedFiles) {
+      if (!f.type.startsWith('image/')) {
+        setUploadError('Some files were skipped — only image files (JPG, PNG) are supported.');
+        continue;
+      }
+      if (f.size > 20 * 1024 * 1024) {
+        setUploadError('Some files were skipped — max 20MB per image.');
+        continue;
+      }
+      validFiles.push(f);
     }
-    if (selectedFile.size > 20 * 1024 * 1024) {
-      setUploadError('File size must be less than 20MB');
-      return;
-    }
-    setFile(selectedFile);
+    if (validFiles.length === 0) return;
+
+    setFiles((prev) => [...prev, ...validFiles]);
     setUploadError(null);
     setExtractedResults(null);
     setAiAnalysis(null);
     setCompressionInfo(null);
 
-    const reader = new FileReader();
-    reader.onload = (e) => setPreview(e.target?.result as string);
-    reader.readAsDataURL(selectedFile);
+    for (const f of validFiles) {
+      const reader = new FileReader();
+      reader.onload = (e) =>
+        setPreviews((prev) => [...prev, e.target?.result as string]);
+      reader.readAsDataURL(f);
+    }
   }, []);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) handleFileSelect(droppedFile);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) handleFileSelect(droppedFiles);
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -164,9 +173,9 @@ export default function LabAnalysisPage() {
     setDragOver(false);
   }
 
-  function clearFile() {
-    setFile(null);
-    setPreview(null);
+  function clearFiles() {
+    setFiles([]);
+    setPreviews([]);
     setExtractedResults(null);
     setAiAnalysis(null);
     setUploadError(null);
@@ -174,113 +183,142 @@ export default function LabAnalysisPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setPreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function handleUpload() {
-    if (!file || !user || !selectedPatientId) return;
+    if (files.length === 0 || !user || !selectedPatientId) return;
 
     setUploading(true);
     setUploadProgress(0);
     setUploadError(null);
     setCompressionInfo(null);
 
+    const totalFiles = files.length;
+    let allLabValues: LabValue[] = [];
+    let allPanelNames: string[] = [];
+    let lastLabPanel: (Omit<LabPanel, 'id' | 'createdAt'>) | null = null;
+
     try {
-      // Step 1: Compress image
-      setUploadStep('Compressing image...');
-      setUploadProgress(10);
-      const { blob: compressedBlob, base64, originalKB, compressedKB } = await compressImage(file);
-      const savings = originalKB > compressedKB
-        ? `${originalKB} KB → ${compressedKB} KB (${Math.round((1 - compressedKB / originalKB) * 100)}% smaller)`
-        : `${originalKB} KB (no compression needed)`;
-      setCompressionInfo(savings);
-      setUploadProgress(25);
+      const { Timestamp } = await import('firebase/firestore');
+      const now = Timestamp.fromDate(new Date());
 
-      // Step 2: Upload compressed image to Firebase Storage
-      setUploadStep('Uploading to storage...');
-      const imageUrl = await uploadLabImage(user.id, compressedBlob, file.name);
-      setUploadProgress(45);
-
-      // Step 3: Call AI extraction
-      setUploadStep('AI extracting lab values...');
-      setUploadProgress(55);
-
-      const analyzeLabImage = httpsCallable<
+      const analyzeLabImageFn = httpsCallable<
         { imageBase64: string; mediaType: string },
         { content?: string; structured?: unknown; panels?: Array<{ panel_name: string; results: Array<{ test_name: string; value: number | null; value_raw: string; unit: string; ref_low: number | null; ref_high: number | null; flag: string }> }> }
       >(functions, 'analyzeLabImage');
 
-      const aiResult = await analyzeLabImage({
-        imageBase64: base64,
-        mediaType: 'image/jpeg',
-      });
-      setUploadProgress(80);
+      for (let i = 0; i < totalFiles; i++) {
+        const currentFile = files[i];
+        const fileLabel = totalFiles > 1 ? ` (${i + 1}/${totalFiles})` : '';
+        const baseProgress = (i / totalFiles) * 100;
+        const stepSize = 100 / totalFiles;
 
-      // Step 4: Parse AI results into lab panel
-      setUploadStep('Saving results...');
-      const { Timestamp } = await import('firebase/firestore');
-      const now = Timestamp.fromDate(new Date());
+        // Step 1: Compress image
+        setUploadStep(`Compressing${fileLabel}...`);
+        setUploadProgress(Math.round(baseProgress + stepSize * 0.1));
+        const { blob: compressedBlob, base64, originalKB, compressedKB } = await compressImage(currentFile);
+        if (i === totalFiles - 1) {
+          const savings = originalKB > compressedKB
+            ? `${originalKB} KB → ${compressedKB} KB (${Math.round((1 - compressedKB / originalKB) * 100)}% smaller)`
+            : `${originalKB} KB (no compression needed)`;
+          setCompressionInfo(savings);
+        }
 
-      const aiData = aiResult.data;
-      const panels = aiData.panels || (aiData.structured as { panels?: Array<{ panel_name: string; results: Array<{ test_name: string; value: number | null; value_raw: string; unit: string; ref_low: number | null; ref_high: number | null; flag: string }> }> })?.panels || [];
+        // Step 2: Upload compressed image to Firebase Storage
+        setUploadStep(`Uploading${fileLabel}...`);
+        setUploadProgress(Math.round(baseProgress + stepSize * 0.3));
+        const imageUrl = await uploadLabImage(user.id, compressedBlob, currentFile.name);
 
-      const labValues: LabValue[] = [];
-      let panelName = `Lab Upload - ${file.name}`;
+        // Step 3: Call AI extraction
+        setUploadStep(`AI extracting${fileLabel}...`);
+        setUploadProgress(Math.round(baseProgress + stepSize * 0.5));
 
-      if (panels.length > 0) {
-        panelName = panels.map((p) => p.panel_name).join(', ');
-        for (const panel of panels) {
-          for (const r of panel.results || []) {
-            labValues.push({
-              name: r.test_name,
-              value: r.value_raw || String(r.value ?? ''),
-              unit: r.unit || '',
-              referenceMin: r.ref_low ?? undefined,
-              referenceMax: r.ref_high ?? undefined,
-              flag: (r.flag as LabFlag) || 'normal',
-            });
+        const aiResult = await analyzeLabImageFn({
+          imageBase64: base64,
+          mediaType: 'image/jpeg',
+        });
+
+        // Step 4: Parse AI results into lab panel
+        setUploadStep(`Saving${fileLabel}...`);
+        setUploadProgress(Math.round(baseProgress + stepSize * 0.8));
+
+        const aiData = aiResult.data;
+        const panels = aiData.panels || (aiData.structured as { panels?: Array<{ panel_name: string; results: Array<{ test_name: string; value: number | null; value_raw: string; unit: string; ref_low: number | null; ref_high: number | null; flag: string }> }> })?.panels || [];
+
+        const labValues: LabValue[] = [];
+        let panelName = `Lab Upload - ${currentFile.name}`;
+
+        if (panels.length > 0) {
+          panelName = panels.map((p) => p.panel_name).join(', ');
+          for (const panel of panels) {
+            for (const r of panel.results || []) {
+              labValues.push({
+                name: r.test_name,
+                value: r.value_raw || String(r.value ?? ''),
+                unit: r.unit || '',
+                referenceMin: r.ref_low ?? undefined,
+                referenceMax: r.ref_high ?? undefined,
+                flag: (r.flag as LabFlag) || 'normal',
+              });
+            }
           }
         }
+
+        const labPanel: Omit<LabPanel, 'id' | 'createdAt'> = {
+          patientId: selectedPatientId,
+          category: 'MISC',
+          panelName,
+          values: labValues,
+          collectedAt: now,
+          resultedAt: now,
+          orderedBy: user.id,
+          status: labValues.length > 0 ? 'resulted' : 'pending',
+          source: 'image',
+          imageUrl,
+        };
+
+        await addLabPanel(selectedPatientId, labPanel);
+        allLabValues = [...allLabValues, ...labValues];
+        allPanelNames.push(panelName);
+        lastLabPanel = labPanel;
       }
 
-      const labPanel: Omit<LabPanel, 'id' | 'createdAt'> = {
-        patientId: selectedPatientId,
-        category: 'MISC',
-        panelName,
-        values: labValues,
-        collectedAt: now,
-        resultedAt: now,
-        orderedBy: user.id,
-        status: labValues.length > 0 ? 'resulted' : 'pending',
-        source: 'image',
-        imageUrl,
-      };
+      setUploadProgress(100);
+      setUploadStep('Done');
 
-      await addLabPanel(selectedPatientId, labPanel);
-      setUploadProgress(95);
+      // Show combined results
+      if (lastLabPanel) {
+        const combined = {
+          ...lastLabPanel,
+          panelName: allPanelNames.join(' | '),
+          values: allLabValues,
+          id: 'preview',
+          createdAt: now,
+        } as LabPanel;
+        setExtractedResults(combined);
+      }
 
-      // Show results
-      setExtractedResults({ ...labPanel, id: 'preview', createdAt: now } as LabPanel);
-
-      const criticalCount = labValues.filter(
+      const criticalCount = allLabValues.filter(
         (v) => v.flag === 'critical_high' || v.flag === 'critical_low'
       ).length;
-      const abnormalCount = labValues.filter(
+      const abnormalCount = allLabValues.filter(
         (v) => v.flag !== 'normal'
       ).length;
 
-      if (labValues.length > 0) {
+      if (allLabValues.length > 0) {
         setAiAnalysis(
-          `Extracted ${labValues.length} lab values from ${panels.length} panel(s).` +
+          `Extracted ${allLabValues.length} lab values from ${totalFiles} image(s).` +
           (criticalCount > 0 ? ` ${criticalCount} critical value(s) detected!` : '') +
           (abnormalCount > 0 ? ` ${abnormalCount} abnormal value(s) flagged.` : ' All values within normal range.')
         );
       } else {
         setAiAnalysis(
-          aiData.content ||
-          'Image uploaded but no structured lab values could be extracted. The image may need better resolution or different formatting.'
+          'Images uploaded but no structured lab values could be extracted. The images may need better resolution or different formatting.'
         );
       }
-
-      setUploadProgress(100);
-      setUploadStep('Done');
 
       // Refresh labs list
       const updatedLabs = await getLabPanels(selectedPatientId);
@@ -345,60 +383,75 @@ export default function LabAnalysisPage() {
         <Card padding="md">
           <h2 className="text-sm font-semibold text-gray-900 mb-4">Upload Lab Image</h2>
 
-          {!file ? (
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              className={clsx(
-                'border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-colors',
-                dragOver
-                  ? 'border-blue-400 bg-blue-50'
-                  : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50',
-              )}
-            >
-              <Upload size={40} className="mx-auto text-gray-400 mb-3" />
-              <p className="text-sm font-medium text-gray-700">
-                Drag and drop your lab image here
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                or click to browse. Supports JPG, PNG (max 20MB, auto-compressed)
-              </p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) handleFileSelect(f);
-                }}
-                className="hidden"
-              />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Preview */}
-              <div className="relative inline-block">
-                <img
-                  src={preview || ''}
-                  alt="Lab image preview"
-                  className="max-h-64 rounded-lg border border-gray-200"
-                />
-                <button
-                  type="button"
-                  onClick={clearFile}
-                  className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                >
-                  <X size={14} />
-                </button>
+          {/* Drop zone — always visible so user can add more images */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onClick={() => fileInputRef.current?.click()}
+            className={clsx(
+              'border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors',
+              files.length > 0 ? 'p-4' : 'p-8 sm:p-12',
+              dragOver
+                ? 'border-blue-400 bg-blue-50'
+                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50',
+            )}
+          >
+            <Upload size={files.length > 0 ? 20 : 40} className="mx-auto text-gray-400 mb-2" />
+            <p className="text-sm font-medium text-gray-700">
+              {files.length > 0 ? 'Add more images' : 'Drag and drop lab images here'}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {files.length > 0
+                ? 'Click or drag to add additional lab images'
+                : 'or click to browse. Supports JPG, PNG (max 20MB each, auto-compressed)'}
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => {
+                const selected = Array.from(e.target.files || []);
+                if (selected.length > 0) handleFileSelect(selected);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+              }}
+              className="hidden"
+            />
+          </div>
+
+          {/* Image previews */}
+          {files.length > 0 && (
+            <div className="space-y-4 mt-4">
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {previews.map((src, i) => (
+                  <div key={i} className="relative shrink-0">
+                    <img
+                      src={src}
+                      alt={`Lab image ${i + 1}`}
+                      className="h-28 w-auto rounded-lg border border-gray-200 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                    >
+                      <X size={12} />
+                    </button>
+                    <p className="text-[10px] text-gray-500 mt-1 text-center truncate max-w-[100px]">
+                      {files[i]?.name}
+                    </p>
+                  </div>
+                ))}
               </div>
 
               <div className="flex items-center gap-3">
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {files.length} image{files.length > 1 ? 's' : ''} selected
+                  </p>
                   <p className="text-xs text-gray-500">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                    {(files.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB total
                     {compressionInfo && (
                       <span className="ml-2 text-emerald-600">
                         <ImageDown size={10} className="inline mr-0.5" />
@@ -408,12 +461,20 @@ export default function LabAnalysisPage() {
                   </p>
                 </div>
                 <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e: React.MouseEvent) => { e.stopPropagation(); clearFiles(); }}
+                  className="text-gray-500"
+                >
+                  Clear all
+                </Button>
+                <Button
                   onClick={handleUpload}
                   loading={uploading}
                   disabled={!selectedPatientId}
                   iconLeft={!uploading ? <Upload size={16} /> : undefined}
                 >
-                  {uploading ? 'Analyzing...' : 'Upload & Analyze'}
+                  {uploading ? 'Analyzing...' : `Upload & Analyze${files.length > 1 ? ` (${files.length})` : ''}`}
                 </Button>
               </div>
 

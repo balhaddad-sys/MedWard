@@ -389,9 +389,46 @@ function stripCodeFences(text: string): string {
   return s.trim();
 }
 
+/**
+ * Attempt to repair truncated JSON by closing open brackets/braces.
+ */
+function repairTruncatedJson(text: string): string {
+  let s = text.trim();
+  // Remove trailing comma
+  s = s.replace(/,\s*$/, "");
+  // Remove incomplete key-value (e.g. trailing `"key":` or `"key": "incomplete`)
+  s = s.replace(/,?\s*"[^"]*":\s*"?[^"{}[\],]*$/, "");
+  // Count open brackets/braces
+  const stack: string[] = [];
+  let inString = false;
+  let escape = false;
+  for (const ch of s) {
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  // If still in a string, close it
+  if (inString) s += '"';
+  // Close any open brackets/braces
+  while (stack.length > 0) s += stack.pop();
+  return s;
+}
+
 function parseExtractionResponse(raw: string): ExtractionResponse {
   const cleaned = stripCodeFences(raw);
-  const data = JSON.parse(cleaned);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let data: any;
+  try {
+    data = JSON.parse(cleaned);
+  } catch {
+    // Likely truncated — attempt repair
+    const repaired = repairTruncatedJson(cleaned);
+    data = JSON.parse(repaired);
+  }
 
   const patient: PatientInfo = {
     file_number: data.patient?.file_number || "",
@@ -577,7 +614,7 @@ export const analyzeLabImage = onCall(
 
       const response = await client.messages.create({
         model: ANTHROPIC_MODEL,
-        max_tokens: 8192,
+        max_tokens: 16384,
         system: LAB_IMAGE_EXTRACTION_PROMPT,
         messages: [
           {
