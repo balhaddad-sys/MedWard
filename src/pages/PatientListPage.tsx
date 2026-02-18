@@ -381,7 +381,7 @@ export default function PatientListPage() {
               key={patient.id}
               onClick={() => navigate(`/patients/${patient.id}`)}
               className={clsx(
-                'flex items-center gap-3 px-4 py-3 rounded-xl',
+                'flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 rounded-xl',
                 'bg-white border border-gray-200 cursor-pointer',
                 'hover:shadow-sm transition-all duration-150',
                 ACUITY_BORDER[patient.acuity],
@@ -390,7 +390,7 @@ export default function PatientListPage() {
             >
               {/* Acuity number circle */}
               <div className={clsx(
-                'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold',
+                'flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full text-xs sm:text-sm font-bold',
                 patient.acuity === 1 ? 'bg-red-100 text-red-700' :
                 patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
                 patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
@@ -401,43 +401,53 @@ export default function PatientListPage() {
               </div>
 
               {/* Bed badge */}
-              <div className="flex h-9 w-14 shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200">
+              <div className="flex h-8 w-11 sm:h-9 sm:w-14 shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200">
                 <div className="text-center">
-                  <BedDouble size={11} className="mx-auto text-slate-400" />
-                  <p className="text-xs font-bold text-slate-700 leading-none">{patient.bedNumber}</p>
+                  <BedDouble size={11} className="mx-auto text-slate-400 hidden sm:block" />
+                  <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-none">{patient.bedNumber}</p>
                 </div>
               </div>
 
               {/* Patient info */}
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-gray-900">
+                <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                  <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate max-w-[120px] sm:max-w-none">
                     {patient.lastName}, {patient.firstName}
                   </p>
                   {patient.dateOfBirth && (
-                    <span className="text-xs text-gray-400 shrink-0">{calculateAge(patient.dateOfBirth)}</span>
+                    <span className="text-[10px] sm:text-xs text-gray-400 shrink-0">{calculateAge(patient.dateOfBirth)}</span>
                   )}
                   {patient.gender && (
-                    <span className="text-xs text-gray-400">{patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}</span>
+                    <span className="text-[10px] sm:text-xs text-gray-400">{patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}</span>
                   )}
-                  {patient.state && (
+                  {patient.allergies && patient.allergies.length > 0 && (
+                    <div title={`Allergies: ${patient.allergies.join(', ')}`} className="sm:hidden">
+                      <ShieldAlert size={12} className="text-red-500" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <p className="text-[10px] sm:text-xs text-gray-500 truncate">
+                    MR{patient.mrn}
+                    {' · '}
+                    {patient.primaryDiagnosis}
+                  </p>
+                </div>
+                {/* State badge on mobile - shown inline */}
+                {patient.state && (
+                  <div className="mt-1 sm:hidden">
                     <Badge variant={getStateVariant(patient.state)} size="sm">
                       {STATE_METADATA[patient.state]?.label || patient.state}
                     </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-0.5 truncate">
-                  MRN: <span className="font-medium">{patient.mrn}</span>
-                  {' '}·{' '}
-                  {patient.primaryDiagnosis}
-                </p>
+                  </div>
+                )}
               </div>
 
               {/* Right side: code status + acuity badge */}
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Allergy indicator */}
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                {/* Allergy indicator - desktop only (shown inline on mobile) */}
                 {patient.allergies && patient.allergies.length > 0 && (
-                  <div title={`Allergies: ${patient.allergies.join(', ')}`}>
+                  <div title={`Allergies: ${patient.allergies.join(', ')}`} className="hidden sm:block">
                     <ShieldAlert size={14} className="text-red-500" />
                   </div>
                 )}
@@ -445,7 +455,7 @@ export default function PatientListPage() {
                 {/* DNR/DNAR code status */}
                 {patient.codeStatus && patient.codeStatus !== 'full' && (
                   <span className={clsx(
-                    'text-[10px] font-bold px-1.5 py-0.5 rounded border',
+                    'text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded border',
                     patient.codeStatus === 'comfort'
                       ? 'text-purple-700 bg-purple-50 border-purple-200'
                       : 'text-red-700 bg-red-50 border-red-200',
@@ -454,11 +464,20 @@ export default function PatientListPage() {
                   </span>
                 )}
 
+                {/* State badge - desktop only */}
+                {patient.state && (
+                  <span className="hidden sm:inline-flex">
+                    <Badge variant={getStateVariant(patient.state)} size="sm">
+                      {STATE_METADATA[patient.state]?.label || patient.state}
+                    </Badge>
+                  </span>
+                )}
+
                 <Badge variant={getAcuityVariant(patient.acuity)} size="sm">
                   {ACUITY_LEVELS[patient.acuity].label}
                 </Badge>
 
-                <ArrowRight size={14} className="text-gray-400" />
+                <ArrowRight size={14} className="text-gray-400 hidden sm:block" />
               </div>
             </div>
           ))}

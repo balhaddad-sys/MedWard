@@ -7,25 +7,12 @@ import {
   AlertTriangle,
   Clock,
   ChevronRight,
-  Info,
 } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-
-interface DrugInfo {
-  name: string;
-  genericName?: string;
-  indication: string;
-  dosing: string;
-  sideEffects: string;
-  interactions: string;
-  contraindications: string;
-  pharmacology?: string;
-  monitoring?: string;
-}
 
 const RECENT_SEARCHES_KEY = 'medward:recent-drug-searches';
 const MAX_RECENT_SEARCHES = 10;
@@ -60,11 +47,106 @@ function clearRecentSearches() {
   }
 }
 
+/** Render a simple markdown subset (headers, bold, bullets, hr) */
+function renderMarkdown(text: string) {
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Horizontal rule
+    if (/^---+$/.test(line.trim())) {
+      elements.push(<hr key={key++} className="my-3 border-gray-200" />);
+      continue;
+    }
+
+    // H2 header
+    if (line.startsWith('## ')) {
+      elements.push(
+        <h2 key={key++} className="text-lg font-bold text-gray-900 mt-4 mb-1">
+          {formatInline(line.slice(3))}
+        </h2>
+      );
+      continue;
+    }
+
+    // H3 header
+    if (line.startsWith('### ')) {
+      elements.push(
+        <h3 key={key++} className="text-sm font-semibold text-gray-900 mt-3 mb-1">
+          {formatInline(line.slice(4))}
+        </h3>
+      );
+      continue;
+    }
+
+    // Bullet item
+    if (line.startsWith('- ')) {
+      elements.push(
+        <div key={key++} className="flex gap-2 ml-1 mb-0.5">
+          <span className="text-gray-400 shrink-0 mt-1.5 w-1 h-1 rounded-full bg-gray-400" />
+          <span className="text-sm text-gray-700 leading-relaxed">
+            {formatInline(line.slice(2))}
+          </span>
+        </div>
+      );
+      continue;
+    }
+
+    // Empty line
+    if (!line.trim()) {
+      elements.push(<div key={key++} className="h-1" />);
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(
+      <p key={key++} className="text-sm text-gray-700 leading-relaxed">
+        {formatInline(line)}
+      </p>
+    );
+  }
+
+  return elements;
+}
+
+/** Format inline markdown: **bold** and *italic* */
+function formatInline(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+
+  while (remaining.length > 0) {
+    // Bold: **text**
+    const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+    if (boldMatch && boldMatch.index !== undefined) {
+      if (boldMatch.index > 0) {
+        parts.push(remaining.slice(0, boldMatch.index));
+      }
+      parts.push(
+        <strong key={key++} className="font-semibold text-gray-900">
+          {boldMatch[1]}
+        </strong>
+      );
+      remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
+      continue;
+    }
+    // No more matches
+    parts.push(remaining);
+    break;
+  }
+
+  return parts.length === 1 ? parts[0] : parts;
+}
+
 export default function DrugInfoPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [drugInfo, setDrugInfo] = useState<DrugInfo | null>(null);
+  const [drugResponse, setDrugResponse] = useState<string | null>(null);
+  const [searchedTerm, setSearchedTerm] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches());
 
   async function handleSearch(query?: string) {
@@ -73,36 +155,21 @@ export default function DrugInfoPage() {
 
     setLoading(true);
     setError(null);
-    setDrugInfo(null);
+    setDrugResponse(null);
+    setSearchedTerm(searchTerm);
 
     try {
-      const aiGateway = httpsCallable(functions, 'aiGateway');
+      const aiGateway = httpsCallable<
+        { prompt: string; contextTag: string },
+        { response: string; cacheHit: boolean }
+      >(functions, 'aiGateway');
+
       const result = await aiGateway({
-        type: 'drugInfo',
-        query: searchTerm,
+        prompt: searchTerm,
+        contextTag: 'drug_info',
       });
 
-      const data = result.data as {
-        drug?: DrugInfo;
-        result?: DrugInfo;
-        name?: string;
-        indication?: string;
-        dosing?: string;
-        sideEffects?: string;
-        interactions?: string;
-        contraindications?: string;
-      };
-
-      const info: DrugInfo = data.drug || data.result || {
-        name: data.name || searchTerm,
-        indication: data.indication || 'Information not available',
-        dosing: data.dosing || 'Information not available',
-        sideEffects: data.sideEffects || 'Information not available',
-        interactions: data.interactions || 'Information not available',
-        contraindications: data.contraindications || 'Information not available',
-      };
-
-      setDrugInfo(info);
+      setDrugResponse(result.data.response);
       saveRecentSearch(searchTerm);
       setRecentSearches(getRecentSearches());
     } catch (err) {
@@ -132,22 +199,6 @@ export default function DrugInfoPage() {
     }
   }
 
-  const sections = drugInfo
-    ? [
-        { title: 'Indication', content: drugInfo.indication, icon: Info },
-        { title: 'Dosing', content: drugInfo.dosing, icon: Pill },
-        { title: 'Side Effects', content: drugInfo.sideEffects, icon: AlertTriangle },
-        { title: 'Drug Interactions', content: drugInfo.interactions, icon: AlertTriangle },
-        { title: 'Contraindications', content: drugInfo.contraindications, icon: AlertTriangle },
-        ...(drugInfo.pharmacology
-          ? [{ title: 'Pharmacology', content: drugInfo.pharmacology, icon: Info }]
-          : []),
-        ...(drugInfo.monitoring
-          ? [{ title: 'Monitoring', content: drugInfo.monitoring, icon: Clock }]
-          : []),
-      ]
-    : [];
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -159,7 +210,7 @@ export default function DrugInfoPage() {
           </div>
 
           {/* Search bar */}
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <div className="flex-1 relative">
               <Search
                 size={16}
@@ -170,7 +221,7 @@ export default function DrugInfoPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Search for a drug (e.g. Metformin, Warfarin, Amoxicillin)..."
+                placeholder="Search a drug (e.g. Metformin)..."
                 className={clsx(
                   'w-full h-11 pl-10 pr-4 rounded-xl text-sm',
                   'bg-gray-50 border border-gray-200',
@@ -207,60 +258,27 @@ export default function DrugInfoPage() {
             <div className="flex flex-col items-center justify-center py-8">
               <Loader2 size={32} className="animate-spin text-blue-500 mb-3" />
               <p className="text-sm text-gray-500">
-                Looking up drug information...
+                Looking up {searchedTerm}...
               </p>
             </div>
           </Card>
         )}
 
         {/* Drug info results */}
-        {drugInfo && !loading && (
+        {drugResponse && !loading && (
           <div className="space-y-4">
-            {/* Drug header */}
             <Card padding="md">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <Pill size={24} className="text-blue-600" />
+              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+                <div className="p-2.5 bg-blue-100 rounded-xl">
+                  <Pill size={20} className="text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">{drugInfo.name}</h2>
-                  {drugInfo.genericName && drugInfo.genericName !== drugInfo.name && (
-                    <p className="text-sm text-gray-500">
-                      Generic: {drugInfo.genericName}
-                    </p>
-                  )}
+                  <h2 className="text-base font-bold text-gray-900">{searchedTerm}</h2>
+                  <p className="text-xs text-gray-400">AI-generated drug reference</p>
                 </div>
               </div>
+              <div>{renderMarkdown(drugResponse)}</div>
             </Card>
-
-            {/* Info sections */}
-            {sections.map((section) => {
-              const Icon = section.icon;
-              const isWarning = section.title === 'Side Effects' ||
-                section.title === 'Drug Interactions' ||
-                section.title === 'Contraindications';
-
-              return (
-                <Card
-                  key={section.title}
-                  padding="md"
-                  className={clsx(isWarning && 'border-amber-200')}
-                >
-                  <div className="flex items-center gap-2 mb-3">
-                    <Icon
-                      size={16}
-                      className={clsx(isWarning ? 'text-amber-500' : 'text-blue-500')}
-                    />
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      {section.title}
-                    </h3>
-                  </div>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {section.content}
-                  </p>
-                </Card>
-              );
-            })}
 
             {/* Disclaimer */}
             <div className="p-3 bg-gray-100 rounded-lg">
@@ -273,7 +291,7 @@ export default function DrugInfoPage() {
         )}
 
         {/* Empty / initial state */}
-        {!drugInfo && !loading && !error && (
+        {!drugResponse && !loading && !error && (
           <div>
             {/* Recent searches */}
             {recentSearches.length > 0 && (
@@ -292,18 +310,18 @@ export default function DrugInfoPage() {
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {recentSearches.map((query) => (
+                  {recentSearches.map((q) => (
                     <button
-                      key={query}
+                      key={q}
                       type="button"
-                      onClick={() => handleRecentClick(query)}
+                      onClick={() => handleRecentClick(q)}
                       className={clsx(
                         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm',
                         'bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors',
                       )}
                     >
                       <Pill size={12} />
-                      {query}
+                      {q}
                       <ChevronRight size={12} className="text-gray-400" />
                     </button>
                   ))}

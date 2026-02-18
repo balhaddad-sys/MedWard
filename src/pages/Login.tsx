@@ -4,7 +4,6 @@ import { LogIn, Mail, Lock, Eye, EyeOff, Stethoscope, ShieldCheck } from 'lucide
 import { signIn, signInWithGoogle } from '@/services/firebase/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Spinner } from '@/components/ui/Spinner';
 
 export default function Login() {
