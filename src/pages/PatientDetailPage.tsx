@@ -145,6 +145,21 @@ export default function PatientDetailPage() {
     return trends;
   }, [labs, labTrendDays]);
 
+  // Group panels by cleaned name for flowsheet display
+  const groupedPanels = useMemo(() => {
+    const groups = new Map<string, LabPanel[]>();
+    for (const panel of labs) {
+      const name = cleanPanelName(panel.panelName);
+      const existing = groups.get(name) || [];
+      existing.push(panel);
+      groups.set(name, existing);
+    }
+    for (const [, panels] of groups) {
+      panels.sort((a, b) => getTimestampMs(b.collectedAt) - getTimestampMs(a.collectedAt));
+    }
+    return groups;
+  }, [labs]);
+
   // Populate edit form when patient changes
   useEffect(() => {
     if (patient) {
@@ -226,6 +241,37 @@ export default function PatientDetailPage() {
       case 'critical_high': return <Badge variant="critical" size="sm">Critical High</Badge>;
       default: return null;
     }
+  }
+
+  function getLabFlagText(flag: LabFlag): string | null {
+    switch (flag) {
+      case 'high': return 'H';
+      case 'low': return 'L';
+      case 'critical_high': return 'CH';
+      case 'critical_low': return 'CL';
+      default: return null;
+    }
+  }
+
+  function cleanPanelName(name: string): string {
+    const parts = name.split(',').map((s) => s.trim()).filter(Boolean);
+    return [...new Set(parts)].join(', ') || 'Misc';
+  }
+
+  function getTimestampMs(ts: unknown): number {
+    if (!ts) return 0;
+    if (typeof ts === 'object' && ts !== null && 'toDate' in ts) {
+      return (ts as { toDate: () => Date }).toDate().getTime();
+    }
+    return 0;
+  }
+
+  function formatTimestamp(ts: unknown): string {
+    if (!ts) return '';
+    if (typeof ts === 'object' && ts !== null && 'toDate' in ts) {
+      return format((ts as { toDate: () => Date }).toDate(), 'MMM d HH:mm');
+    }
+    return '';
   }
 
   async function handleEditPatient(e: FormEvent) {
@@ -315,61 +361,66 @@ export default function PatientDetailPage() {
       </Button>
 
       {/* ---- Patient header card ---- */}
-      <div className={clsx('bg-white rounded-xl border border-gray-200 border-l-4 p-4', acuityBorderColor)}>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            {/* Acuity circle */}
-            <div className={clsx(
-              'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold',
-              patient.acuity === 1 ? 'bg-red-100 text-red-700' :
-              patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
-              patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
-              patient.acuity === 4 ? 'bg-emerald-100 text-emerald-700' :
-              'bg-blue-100 text-blue-700',
-            )}>
-              {patient.acuity}
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-bold text-gray-900">
-                  {patient.lastName}, {patient.firstName}
-                </h1>
-                {patient.dateOfBirth && (
-                  <span className="text-sm text-gray-400">{calculateAge(patient.dateOfBirth)}</span>
-                )}
-                {patient.gender && (
-                  <span className="text-sm text-gray-400">
-                    {patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'Other'}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <Badge variant={getAcuityVariant(patient.acuity)} dot>
-                  {ACUITY_LEVELS[patient.acuity].label}
-                </Badge>
-                {patient.state && (
-                  <Badge variant={getStateVariant(patient.state)}>
-                    {STATE_METADATA[patient.state]?.label || patient.state}
-                  </Badge>
-                )}
-                {overdueTasks.length > 0 && (
-                  <Badge variant="critical">{overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''}</Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500 flex-wrap">
-                <span>MRN: <strong>{patient.mrn}</strong></span>
-                <span className="flex items-center gap-1">
-                  <BedDouble size={11} /> Bed <strong>{patient.bedNumber}</strong>
+      <div className={clsx('bg-white rounded-xl border border-gray-200 border-l-4 p-3 sm:p-4', acuityBorderColor)}>
+        <div className="flex items-start gap-3">
+          {/* Acuity circle */}
+          <div className={clsx(
+            'flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl text-base sm:text-lg font-bold',
+            patient.acuity === 1 ? 'bg-red-100 text-red-700' :
+            patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
+            patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
+            patient.acuity === 4 ? 'bg-emerald-100 text-emerald-700' :
+            'bg-blue-100 text-blue-700',
+          )}>
+            {patient.acuity}
+          </div>
+
+          {/* Info block */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
+                {patient.lastName}, {patient.firstName}
+              </h1>
+              {patient.dateOfBirth && (
+                <span className="text-xs sm:text-sm text-gray-400">{calculateAge(patient.dateOfBirth)}</span>
+              )}
+              {patient.gender && (
+                <span className="text-xs sm:text-sm text-gray-400">
+                  {patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}
                 </span>
-                {patient.attendingPhysician && <span>Attending: <strong>{patient.attendingPhysician}</strong></span>}
-                {patient.team && <span>Team: <strong>{patient.team}</strong></span>}
-              </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <Badge variant={getAcuityVariant(patient.acuity)} dot>
+                {ACUITY_LEVELS[patient.acuity].label}
+              </Badge>
+              {patient.state && (
+                <Badge variant={getStateVariant(patient.state)}>
+                  {STATE_METADATA[patient.state]?.label || patient.state}
+                </Badge>
+              )}
+              {overdueTasks.length > 0 && (
+                <Badge variant="critical">{overdueTasks.length} overdue</Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3 mt-1.5 text-[10px] sm:text-xs text-gray-500 flex-wrap">
+              <span>MRN: <strong>{patient.mrn}</strong></span>
+              <span className="flex items-center gap-1">
+                <BedDouble size={11} /> Bed <strong>{patient.bedNumber}</strong>
+              </span>
+              {patient.wardId && patient.wardId !== 'default' && (
+                <span>Ward: <strong>{patient.wardId}</strong></span>
+              )}
+              {patient.attendingPhysician && <span>Dr. <strong>{patient.attendingPhysician}</strong></span>}
+              {patient.team && <span>Team: <strong>{patient.team}</strong></span>}
             </div>
           </div>
-          <div className="flex gap-2 shrink-0">
-            <Button variant="secondary" size="sm" onClick={() => setShowEditModal(true)} iconLeft={<Edit3 size={13} />}>Edit</Button>
-            <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} iconLeft={<Trash2 size={13} />}>Delete</Button>
-          </div>
+        </div>
+
+        {/* Action buttons — full width row on mobile */}
+        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+          <Button variant="secondary" size="sm" className="flex-1 sm:flex-initial" onClick={() => setShowEditModal(true)} iconLeft={<Edit3 size={13} />}>Edit</Button>
+          <Button variant="danger" size="sm" className="flex-1 sm:flex-initial" onClick={() => setShowDeleteConfirm(true)} iconLeft={<Trash2 size={13} />}>Delete</Button>
         </div>
       </div>
 
@@ -414,18 +465,18 @@ export default function PatientDetailPage() {
       )}
 
       {/* ---- Quick actions ---- */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Button variant="secondary" size="sm" onClick={() => navigate('/handover')} iconLeft={<FileText size={13} />}>
-          Generate SBAR
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/handover')} iconLeft={<FileText size={13} />}>
+          SBAR
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/tasks')} iconLeft={<Plus size={13} />}>
-          Add Task
+        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/tasks')} iconLeft={<Plus size={13} />}>
+          Task
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/labs')} iconLeft={<Beaker size={13} />}>
-          Upload Labs
+        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/labs')} iconLeft={<Beaker size={13} />}>
+          Labs
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => navigate('/ai')} iconLeft={<Activity size={13} />}>
-          AI Assistant
+        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/ai')} iconLeft={<Activity size={13} />}>
+          AI
         </Button>
       </div>
 
@@ -715,177 +766,207 @@ export default function PatientDetailPage() {
               </Card>
             ) : (
               <>
-                {/* Mobile-friendly Trend Summary */}
-                {labTrends.length > 0 && (
-                  <Card padding="md">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                      Trends ({labTrendDays}d)
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {labTrends.map((trend) => {
-                        const isPriority = priorityLabs.some((code) => {
-                          const ref = LAB_REFERENCES[code];
-                          return ref && trend.labName.toLowerCase().includes(ref.name.toLowerCase());
-                        });
-                        return (
-                          <div
-                            key={trend.labName}
-                            className={clsx(
-                              'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm',
-                              trend.direction === 'fluctuating'
-                                ? 'border-amber-200 bg-amber-50/50'
-                                : trend.direction === 'increasing'
-                                ? 'border-red-200 bg-red-50/30'
-                                : trend.direction === 'decreasing'
-                                ? 'border-blue-200 bg-blue-50/30'
-                                : 'border-gray-200 bg-gray-50/30',
-                              isPriority && 'ring-1 ring-blue-300',
-                            )}
-                          >
-                            <div className="shrink-0">
-                              {trend.direction === 'increasing' ? (
-                                <TrendingUp size={16} className="text-red-500" />
-                              ) : trend.direction === 'decreasing' ? (
-                                <TrendingDown size={16} className="text-blue-500" />
-                              ) : trend.direction === 'fluctuating' ? (
-                                <AlertTriangle size={16} className="text-amber-500" />
-                              ) : (
-                                <Minus size={16} className="text-gray-400" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-gray-900 truncate">
-                                {trend.labName}
-                                {isPriority && <span className="text-blue-500 ml-1">*</span>}
-                              </p>
-                              <p className="text-[10px] text-gray-500 truncate">
-                                {trend.interpretation}
-                              </p>
-                            </div>
-                            {trend.values.length > 0 && (
-                              <div className="shrink-0 text-right">
-                                <p className="text-xs font-semibold tabular-nums text-gray-900">
-                                  {trend.values[trend.values.length - 1].value}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-2">
-                      * Priority labs for {labPriorityProfile.toUpperCase()} profile
-                    </p>
-                  </Card>
-                )}
-
-                {/* Lab Panels */}
-                {labs.map((panel) => (
-                  <Card key={panel.id} padding="md">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="text-sm font-semibold text-gray-900">{panel.panelName}</h3>
-                        <p className="text-xs text-gray-500">
-                          {panel.category} &middot;{' '}
-                          {panel.collectedAt && typeof panel.collectedAt === 'object' && 'toDate' in panel.collectedAt
-                            ? format(panel.collectedAt.toDate(), 'MMM d, yyyy HH:mm')
-                            : 'Date unknown'}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={panel.status === 'reviewed' ? 'success' : panel.status === 'resulted' ? 'info' : 'muted'}
-                        size="sm"
-                      >
-                        {panel.status}
-                      </Badge>
-                    </div>
-
-                    {/* Mobile card layout + Desktop table */}
-                    <div className="hidden sm:block overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-gray-100">
-                            <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500">Test</th>
-                            <th className="text-right py-2 px-4 text-xs font-medium text-gray-500">Value</th>
-                            <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Unit</th>
-                            <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Reference</th>
-                            <th className="text-left py-2 pl-4 text-xs font-medium text-gray-500">Flag</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {panel.values.map((val, vi) => (
-                            <tr
-                              key={vi}
-                              className={clsx(
-                                'border-b border-gray-50',
-                                (val.flag === 'critical_low' || val.flag === 'critical_high') && 'bg-red-50',
-                              )}
-                            >
-                              <td className="py-2 pr-4 font-medium text-gray-900">{val.name}</td>
-                              <td className={clsx('py-2 px-4 text-right tabular-nums', getLabFlagColor(val.flag))}>
-                                {val.value}
-                                {val.previousValue !== undefined && (
-                                  <span className="text-xs text-gray-400 ml-1">
-                                    (prev: {val.previousValue})
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-2 px-4 text-gray-500">{val.unit}</td>
-                              <td className="py-2 px-4 text-gray-500 text-xs">
-                                {val.referenceMin !== undefined && val.referenceMax !== undefined
-                                  ? `${val.referenceMin} - ${val.referenceMax}`
-                                  : 'N/A'}
-                              </td>
-                              <td className="py-2 pl-4">{getLabFlagBadge(val.flag)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Mobile: stacked card layout for lab values */}
-                    <div className="sm:hidden space-y-1.5">
-                      {panel.values.map((val, vi) => (
+                {/* Compact trend pills — only non-stable */}
+                {labTrends.filter((t) => t.direction !== 'stable').length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {labTrends
+                      .filter((t) => t.direction !== 'stable')
+                      .map((trend) => (
                         <div
-                          key={vi}
+                          key={trend.labName}
                           className={clsx(
-                            'flex items-center justify-between px-2.5 py-2 rounded-lg border',
-                            val.flag === 'critical_low' || val.flag === 'critical_high'
-                              ? 'bg-red-50 border-red-200'
-                              : val.flag === 'high'
-                              ? 'bg-amber-50/50 border-amber-200'
-                              : val.flag === 'low'
-                              ? 'bg-blue-50/50 border-blue-200'
-                              : 'bg-white border-gray-100',
+                            'flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] font-medium whitespace-nowrap shrink-0',
+                            trend.direction === 'increasing'
+                              ? 'border-red-200 bg-red-50 text-red-700'
+                              : trend.direction === 'decreasing'
+                              ? 'border-blue-200 bg-blue-50 text-blue-700'
+                              : 'border-amber-200 bg-amber-50 text-amber-700',
                           )}
                         >
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-gray-900 truncate">{val.name}</p>
-                            <p className="text-[10px] text-gray-400">
-                              {val.unit}
-                              {val.referenceMin !== undefined && val.referenceMax !== undefined
-                                ? ` (${val.referenceMin}-${val.referenceMax})`
-                                : ''}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={clsx('text-sm font-semibold tabular-nums', getLabFlagColor(val.flag))}>
-                              {val.value}
+                          {trend.direction === 'increasing' ? (
+                            <TrendingUp size={12} />
+                          ) : trend.direction === 'decreasing' ? (
+                            <TrendingDown size={12} />
+                          ) : (
+                            <AlertTriangle size={12} />
+                          )}
+                          {trend.labName}
+                          {trend.values.length > 0 && (
+                            <span className="font-bold tabular-nums ml-0.5">
+                              {trend.values[trend.values.length - 1].value}
                             </span>
-                            {val.flag !== 'normal' && getLabFlagBadge(val.flag)}
-                          </div>
+                          )}
                         </div>
                       ))}
-                    </div>
+                  </div>
+                )}
 
-                    {showAISuggestions && panel.aiAnalysis && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                        <p className="text-xs font-medium text-blue-700 mb-1">AI Analysis</p>
-                        <p className="text-sm text-blue-900">{panel.aiAnalysis.summary}</p>
+                {/* Flowsheet panels */}
+                {Array.from(groupedPanels.entries()).map(([groupName, panels]) => {
+                  const testNames = [...new Set(panels.flatMap((p) => p.values.map((v) => v.name)))];
+                  const displayPanels = panels.slice(0, 4);
+                  const latest = displayPanels[0];
+                  const previous = displayPanels[1];
+
+                  return (
+                    <Card key={groupName} padding="sm">
+                      {/* Panel header */}
+                      <div className="flex items-center justify-between px-1 pb-2 mb-2 border-b border-gray-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Beaker size={14} className="text-gray-400 shrink-0" />
+                          <h3 className="text-sm font-bold text-gray-900 truncate">{groupName}</h3>
+                          {panels.length > 1 && (
+                            <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
+                              {panels.length}x
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] text-gray-400">{formatTimestamp(latest.collectedAt)}</span>
+                          <Badge
+                            variant={latest.status === 'reviewed' ? 'success' : latest.status === 'resulted' ? 'info' : 'muted'}
+                            size="sm"
+                          >
+                            {latest.status}
+                          </Badge>
+                        </div>
                       </div>
-                    )}
-                  </Card>
-                ))}
+
+                      {/* Desktop: Flowsheet table */}
+                      <div className="hidden sm:block overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200">
+                              <th className="text-left py-1.5 pr-3 text-xs font-semibold text-gray-500 w-32">Test</th>
+                              {displayPanels.map((p) => (
+                                <th key={p.id} className="text-right py-1.5 px-2 text-[10px] font-medium text-gray-400 min-w-[80px]">
+                                  {formatTimestamp(p.collectedAt)}
+                                </th>
+                              ))}
+                              <th className="text-right py-1.5 pl-3 text-xs font-medium text-gray-400 w-24">Ref</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {testNames.map((name) => {
+                              const latestVal = latest.values.find((v) => v.name === name);
+                              const isCritical = latestVal?.flag === 'critical_low' || latestVal?.flag === 'critical_high';
+
+                              return (
+                                <tr
+                                  key={name}
+                                  className={clsx(
+                                    'border-b border-gray-50 hover:bg-gray-50/50',
+                                    isCritical && 'bg-red-50/60',
+                                  )}
+                                >
+                                  <td className="py-1.5 pr-3">
+                                    <span className="text-xs font-medium text-gray-800">{name}</span>
+                                    {latestVal?.unit && (
+                                      <span className="text-[10px] text-gray-400 ml-1">{latestVal.unit}</span>
+                                    )}
+                                  </td>
+                                  {displayPanels.map((p, pi) => {
+                                    const val = p.values.find((v) => v.name === name);
+                                    if (!val) return <td key={p.id} className="py-1.5 px-2 text-right text-gray-300 text-xs">—</td>;
+                                    const flagText = getLabFlagText(val.flag);
+
+                                    return (
+                                      <td key={p.id} className={clsx('py-1.5 px-2 text-right tabular-nums text-xs', getLabFlagColor(val.flag))}>
+                                        <span className={clsx(pi === 0 && 'font-semibold')}>{val.value}</span>
+                                        {flagText && (
+                                          <span className={clsx(
+                                            'ml-0.5 text-[9px] font-bold',
+                                            val.flag.includes('critical') ? 'text-red-600' : val.flag === 'high' ? 'text-amber-600' : 'text-blue-600',
+                                          )}>
+                                            {flagText}
+                                          </span>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="py-1.5 pl-3 text-right text-[10px] text-gray-400">
+                                    {latestVal?.referenceMin != null && latestVal?.referenceMax != null
+                                      ? `${latestVal.referenceMin}–${latestVal.referenceMax}`
+                                      : ''}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Mobile: Compact latest results */}
+                      <div className="sm:hidden divide-y divide-gray-100">
+                        {testNames.map((name) => {
+                          const latestVal = latest.values.find((v) => v.name === name);
+                          const prevVal = previous?.values.find((v) => v.name === name);
+                          if (!latestVal) return null;
+                          const isCritical = latestVal.flag === 'critical_low' || latestVal.flag === 'critical_high';
+                          const isAbnormal = latestVal.flag !== 'normal';
+                          const flagText = getLabFlagText(latestVal.flag);
+
+                          let deltaIcon = null;
+                          if (prevVal) {
+                            const curr = parseFloat(String(latestVal.value));
+                            const prev = parseFloat(String(prevVal.value));
+                            if (!isNaN(curr) && !isNaN(prev)) {
+                              if (curr > prev) deltaIcon = <TrendingUp size={10} className="text-red-400" />;
+                              else if (curr < prev) deltaIcon = <TrendingDown size={10} className="text-blue-400" />;
+                            }
+                          }
+
+                          return (
+                            <div
+                              key={name}
+                              className={clsx(
+                                'flex items-center justify-between px-1.5 py-1.5',
+                                isCritical && 'bg-red-50 rounded',
+                              )}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-gray-800 truncate">{name}</p>
+                                <p className="text-[9px] text-gray-400">
+                                  {latestVal.unit}
+                                  {latestVal.referenceMin != null && latestVal.referenceMax != null
+                                    ? ` (${latestVal.referenceMin}–${latestVal.referenceMax})`
+                                    : ''}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {deltaIcon}
+                                {prevVal && (
+                                  <span className="text-[9px] text-gray-400 tabular-nums">({prevVal.value})</span>
+                                )}
+                                <span className={clsx('text-sm font-bold tabular-nums', getLabFlagColor(latestVal.flag))}>
+                                  {latestVal.value}
+                                </span>
+                                {flagText && (
+                                  <span className={clsx(
+                                    'text-[9px] font-bold px-1 py-0.5 rounded',
+                                    isCritical ? 'bg-red-100 text-red-700' :
+                                    isAbnormal && latestVal.flag === 'high' ? 'bg-amber-100 text-amber-700' :
+                                    isAbnormal ? 'bg-blue-100 text-blue-700' : '',
+                                  )}>
+                                    {flagText}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* AI Analysis */}
+                      {showAISuggestions && latest.aiAnalysis && (
+                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-xs font-medium text-blue-700 mb-1">AI Analysis</p>
+                          <p className="text-sm text-blue-900">{latest.aiAnalysis.summary}</p>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
               </>
             )}
           </div>
@@ -1016,7 +1097,7 @@ export default function PatientDetailPage() {
               required
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Gender"
               value={editForm.gender || 'male'}
@@ -1026,6 +1107,14 @@ export default function PatientDetailPage() {
               <option value="female">Female</option>
               <option value="other">Other</option>
             </Select>
+            <Input
+              label="Ward"
+              value={editForm.wardId || ''}
+              onChange={(e) => setEditForm({ ...editForm, wardId: e.target.value })}
+              placeholder="e.g. 4A, ICU-1"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Bed Number"
               value={editForm.bedNumber || ''}

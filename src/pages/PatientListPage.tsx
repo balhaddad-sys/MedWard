@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   BedDouble,
   AlertTriangle,
+  Building2,
 } from 'lucide-react';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -72,7 +73,7 @@ const initialFormData: PatientFormData = {
   lastName: '',
   dateOfBirth: '',
   gender: 'male',
-  wardId: 'default',
+  wardId: '',
   bedNumber: '',
   acuity: 3,
   primaryDiagnosis: '',
@@ -162,6 +163,41 @@ export default function PatientListPage() {
       }
     });
   }, [filteredPatients, sortKey]);
+
+  // Group patients by ward
+  const wardGroups = useMemo(() => {
+    const groups = new Map<string, typeof sortedPatients>();
+    for (const p of sortedPatients) {
+      const ward = p.wardId && p.wardId !== 'default' ? p.wardId : 'Unassigned';
+      const list = groups.get(ward) || [];
+      list.push(p);
+      groups.set(ward, list);
+    }
+    // Sort: named wards alphabetically first, "Unassigned" last
+    const entries = [...groups.entries()].sort((a, b) => {
+      if (a[0] === 'Unassigned') return 1;
+      if (b[0] === 'Unassigned') return -1;
+      return a[0].localeCompare(b[0]);
+    });
+    return entries;
+  }, [sortedPatients]);
+
+  // All unique ward names for filter
+  const allWards = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of patients) {
+      if (p.wardId && p.wardId !== 'default') set.add(p.wardId);
+    }
+    return [...set].sort();
+  }, [patients]);
+
+  const [filterWard, setFilterWard] = useState<string | null>(null);
+
+  // Apply ward filter on top of sorted patients
+  const displayGroups = useMemo(() => {
+    if (!filterWard) return wardGroups;
+    return wardGroups.filter(([ward]) => ward === filterWard);
+  }, [wardGroups, filterWard]);
 
   // Derived stats
   const criticalCount = patients.filter((p) => p.acuity === 1).length;
@@ -380,6 +416,40 @@ export default function PatientListPage() {
         ))}
       </div>
 
+      {/* ---- Ward filter chips ---- */}
+      {allWards.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <Building2 size={13} className="text-gray-400 shrink-0" />
+          <button
+            type="button"
+            onClick={() => setFilterWard(null)}
+            className={clsx(
+              'px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
+              filterWard === null
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+            )}
+          >
+            All Wards
+          </button>
+          {allWards.map((ward) => (
+            <button
+              key={ward}
+              type="button"
+              onClick={() => setFilterWard(filterWard === ward ? null : ward)}
+              className={clsx(
+                'px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
+                filterWard === ward
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+              )}
+            >
+              {ward}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ---- Patient list ---- */}
       {loading ? (
         <PatientSkeleton />
@@ -403,119 +473,129 @@ export default function PatientListPage() {
           />
         </Card>
       ) : (
-        <div className="space-y-1.5">
-          {sortedPatients.map((patient) => (
-            <div
-              key={patient.id}
-              onClick={() => navigate(`/patients/${patient.id}`)}
-              className={clsx(
-                'flex items-center gap-2 sm:gap-3 px-3 sm:px-4 rounded-xl',
-                'bg-white border border-gray-200 cursor-pointer',
-                'hover:shadow-sm transition-all duration-150',
-                ACUITY_BORDER[patient.acuity],
-                ACUITY_BG[patient.acuity],
-                compactView ? 'py-1.5' : 'py-3',
+        <div className="space-y-4">
+          {displayGroups.map(([wardName, wardPatients]) => (
+            <div key={wardName}>
+              {/* Ward section header */}
+              {(displayGroups.length > 1 || wardName !== 'Unassigned') && (
+                <div className="flex items-center gap-2 mb-1.5 px-1">
+                  <Building2 size={13} className="text-gray-400 shrink-0" />
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {wardName}
+                  </span>
+                  <span className="text-[10px] text-gray-400">({wardPatients.length})</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
               )}
-            >
-              {/* Acuity number circle */}
-              <div className={clsx(
-                'shrink-0 items-center justify-center rounded-full font-bold flex',
-                compactView ? 'h-6 w-6 text-[10px]' : 'h-8 w-8 sm:h-9 sm:w-9 text-xs sm:text-sm',
-                patient.acuity === 1 ? 'bg-red-100 text-red-700' :
-                patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
-                patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
-                patient.acuity === 4 ? 'bg-emerald-100 text-emerald-700' :
-                'bg-blue-100 text-blue-700',
-              )}>
-                {patient.acuity}
-              </div>
 
-              {/* Bed badge */}
-              <div className={clsx(
-                'shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200 flex',
-                compactView ? 'h-6 w-9' : 'h-8 w-11 sm:h-9 sm:w-14',
-              )}>
-                <div className="text-center">
-                  {!compactView && <BedDouble size={11} className="mx-auto text-slate-400 hidden sm:block" />}
-                  <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-none">{patient.bedNumber}</p>
-                </div>
-              </div>
-
-              {/* Patient info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                  <p className={clsx(
-                    'font-semibold text-gray-900 truncate max-w-[120px] sm:max-w-none',
-                    compactView ? 'text-xs' : 'text-xs sm:text-sm',
-                  )}>
-                    {patient.lastName}, {patient.firstName}
-                  </p>
-                  {patient.dateOfBirth && (
-                    <span className="text-[10px] sm:text-xs text-gray-400 shrink-0">{calculateAge(patient.dateOfBirth)}</span>
-                  )}
-                  {patient.gender && (
-                    <span className="text-[10px] sm:text-xs text-gray-400">{patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}</span>
-                  )}
-                  {patient.allergies && patient.allergies.length > 0 && (
-                    <div title={`Allergies: ${patient.allergies.join(', ')}`} className="sm:hidden">
-                      <ShieldAlert size={12} className="text-red-500" />
+              <div className="space-y-1.5">
+                {wardPatients.map((patient) => (
+                  <div
+                    key={patient.id}
+                    onClick={() => navigate(`/patients/${patient.id}`)}
+                    className={clsx(
+                      'flex items-center gap-2 sm:gap-3 px-3 sm:px-4 rounded-xl',
+                      'bg-white border border-gray-200 cursor-pointer',
+                      'hover:shadow-sm transition-all duration-150',
+                      ACUITY_BORDER[patient.acuity],
+                      ACUITY_BG[patient.acuity],
+                      compactView ? 'py-1.5' : 'py-3',
+                    )}
+                  >
+                    {/* Acuity number circle */}
+                    <div className={clsx(
+                      'shrink-0 items-center justify-center rounded-full font-bold flex',
+                      compactView ? 'h-6 w-6 text-[10px]' : 'h-8 w-8 sm:h-9 sm:w-9 text-xs sm:text-sm',
+                      patient.acuity === 1 ? 'bg-red-100 text-red-700' :
+                      patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
+                      patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
+                      patient.acuity === 4 ? 'bg-emerald-100 text-emerald-700' :
+                      'bg-blue-100 text-blue-700',
+                    )}>
+                      {patient.acuity}
                     </div>
-                  )}
-                </div>
-                {!compactView && (
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <p className="text-[10px] sm:text-xs text-gray-500 truncate">
-                      MR{patient.mrn}
-                      {' · '}
-                      {patient.primaryDiagnosis}
-                    </p>
+
+                    {/* Bed badge */}
+                    <div className={clsx(
+                      'shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200 flex',
+                      compactView ? 'h-6 w-9' : 'h-8 w-11 sm:h-9 sm:w-14',
+                    )}>
+                      <div className="text-center">
+                        {!compactView && <BedDouble size={11} className="mx-auto text-slate-400 hidden sm:block" />}
+                        <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-none">{patient.bedNumber}</p>
+                      </div>
+                    </div>
+
+                    {/* Patient info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                        <p className={clsx(
+                          'font-semibold text-gray-900 truncate max-w-[120px] sm:max-w-none',
+                          compactView ? 'text-xs' : 'text-xs sm:text-sm',
+                        )}>
+                          {patient.lastName}, {patient.firstName}
+                        </p>
+                        {patient.dateOfBirth && (
+                          <span className="text-[10px] sm:text-xs text-gray-400 shrink-0">{calculateAge(patient.dateOfBirth)}</span>
+                        )}
+                        {patient.gender && (
+                          <span className="text-[10px] sm:text-xs text-gray-400">{patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}</span>
+                        )}
+                        {patient.allergies && patient.allergies.length > 0 && (
+                          <div title={`Allergies: ${patient.allergies.join(', ')}`} className="sm:hidden">
+                            <ShieldAlert size={12} className="text-red-500" />
+                          </div>
+                        )}
+                      </div>
+                      {!compactView && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <p className="text-[10px] sm:text-xs text-gray-500 truncate">
+                            MR{patient.mrn}
+                            {' · '}
+                            {patient.primaryDiagnosis}
+                          </p>
+                        </div>
+                      )}
+                      {!compactView && patient.state && (
+                        <div className="mt-1 sm:hidden">
+                          <Badge variant={getStateVariant(patient.state)} size="sm">
+                            {STATE_METADATA[patient.state]?.label || patient.state}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right side */}
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                      {patient.allergies && patient.allergies.length > 0 && (
+                        <div title={`Allergies: ${patient.allergies.join(', ')}`} className="hidden sm:block">
+                          <ShieldAlert size={14} className="text-red-500" />
+                        </div>
+                      )}
+                      {patient.codeStatus && patient.codeStatus !== 'full' && (
+                        <span className={clsx(
+                          'text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded border',
+                          patient.codeStatus === 'comfort'
+                            ? 'text-purple-700 bg-purple-50 border-purple-200'
+                            : 'text-red-700 bg-red-50 border-red-200',
+                        )}>
+                          {patient.codeStatus === 'comfort' ? 'CMF' : patient.codeStatus.toUpperCase()}
+                        </span>
+                      )}
+                      {!compactView && patient.state && (
+                        <span className="hidden sm:inline-flex">
+                          <Badge variant={getStateVariant(patient.state)} size="sm">
+                            {STATE_METADATA[patient.state]?.label || patient.state}
+                          </Badge>
+                        </span>
+                      )}
+                      <Badge variant={getAcuityVariant(patient.acuity)} size="sm">
+                        {ACUITY_LEVELS[patient.acuity].label}
+                      </Badge>
+                      <ArrowRight size={14} className="text-gray-400 hidden sm:block" />
+                    </div>
                   </div>
-                )}
-                {/* State badge on mobile - shown inline */}
-                {!compactView && patient.state && (
-                  <div className="mt-1 sm:hidden">
-                    <Badge variant={getStateVariant(patient.state)} size="sm">
-                      {STATE_METADATA[patient.state]?.label || patient.state}
-                    </Badge>
-                  </div>
-                )}
-              </div>
-
-              {/* Right side: code status + acuity badge */}
-              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                {/* Allergy indicator - desktop only (shown inline on mobile) */}
-                {patient.allergies && patient.allergies.length > 0 && (
-                  <div title={`Allergies: ${patient.allergies.join(', ')}`} className="hidden sm:block">
-                    <ShieldAlert size={14} className="text-red-500" />
-                  </div>
-                )}
-
-                {/* DNR/DNAR code status */}
-                {patient.codeStatus && patient.codeStatus !== 'full' && (
-                  <span className={clsx(
-                    'text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded border',
-                    patient.codeStatus === 'comfort'
-                      ? 'text-purple-700 bg-purple-50 border-purple-200'
-                      : 'text-red-700 bg-red-50 border-red-200',
-                  )}>
-                    {patient.codeStatus === 'comfort' ? 'CMF' : patient.codeStatus.toUpperCase()}
-                  </span>
-                )}
-
-                {/* State badge - desktop only */}
-                {!compactView && patient.state && (
-                  <span className="hidden sm:inline-flex">
-                    <Badge variant={getStateVariant(patient.state)} size="sm">
-                      {STATE_METADATA[patient.state]?.label || patient.state}
-                    </Badge>
-                  </span>
-                )}
-
-                <Badge variant={getAcuityVariant(patient.acuity)} size="sm">
-                  {ACUITY_LEVELS[patient.acuity].label}
-                </Badge>
-
-                <ArrowRight size={14} className="text-gray-400 hidden sm:block" />
+                ))}
               </div>
             </div>
           ))}
@@ -596,7 +676,7 @@ export default function PatientListPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select
               label="Gender"
               value={formData.gender}
@@ -606,6 +686,15 @@ export default function PatientListPage() {
               <option value="female">Female</option>
               <option value="other">Other</option>
             </Select>
+            <Input
+              label="Ward"
+              value={formData.wardId}
+              onChange={(e) => setFormData({ ...formData, wardId: e.target.value })}
+              placeholder="e.g. 4A, ICU-1, Med B"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Bed Number"
               value={formData.bedNumber}
