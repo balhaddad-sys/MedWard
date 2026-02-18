@@ -11,7 +11,6 @@ import {
   FileText,
   Settings,
   Stethoscope,
-  LayoutDashboard,
   LogOut,
   Repeat,
 } from 'lucide-react'
@@ -36,8 +35,7 @@ interface NavItem {
 
 const NAV_ITEMS: Record<ClinicalMode, NavItem[]> = {
   ward: [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/patients', label: 'Patients', icon: Users, badge: 'patients' },
+    { to: '/', label: 'Patients', icon: Users, badge: 'patients' },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList, badge: 'tasks' },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
@@ -45,8 +43,8 @@ const NAV_ITEMS: Record<ClinicalMode, NavItem[]> = {
     { to: '/drugs', label: 'Drug Info', icon: Pill },
   ],
   acute: [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/on-call', label: 'On-Call List', icon: Phone, badge: 'patients' },
+    { to: '/', label: 'Patients', icon: Users, badge: 'patients' },
+    { to: '/on-call', label: 'On-Call List', icon: Phone },
     { to: '/shift', label: 'Shift View', icon: Activity },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList, badge: 'tasks' },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
@@ -54,7 +52,7 @@ const NAV_ITEMS: Record<ClinicalMode, NavItem[]> = {
     { to: '/ai', label: 'AI Assistant', icon: Bot },
   ],
   clerking: [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/', label: 'Patients', icon: Users, badge: 'patients' },
     { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList, badge: 'tasks' },
     { to: '/labs', label: 'Labs', icon: FlaskConical },

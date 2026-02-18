@@ -227,19 +227,14 @@ export default function LabAnalysisPage() {
           setCompressionInfo(savings);
         }
 
-        // Step 2: Upload compressed image to Firebase Storage
-        setUploadStep(`Uploading${fileLabel}...`);
-        setUploadProgress(Math.round(baseProgress + stepSize * 0.3));
-        const imageUrl = await uploadLabImage(user.id, compressedBlob, currentFile.name);
+        // Step 2+3: Upload to storage AND call AI in parallel
+        setUploadStep(`Uploading & analyzing${fileLabel}...`);
+        setUploadProgress(Math.round(baseProgress + stepSize * 0.35));
 
-        // Step 3: Call AI extraction
-        setUploadStep(`AI extracting${fileLabel}...`);
-        setUploadProgress(Math.round(baseProgress + stepSize * 0.5));
-
-        const aiResult = await analyzeLabImageFn({
-          imageBase64: base64,
-          mediaType: 'image/jpeg',
-        });
+        const [imageUrl, aiResult] = await Promise.all([
+          uploadLabImage(user.id, compressedBlob, currentFile.name),
+          analyzeLabImageFn({ imageBase64: base64, mediaType: 'image/jpeg' }),
+        ]);
 
         // Step 4: Parse AI results into lab panel
         setUploadStep(`Saving${fileLabel}...`);

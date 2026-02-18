@@ -12,10 +12,12 @@ import {
   Heart,
   ShieldAlert,
   BedDouble,
+  AlertTriangle,
 } from 'lucide-react';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useTaskStore } from '@/stores/taskStore';
 import { subscribeToUserPatients, createPatient } from '@/services/firebase/patients';
 import { ACUITY_LEVELS } from '@/config/constants';
 import { STATE_METADATA } from '@/types/patientState';
@@ -115,6 +117,16 @@ export default function PatientListPage() {
   } = usePatientStore();
 
   const compactView = useSettingsStore((s) => s.compactView);
+  const tasks = useTaskStore((s) => s.tasks);
+
+  const overdueTaskCount = tasks.filter((t) => {
+    if (t.status === 'completed' || t.status === 'cancelled') return false;
+    if (!t.dueAt) return false;
+    const due = typeof t.dueAt === 'object' && 'toDate' in t.dueAt
+      ? (t.dueAt as { toDate: () => Date }).toDate()
+      : new Date(t.dueAt as unknown as string);
+    return due < new Date();
+  }).length;
 
   const [sortKey, setSortKey] = useState<SortKey>('acuity');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -250,6 +262,19 @@ export default function PatientListPage() {
 
   return (
     <div className="space-y-4">
+      {/* ---- Overdue tasks banner ---- */}
+      {overdueTaskCount > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/tasks')}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors"
+        >
+          <AlertTriangle size={15} className="text-amber-500 shrink-0" />
+          <span>{overdueTaskCount} overdue task{overdueTaskCount !== 1 ? 's' : ''} need attention</span>
+          <ArrowRight size={14} className="ml-auto text-amber-400 shrink-0" />
+        </button>
+      )}
+
       {/* ---- Header ---- */}
       <div className="flex items-start justify-between">
         <div>

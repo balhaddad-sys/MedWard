@@ -13,7 +13,6 @@ import {
   Settings,
   X,
   Repeat,
-  LayoutDashboard,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useModeContext } from '@/context/useModeContext'
@@ -33,22 +32,22 @@ interface MobileNavItem {
 
 const MOBILE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
-    { to: '/', label: 'Home', icon: LayoutDashboard },
-    { to: '/patients', label: 'Patients', icon: Users },
+    { to: '/', label: 'Patients', icon: Users },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
+    { to: '/labs', label: 'Labs', icon: FlaskConical },
   ],
   acute: [
-    { to: '/', label: 'Home', icon: LayoutDashboard },
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/shift', label: 'Shift', icon: Activity },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
+    { to: '/labs', label: 'Labs', icon: FlaskConical },
   ],
   clerking: [
-    { to: '/', label: 'Home', icon: LayoutDashboard },
     { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
+    { to: '/', label: 'Patients', icon: Users },
   ],
 }
 
@@ -56,16 +55,15 @@ const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
     { to: '/ai', label: 'AI Assistant', icon: Bot },
     { to: '/drugs', label: 'Drug Info', icon: Pill },
-    { to: '/labs', label: 'Labs', icon: FlaskConical },
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/settings', label: 'Settings', icon: Settings },
     { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],
   acute: [
+    { to: '/', label: 'Patients', icon: Users },
     { to: '/ai', label: 'AI Assistant', icon: Bot },
     { to: '/drugs', label: 'Drug Info', icon: Pill },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
-    { to: '/patients', label: 'Patients', icon: Users },
     { to: '/settings', label: 'Settings', icon: Settings },
     { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],
@@ -90,7 +88,9 @@ export default function MobileNav() {
   const navigate = useNavigate()
   const tasks = useTaskStore((s) => s.tasks)
 
-  const isMoreActive = moreItems.some((item) => location.pathname.startsWith(item.to))
+  const isMoreActive = moreItems.some((item) =>
+    item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
+  )
 
   // Count overdue tasks for badge
   const overdueTaskCount = tasks.filter((t) => {
@@ -125,7 +125,7 @@ export default function MobileNav() {
             </div>
             <div className="grid grid-cols-4 gap-2">
               {moreItems.map(({ to, label, icon: Icon }) => {
-                const isActive = location.pathname.startsWith(to)
+                const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
                 return (
                   <button
                     key={to}

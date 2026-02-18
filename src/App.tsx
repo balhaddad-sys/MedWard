@@ -12,7 +12,6 @@ import { Spinner } from '@/components/ui'
 // Pages
 import Login from '@/pages/Login'
 import ModeSelectionPage from '@/pages/ModeSelectionPage'
-import Dashboard from '@/pages/Dashboard'
 import PatientListPage from '@/pages/PatientListPage'
 import PatientDetailPage from '@/pages/PatientDetailPage'
 import TasksPage from '@/pages/TasksPage'
@@ -72,8 +71,8 @@ function AppRoutes() {
           </AuthGate>
         }
       >
-        <Route index element={<Dashboard />} />
-        <Route path="patients" element={<PatientListPage />} />
+        <Route index element={<PatientListPage />} />
+        <Route path="patients" element={<Navigate to="/" replace />} />
         <Route path="patients/:id" element={<PatientDetailPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="handover" element={<HandoverPage />} />
