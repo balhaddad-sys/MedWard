@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   Users,
   ClipboardList,
@@ -8,13 +8,18 @@ import {
   Phone,
   Activity,
   FileText,
+  MoreHorizontal,
+  Pill,
+  Settings,
+  X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useModeContext } from '@/context/useModeContext'
 import type { ClinicalMode } from '@/config/modes'
+import { useState } from 'react'
 
 // ---------------------------------------------------------------------------
-// Mobile nav item definition (5 items per mode)
+// Mobile nav item definition
 // ---------------------------------------------------------------------------
 
 interface MobileNavItem {
@@ -29,21 +34,39 @@ const MOBILE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
-    { to: '/ai', label: 'AI', icon: Bot },
   ],
   acute: [
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/shift', label: 'Shift', icon: Activity },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
-    { to: '/ai', label: 'AI', icon: Bot },
   ],
   clerking: [
     { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
-    { to: '/ai', label: 'AI', icon: Bot },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
+  ],
+}
+
+const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
+  ward: [
+    { to: '/ai', label: 'AI Assistant', icon: Bot },
+    { to: '/drugs', label: 'Drug Info', icon: Pill },
+    { to: '/on-call', label: 'On-Call', icon: Phone },
+    { to: '/settings', label: 'Settings', icon: Settings },
+  ],
+  acute: [
+    { to: '/ai', label: 'AI Assistant', icon: Bot },
+    { to: '/drugs', label: 'Drug Info', icon: Pill },
+    { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
+    { to: '/patients', label: 'Patients', icon: Users },
+    { to: '/settings', label: 'Settings', icon: Settings },
+  ],
+  clerking: [
+    { to: '/ai', label: 'AI Assistant', icon: Bot },
+    { to: '/drugs', label: 'Drug Info', icon: Pill },
+    { to: '/settings', label: 'Settings', icon: Settings },
   ],
 }
 
@@ -54,38 +77,113 @@ const MOBILE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
 export default function MobileNav() {
   const { mode } = useModeContext()
   const items = MOBILE_NAV_ITEMS[mode]
+  const moreItems = MORE_NAV_ITEMS[mode]
+  const [showMore, setShowMore] = useState(false)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const isMoreActive = moreItems.some((item) => location.pathname.startsWith(item.to))
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ward-border bg-white pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around px-1 py-1.5">
-        {items.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              [
-                'flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium transition-colors duration-150',
-                isActive
-                  ? 'text-primary-600'
-                  : 'text-slate-400 active:text-slate-600',
-              ].join(' ')
-            }
+    <>
+      {/* More menu overlay */}
+      {showMore && (
+        <div
+          className="fixed inset-0 z-40 bg-black/30"
+          onClick={() => setShowMore(false)}
+        >
+          <div
+            className="absolute bottom-[60px] left-0 right-0 rounded-t-2xl bg-white p-4 pb-[env(safe-area-inset-bottom)] border-t border-ward-border animate-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
           >
-            {({ isActive }) => (
-              <>
-                <Icon
-                  size={22}
-                  strokeWidth={isActive ? 2.25 : 1.75}
-                  className={
-                    isActive ? 'text-primary-600' : 'text-slate-400'
-                  }
-                />
-                <span>{label}</span>
-              </>
-            )}
-          </NavLink>
-        ))}
-      </div>
-    </nav>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-slate-900">More</span>
+              <button
+                onClick={() => setShowMore(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {moreItems.map(({ to, label, icon: Icon }) => {
+                const isActive = location.pathname.startsWith(to)
+                return (
+                  <button
+                    key={to}
+                    onClick={() => {
+                      navigate(to)
+                      setShowMore(false)
+                    }}
+                    className={[
+                      'flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors',
+                      isActive
+                        ? 'bg-primary-50 text-primary-600'
+                        : 'text-slate-500 hover:bg-slate-50',
+                    ].join(' ')}
+                  >
+                    <Icon size={22} strokeWidth={isActive ? 2.25 : 1.75} />
+                    <span className="text-[10px] font-medium leading-tight text-center">
+                      {label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom nav bar */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ward-border bg-white pb-[env(safe-area-inset-bottom)]">
+        <div className="flex items-center justify-around px-1 py-1.5">
+          {items.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                [
+                  'flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium transition-colors duration-150',
+                  isActive
+                    ? 'text-primary-600'
+                    : 'text-slate-400 active:text-slate-600',
+                ].join(' ')
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    size={22}
+                    strokeWidth={isActive ? 2.25 : 1.75}
+                    className={
+                      isActive ? 'text-primary-600' : 'text-slate-400'
+                    }
+                  />
+                  <span>{label}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+
+          {/* More button */}
+          <button
+            onClick={() => setShowMore(!showMore)}
+            className={[
+              'flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium transition-colors duration-150',
+              isMoreActive || showMore
+                ? 'text-primary-600'
+                : 'text-slate-400 active:text-slate-600',
+            ].join(' ')}
+          >
+            <MoreHorizontal
+              size={22}
+              strokeWidth={isMoreActive || showMore ? 2.25 : 1.75}
+              className={isMoreActive || showMore ? 'text-primary-600' : 'text-slate-400'}
+            />
+            <span>More</span>
+          </button>
+        </div>
+      </nav>
+    </>
   )
 }
