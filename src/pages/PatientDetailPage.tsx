@@ -16,6 +16,9 @@ import {
   Heart,
   Pill,
   ShieldAlert,
+  FileText,
+  Plus,
+  BedDouble,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
@@ -216,34 +219,84 @@ export default function PatientDetailPage() {
     }
   }
 
+  function calculateAge(dob: string): string {
+    if (!dob) return '';
+    const birth = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+    return `${age}y`;
+  }
+
+  const activeTasks = patientTasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled');
+  const overdueTasks = activeTasks.filter((t) => {
+    if (!t.dueAt) return false;
+    const due = typeof t.dueAt === 'object' && 'toDate' in t.dueAt
+      ? (t.dueAt as { toDate: () => Date }).toDate()
+      : new Date(t.dueAt as unknown as string);
+    return due < new Date();
+  });
+
   const tabItems = [
     { id: 'overview', label: 'Overview', icon: <User size={16} /> },
     { id: 'history', label: 'History', icon: <Activity size={16} /> },
     { id: 'labs', label: 'Labs', icon: <Beaker size={16} /> },
-    { id: 'tasks', label: 'Tasks', icon: <ClipboardList size={16} /> },
+    {
+      id: 'tasks',
+      label: `Tasks${activeTasks.length > 0 ? ` (${activeTasks.length})` : ''}`,
+      icon: <ClipboardList size={16} />,
+    },
   ];
 
+  const acuityBorderColor =
+    patient.acuity === 1 ? 'border-l-red-500' :
+    patient.acuity === 2 ? 'border-l-orange-400' :
+    patient.acuity === 3 ? 'border-l-yellow-400' :
+    patient.acuity === 4 ? 'border-l-emerald-400' : 'border-l-blue-400';
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-4 mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/patients')}
-              iconLeft={<ArrowLeft size={16} />}
-            >
-              Patients
-            </Button>
-          </div>
-          <div className="flex items-start justify-between gap-4">
+    <div className="space-y-4">
+      {/* ---- Back navigation ---- */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate('/patients')}
+        iconLeft={<ArrowLeft size={15} />}
+      >
+        All Patients
+      </Button>
+
+      {/* ---- Patient header card ---- */}
+      <div className={clsx('bg-white rounded-xl border border-gray-200 border-l-4 p-4', acuityBorderColor)}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-4">
+            {/* Acuity circle */}
+            <div className={clsx(
+              'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold',
+              patient.acuity === 1 ? 'bg-red-100 text-red-700' :
+              patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
+              patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
+              patient.acuity === 4 ? 'bg-emerald-100 text-emerald-700' :
+              'bg-blue-100 text-blue-700',
+            )}>
+              {patient.acuity}
+            </div>
             <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {patient.firstName} {patient.lastName}
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl font-bold text-gray-900">
+                  {patient.lastName}, {patient.firstName}
                 </h1>
+                {patient.dateOfBirth && (
+                  <span className="text-sm text-gray-400">{calculateAge(patient.dateOfBirth)}</span>
+                )}
+                {patient.gender && (
+                  <span className="text-sm text-gray-400">
+                    {patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'Other'}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <Badge variant={getAcuityVariant(patient.acuity)} dot>
                   {ACUITY_LEVELS[patient.acuity].label}
                 </Badge>
@@ -252,38 +305,99 @@ export default function PatientDetailPage() {
                     {STATE_METADATA[patient.state]?.label || patient.state}
                   </Badge>
                 )}
+                {overdueTasks.length > 0 && (
+                  <Badge variant="critical">{overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''}</Badge>
+                )}
               </div>
-              <p className="text-sm text-gray-500 mt-1">
-                MRN: {patient.mrn} &middot; Bed {patient.bedNumber} &middot;{' '}
-                {patient.gender === 'male' ? 'Male' : patient.gender === 'female' ? 'Female' : 'Other'}{' '}
-                &middot; DOB: {patient.dateOfBirth}
-              </p>
+              <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500 flex-wrap">
+                <span>MRN: <strong>{patient.mrn}</strong></span>
+                <span className="flex items-center gap-1">
+                  <BedDouble size={11} /> Bed <strong>{patient.bedNumber}</strong>
+                </span>
+                {patient.attendingPhysician && <span>Attending: <strong>{patient.attendingPhysician}</strong></span>}
+                {patient.team && <span>Team: <strong>{patient.team}</strong></span>}
+              </div>
             </div>
-            <div className="flex gap-2 shrink-0">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowEditModal(true)}
-                iconLeft={<Edit3 size={14} />}
-              >
-                Edit
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(true)}
-                iconLeft={<Trash2 size={14} />}
-              >
-                Delete
-              </Button>
-            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="secondary" size="sm" onClick={() => setShowEditModal(true)} iconLeft={<Edit3 size={13} />}>Edit</Button>
+            <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)} iconLeft={<Trash2 size={13} />}>Delete</Button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* ---- Safety banners ---- */}
+
+      {/* Allergy alert */}
+      {patient.allergies && patient.allergies.length > 0 && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border-2 border-red-300">
+          <ShieldAlert size={18} className="text-red-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-red-800 uppercase tracking-wide">Allergy Alert</p>
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {patient.allergies.map((a, i) => (
+                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-800 border border-red-300 text-xs font-semibold rounded">
+                  {a}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Code status banner (non-full code) */}
+      {patient.codeStatus && patient.codeStatus !== 'full' && (
+        <div className={clsx(
+          'flex items-center gap-3 px-4 py-3 rounded-xl border-2',
+          patient.codeStatus === 'comfort' ? 'bg-purple-50 border-purple-300' : 'bg-red-50 border-red-300',
+        )}>
+          <Heart size={18} className={patient.codeStatus === 'comfort' ? 'text-purple-600 shrink-0' : 'text-red-600 shrink-0'} />
+          <div>
+            <p className={clsx('text-sm font-bold uppercase tracking-wide', patient.codeStatus === 'comfort' ? 'text-purple-800' : 'text-red-800')}>
+              Code Status:{' '}
+              {patient.codeStatus === 'DNR' ? 'Do Not Resuscitate (DNR)' :
+               patient.codeStatus === 'DNI' ? 'Do Not Intubate (DNI)' :
+               'Comfort Care Only'}
+            </p>
+            <p className={clsx('text-xs', patient.codeStatus === 'comfort' ? 'text-purple-600' : 'text-red-600')}>
+              Confirmed with patient / next of kin — document in notes
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Quick actions ---- */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button variant="secondary" size="sm" onClick={() => navigate('/handover')} iconLeft={<FileText size={13} />}>
+          Generate SBAR
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/tasks')} iconLeft={<Plus size={13} />}>
+          Add Task
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/labs')} iconLeft={<Beaker size={13} />}>
+          Upload Labs
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/ai')} iconLeft={<Activity size={13} />}>
+          AI Assistant
+        </Button>
+      </div>
+
+      {/* ---- Primary diagnosis summary ---- */}
+      <div className="px-4 py-3 bg-white rounded-xl border border-gray-200">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Primary Diagnosis</p>
+        <p className="text-sm font-semibold text-gray-900">{patient.primaryDiagnosis}</p>
+        {patient.diagnoses.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {patient.diagnoses.map((d, i) => (
+              <Badge key={i} variant="default" size="sm">{d}</Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
         {/* Tabs */}
-        <Tabs items={tabItems} activeId={activeTab} onChange={setActiveTab} className="mb-6" />
+        <Tabs items={tabItems} activeId={activeTab} onChange={setActiveTab} className="mb-4" />
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (

@@ -5,8 +5,18 @@ import {
   Plus,
   CheckCircle2,
   Clock,
+  AlertTriangle,
+  Filter,
+  Pill,
+  FlaskConical,
+  Image,
+  Stethoscope,
+  Activity,
+  HeartPulse,
+  LogOut,
+  HelpCircle,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { useTaskStore } from '@/stores/taskStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -20,6 +30,10 @@ import { Modal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Spinner } from '@/components/ui/Spinner';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const statusFilters: { value: TaskStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -58,6 +72,64 @@ const initialFormData: TaskFormData = {
   notes: '',
 };
 
+// ---------------------------------------------------------------------------
+// Category icons
+// ---------------------------------------------------------------------------
+
+function CategoryIcon({ category }: { category: TaskCategory }) {
+  switch (category) {
+    case 'medication': return <Pill size={13} className="text-blue-500" />;
+    case 'lab': return <FlaskConical size={13} className="text-purple-500" />;
+    case 'imaging': return <Image size={13} className="text-indigo-500" />;
+    case 'consult': return <Stethoscope size={13} className="text-emerald-500" />;
+    case 'procedure': return <Activity size={13} className="text-orange-500" />;
+    case 'nursing': return <HeartPulse size={13} className="text-pink-500" />;
+    case 'discharge': return <LogOut size={13} className="text-gray-500" />;
+    default: return <HelpCircle size={13} className="text-gray-400" />;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function isOverdue(task: { dueAt?: unknown; status: string }): boolean {
+  if (task.status === 'completed' || task.status === 'cancelled') return false;
+  if (!task.dueAt) return false;
+  const due = typeof task.dueAt === 'object' && task.dueAt !== null && 'toDate' in task.dueAt
+    ? (task.dueAt as { toDate: () => Date }).toDate()
+    : new Date(task.dueAt as string);
+  return due < new Date();
+}
+
+function formatDue(dueAt: unknown): string {
+  if (!dueAt) return '';
+  try {
+    const date = typeof dueAt === 'object' && 'toDate' in (dueAt as object)
+      ? (dueAt as { toDate: () => Date }).toDate()
+      : new Date(dueAt as string);
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch {
+    return '';
+  }
+}
+
+function formatDueAbsolute(dueAt: unknown): string {
+  if (!dueAt) return '';
+  try {
+    const date = typeof dueAt === 'object' && 'toDate' in (dueAt as object)
+      ? (dueAt as { toDate: () => Date }).toDate()
+      : new Date(dueAt as string);
+    return format(date, 'dd MMM, HH:mm');
+  } catch {
+    return '';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// TasksPage component
+// ---------------------------------------------------------------------------
+
 export default function TasksPage() {
   const user = useAuthStore((s) => s.user);
   const patients = usePatientStore((s) => s.patients);
@@ -78,6 +150,7 @@ export default function TasksPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [completingTask, setCompletingTask] = useState<string | null>(null);
+  const [groupByPatient, setGroupByPatient] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -91,28 +164,64 @@ export default function TasksPage() {
 
   const filteredTasks = getFilteredTasks();
 
+  // Task stats
+  const activeCount = tasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled').length;
+  const overdueCount = tasks.filter(isOverdue).length;
+  const criticalCount = tasks.filter((t) => t.priority === 'critical' && t.status !== 'completed' && t.status !== 'cancelled').length;
+
   const sortedTasks = useMemo(() => {
-    const priorityOrder: Record<string, number> = {
-      critical: 0,
-      high: 1,
-      medium: 2,
-      low: 3,
-    };
+    const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
     return [...filteredTasks].sort((a, b) => {
-      // Sort completed to bottom
+      // Overdue first
+      const aOverdue = isOverdue(a) ? -1 : 0;
+      const bOverdue = isOverdue(b) ? -1 : 0;
+      if (aOverdue !== bOverdue) return aOverdue - bOverdue;
+      // Completed to bottom
       if (a.status === 'completed' && b.status !== 'completed') return 1;
       if (a.status !== 'completed' && b.status === 'completed') return -1;
       // Then by priority
-      return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2);
+      return (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
     });
   }, [filteredTasks]);
+
+  // Group by patient
+  const tasksByPatient = useMemo(() => {
+    const groups: Record<string, { patientName: string; bedNumber: string; tasks: typeof sortedTasks }> = {};
+    for (const task of sortedTasks) {
+      if (!groups[task.patientId]) {
+        groups[task.patientId] = {
+          patientName: task.patientName,
+          bedNumber: task.bedNumber,
+          tasks: [],
+        };
+      }
+      groups[task.patientId].tasks.push(task);
+    }
+    // Sort groups by their most urgent task
+    return Object.entries(groups).sort(([, a], [, b]) => {
+      const aHasOverdue = a.tasks.some(isOverdue);
+      const bHasOverdue = b.tasks.some(isOverdue);
+      if (aHasOverdue && !bHasOverdue) return -1;
+      if (!aHasOverdue && bHasOverdue) return 1;
+      return 0;
+    });
+  }, [sortedTasks]);
+
+  function getPriorityBorder(priority: string) {
+    switch (priority) {
+      case 'critical': return 'border-l-red-500';
+      case 'high': return 'border-l-orange-400';
+      case 'medium': return 'border-l-blue-300';
+      default: return 'border-l-gray-200';
+    }
+  }
 
   function getPriorityVariant(priority: string) {
     switch (priority) {
       case 'critical': return 'critical' as const;
       case 'high': return 'warning' as const;
       case 'medium': return 'default' as const;
-      case 'low': return 'success' as const;
+      case 'low': return 'muted' as const;
       default: return 'default' as const;
     }
   }
@@ -124,15 +233,6 @@ export default function TasksPage() {
       case 'cancelled': return 'muted' as const;
       default: return 'default' as const;
     }
-  }
-
-  function isOverdue(task: { dueAt?: unknown; status: string }): boolean {
-    if (task.status === 'completed' || task.status === 'cancelled') return false;
-    if (!task.dueAt) return false;
-    const due = typeof task.dueAt === 'object' && task.dueAt !== null && 'toDate' in task.dueAt
-      ? (task.dueAt as { toDate: () => Date }).toDate()
-      : new Date(task.dueAt as string);
-    return due < new Date();
   }
 
   function validateForm(): boolean {
@@ -183,172 +283,245 @@ export default function TasksPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ClipboardList size={24} className="text-gray-400" />
-              <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
-              <Badge variant="default" size="sm">
-                {tasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled').length} active
-              </Badge>
-            </div>
-            <Button
-              size="sm"
-              onClick={() => setShowCreateModal(true)}
-              iconLeft={<Plus size={14} />}
-            >
-              New Task
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
-        {/* Filter bar */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Status filters */}
-          <div className="flex flex-wrap gap-2">
-            {statusFilters.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => setFilterStatus(filter.value)}
-                className={clsx(
-                  'px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
-                  filterStatus === filter.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
-                )}
-              >
-                {filter.label}
-              </button>
-            ))}
+  function TaskCard({ task }: { task: typeof sortedTasks[number]; grouped?: boolean }) {
+    const overdue = isOverdue(task);
+    return (
+      <div
+        className={clsx(
+          'flex items-start justify-between gap-3 px-4 py-3',
+          'bg-white border rounded-xl transition-all duration-150 hover:shadow-sm',
+          overdue
+            ? 'border-red-200 bg-red-50/40 border-l-4 border-l-red-500'
+            : task.status === 'completed'
+            ? 'border-gray-100 opacity-70'
+            : `border-gray-200 border-l-4 ${getPriorityBorder(task.priority)}`,
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          {/* Title row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <CategoryIcon category={task.category} />
+            <p className={clsx(
+              'text-sm font-semibold',
+              task.status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-900',
+            )}>
+              {task.title}
+            </p>
+            {overdue && <Badge variant="critical" size="sm">Overdue</Badge>}
+            <Badge variant={getPriorityVariant(task.priority)} size="sm">
+              {task.priority}
+            </Badge>
+            <Badge variant={getStatusVariant(task.status)} size="sm">
+              {TASK_STATUSES[task.status]?.label || task.status}
+            </Badge>
           </div>
 
-          {/* Priority filter dropdown */}
-          <select
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value as TaskPriority | 'all')}
-            className={clsx(
-              'h-9 px-3 pr-8 rounded-full text-sm font-medium',
-              'bg-white border border-gray-300 text-gray-600',
-              'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
-              'appearance-none bg-no-repeat bg-[length:14px_14px] bg-[right_0.5rem_center]',
-              'bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
+          {/* Patient + category */}
+          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
+            <span className="font-medium text-gray-700">
+              {task.patientName}
+            </span>
+            <span>Bed {task.bedNumber}</span>
+            <span className="capitalize text-gray-400">{task.category}</span>
+          </div>
+
+          {/* Due time + assignee */}
+          <div className="flex items-center gap-3 mt-1 text-xs flex-wrap">
+            {task.dueAt && (
+              <span className={clsx(
+                'flex items-center gap-1',
+                overdue ? 'text-red-600 font-semibold' : 'text-gray-400',
+              )}>
+                <Clock size={11} />
+                {overdue ? 'Was due ' : 'Due '}
+                {formatDue(task.dueAt)}
+                <span className="text-gray-300">({formatDueAbsolute(task.dueAt)})</span>
+              </span>
             )}
-          >
-            {priorityFilters.map((filter) => (
-              <option key={filter.value} value={filter.value}>
-                {filter.label}
-              </option>
-            ))}
-          </select>
+            {task.assignedToName && (
+              <span className="text-gray-400">
+                → {task.assignedToName}
+              </span>
+            )}
+          </div>
+
+          {task.description && (
+            <p className="text-xs text-gray-500 mt-1 line-clamp-1">{task.description}</p>
+          )}
         </div>
 
-        {/* Task list */}
-        {loading ? (
-          <div className="py-16">
-            <Spinner size="lg" label="Loading tasks..." />
-          </div>
-        ) : sortedTasks.length === 0 ? (
-          <Card>
-            <EmptyState
-              icon={<ClipboardList size={24} />}
-              title={filterStatus !== 'all' || filterPriority !== 'all' ? 'No tasks match your filters' : 'No tasks yet'}
-              description={
-                filterStatus !== 'all' || filterPriority !== 'all'
-                  ? 'Try adjusting your filters to see more tasks.'
-                  : 'Create your first task to start tracking clinical work.'
-              }
-              action={
-                filterStatus === 'all' && filterPriority === 'all' ? (
-                  <Button size="sm" onClick={() => setShowCreateModal(true)} iconLeft={<Plus size={14} />}>
-                    Create Task
-                  </Button>
-                ) : undefined
-              }
-            />
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {sortedTasks.map((task) => {
-              const overdue = isOverdue(task);
-              return (
-                <Card
-                  key={task.id}
-                  padding="md"
-                  className={clsx(overdue && 'border-red-200 bg-red-50/30')}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {task.status === 'completed' && (
-                          <CheckCircle2 size={16} className="text-green-500 shrink-0" />
-                        )}
-                        <p className={clsx(
-                          'text-sm font-semibold',
-                          task.status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-900',
-                        )}>
-                          {task.title}
-                        </p>
-                        <Badge variant={getPriorityVariant(task.priority)} size="sm">
-                          {task.priority}
-                        </Badge>
-                        <Badge variant={getStatusVariant(task.status)} size="sm">
-                          {TASK_STATUSES[task.status]?.label || task.status}
-                        </Badge>
-                        {overdue && (
-                          <Badge variant="critical" size="sm">Overdue</Badge>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
-                        <span>{task.patientName} &middot; Bed {task.bedNumber}</span>
-                        <span className="capitalize">{task.category}</span>
-                        {task.dueAt && (
-                          <span className={clsx('flex items-center gap-1', overdue && 'text-red-600 font-medium')}>
-                            <Clock size={12} />
-                            {typeof task.dueAt === 'object' && 'toDate' in task.dueAt
-                              ? formatDistanceToNow(task.dueAt.toDate(), { addSuffix: true })
-                              : 'N/A'}
-                          </span>
-                        )}
-                        {task.assignedToName && (
-                          <span>Assigned: {task.assignedToName}</span>
-                        )}
-                      </div>
-
-                      {task.description && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                          {task.description}
-                        </p>
-                      )}
-                    </div>
-
-                    {task.status !== 'completed' && task.status !== 'cancelled' && (
-                      <Button
-                        variant="success"
-                        size="sm"
-                        loading={completingTask === task.id}
-                        onClick={() => handleCompleteTask(task.id)}
-                        iconLeft={<CheckCircle2 size={14} />}
-                      >
-                        Complete
-                      </Button>
-                    )}
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+        {/* Complete button */}
+        {task.status !== 'completed' && task.status !== 'cancelled' && (
+          <Button
+            variant={overdue ? 'danger' : 'success'}
+            size="sm"
+            loading={completingTask === task.id}
+            onClick={() => handleCompleteTask(task.id)}
+            iconLeft={<CheckCircle2 size={13} />}
+          >
+            Done
+          </Button>
         )}
       </div>
+    );
+  }
 
-      {/* Create Task Modal */}
+  return (
+    <div className="space-y-4">
+      {/* ---- Header ---- */}
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <ClipboardList size={20} className="text-gray-400" />
+            <h1 className="text-xl font-bold text-gray-900">Tasks</h1>
+            {activeCount > 0 && <Badge variant="default" size="sm">{activeCount} active</Badge>}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            {overdueCount > 0 && (
+              <span className="flex items-center gap-1 font-semibold text-red-600">
+                <AlertTriangle size={11} />
+                {overdueCount} overdue
+              </span>
+            )}
+            {criticalCount > 0 && (
+              <span className="font-semibold text-orange-600">
+                {criticalCount} critical priority
+              </span>
+            )}
+          </div>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setShowCreateModal(true)}
+          iconLeft={<Plus size={14} />}
+        >
+          New Task
+        </Button>
+      </div>
+
+      {/* ---- Overdue alert banner ---- */}
+      {overdueCount > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200">
+          <AlertTriangle size={16} className="text-red-600 shrink-0" />
+          <p className="text-sm font-semibold text-red-800">
+            {overdueCount} overdue task{overdueCount > 1 ? 's' : ''} — review and complete immediately
+          </p>
+        </div>
+      )}
+
+      {/* ---- Filter + group controls ---- */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+        {/* Status filters */}
+        <div className="flex flex-wrap gap-1.5">
+          <Filter size={13} className="text-gray-400 self-center shrink-0" />
+          {statusFilters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => setFilterStatus(filter.value)}
+              className={clsx(
+                'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                filterStatus === filter.value
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Priority filter */}
+        <select
+          value={filterPriority}
+          onChange={(e) => setFilterPriority(e.target.value as TaskPriority | 'all')}
+          className={clsx(
+            'h-8 px-2.5 pr-7 rounded-lg text-xs font-medium',
+            'bg-white border border-gray-300 text-gray-600',
+            'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
+            'appearance-none',
+          )}
+        >
+          {priorityFilters.map((filter) => (
+            <option key={filter.value} value={filter.value}>{filter.label}</option>
+          ))}
+        </select>
+
+        {/* Group toggle */}
+        <button
+          type="button"
+          onClick={() => setGroupByPatient(!groupByPatient)}
+          className={clsx(
+            'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ml-auto',
+            groupByPatient
+              ? 'bg-blue-50 text-blue-700 border-blue-200'
+              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+          )}
+        >
+          Group by Patient
+        </button>
+      </div>
+
+      {/* ---- Task list ---- */}
+      {loading ? (
+        <div className="py-16"><Spinner size="lg" label="Loading tasks..." /></div>
+      ) : sortedTasks.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<ClipboardList size={24} />}
+            title={filterStatus !== 'all' || filterPriority !== 'all' ? 'No tasks match your filters' : 'No tasks yet'}
+            description={
+              filterStatus !== 'all' || filterPriority !== 'all'
+                ? 'Try adjusting your filters.'
+                : 'Create your first task to start tracking clinical work.'
+            }
+            action={
+              filterStatus === 'all' && filterPriority === 'all' ? (
+                <Button size="sm" onClick={() => setShowCreateModal(true)} iconLeft={<Plus size={14} />}>
+                  Create Task
+                </Button>
+              ) : undefined
+            }
+          />
+        </Card>
+      ) : groupByPatient ? (
+        /* ---- Grouped by patient ---- */
+        <div className="space-y-4">
+          {tasksByPatient.map(([patientId, group]) => {
+            const groupOverdueCount = group.tasks.filter(isOverdue).length;
+            return (
+              <div key={patientId}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-700">{group.patientName}</span>
+                    <span className="text-xs text-gray-400">Bed {group.bedNumber}</span>
+                    <Badge variant="default" size="sm">{group.tasks.length}</Badge>
+                    {groupOverdueCount > 0 && (
+                      <Badge variant="critical" size="sm">{groupOverdueCount} overdue</Badge>
+                    )}
+                  </div>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
+                <div className="space-y-1.5">
+                  {group.tasks.map((task) => (
+                    <TaskCard key={task.id} task={task} grouped />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ---- Flat list ---- */
+        <div className="space-y-1.5">
+          {sortedTasks.map((task) => (
+            <TaskCard key={task.id} task={task} />
+          ))}
+        </div>
+      )}
+
+      {/* ---- Create Task Modal ---- */}
       <Modal
         open={showCreateModal}
         onClose={() => {
@@ -373,19 +546,21 @@ export default function TasksPage() {
             error={formErrors.patientId}
           >
             <option value="">Select a patient...</option>
-            {patients.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.firstName} {p.lastName} - Bed {p.bedNumber}
-              </option>
-            ))}
+            {[...patients]
+              .sort((a, b) => a.acuity - b.acuity)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.lastName}, {p.firstName} — Bed {p.bedNumber} (Acuity {p.acuity})
+                </option>
+              ))}
           </Select>
 
           <Input
-            label="Title"
+            label="Task Title"
             value={formData.title}
             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             error={formErrors.title}
-            placeholder="e.g. Check morning bloods"
+            placeholder="e.g. Check morning bloods, chase CXR result..."
             required
           />
 
@@ -393,7 +568,7 @@ export default function TasksPage() {
             label="Description"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            placeholder="Task details..."
+            placeholder="Additional details..."
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -412,10 +587,10 @@ export default function TasksPage() {
               value={formData.priority}
               onChange={(e) => setFormData({ ...formData, priority: e.target.value as TaskPriority })}
             >
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="critical">Critical — Do immediately</option>
+              <option value="high">High — Do within 1 hour</option>
+              <option value="medium">Medium — Do today</option>
+              <option value="low">Low — When time permits</option>
             </Select>
           </div>
 
@@ -430,10 +605,10 @@ export default function TasksPage() {
             label="Notes"
             value={formData.notes || ''}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            placeholder="Additional notes..."
+            placeholder="Additional notes or instructions..."
           />
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
             <Button
               type="button"
               variant="secondary"
@@ -445,7 +620,7 @@ export default function TasksPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" loading={saving}>
+            <Button type="submit" loading={saving} iconLeft={<Plus size={14} />}>
               Create Task
             </Button>
           </div>
