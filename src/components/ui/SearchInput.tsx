@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { clsx } from 'clsx'
 import { Search, X } from 'lucide-react'
 
@@ -19,15 +19,13 @@ export function SearchInput({
   className,
   autoFocus = false,
 }: SearchInputProps) {
+  const displayValue = controlledValue !== undefined ? controlledValue : undefined
   const [localValue, setLocalValue] = useState(controlledValue ?? '')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (controlledValue !== undefined) {
-      setLocalValue(controlledValue)
-    }
-  }, [controlledValue])
+  // Derive the current value without an effect
+  const currentValue = displayValue !== undefined ? displayValue : localValue
 
   const handleChange = (val: string) => {
     setLocalValue(val)
@@ -43,12 +41,6 @@ export function SearchInput({
     inputRef.current?.focus()
   }
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [])
-
   return (
     <div className={clsx('relative', className)}>
       <Search
@@ -58,7 +50,7 @@ export function SearchInput({
       <input
         ref={inputRef}
         type="text"
-        value={localValue}
+        value={currentValue}
         onChange={(e) => handleChange(e.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
@@ -70,7 +62,7 @@ export function SearchInput({
           'hover:border-slate-300'
         )}
       />
-      {localValue && (
+      {currentValue && (
         <button
           type="button"
           onClick={handleClear}

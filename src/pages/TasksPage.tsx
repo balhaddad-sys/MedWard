@@ -5,15 +5,13 @@ import {
   Plus,
   CheckCircle2,
   Clock,
-  Filter,
-  Search,
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { useTaskStore } from '@/stores/taskStore';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
 import { subscribeToUserTasks, createTask, completeTask } from '@/services/firebase/tasks';
-import { TASK_PRIORITIES, TASK_STATUSES } from '@/config/constants';
+import { TASK_STATUSES } from '@/config/constants';
 import type { TaskFormData, TaskCategory, TaskPriority, TaskStatus } from '@/types/task';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';

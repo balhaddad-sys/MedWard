@@ -1,10 +1,9 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { clsx } from 'clsx';
 import {
   FileText,
   Copy,
   Check,
-  Loader2,
   ChevronDown,
   ChevronUp,
   RefreshCw,
@@ -19,7 +18,6 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Spinner } from '@/components/ui/Spinner';
 
 interface SBARResult {
   patientId: string;

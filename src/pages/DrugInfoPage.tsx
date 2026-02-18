@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { clsx } from 'clsx';
 import {
   Pill,
@@ -6,7 +6,6 @@ import {
   Loader2,
   AlertTriangle,
   Clock,
-  X,
   ChevronRight,
   Info,
 } from 'lucide-react';
@@ -14,7 +13,6 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 interface DrugInfo {

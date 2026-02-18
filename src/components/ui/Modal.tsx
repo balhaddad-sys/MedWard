@@ -95,26 +95,24 @@ function Modal({
         )}
       >
         {/* Header */}
-        {(title || true) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
-            {title && (
-              <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          {title && (
+            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className={clsx(
+              'ml-auto p-1.5 rounded-lg text-gray-400',
+              'hover:text-gray-600 hover:bg-gray-100',
+              'transition-colors duration-150',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40',
             )}
-            <button
-              type="button"
-              onClick={onClose}
-              className={clsx(
-                'ml-auto p-1.5 rounded-lg text-gray-400',
-                'hover:text-gray-600 hover:bg-gray-100',
-                'transition-colors duration-150',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40',
-              )}
-              aria-label="Close modal"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
+            aria-label="Close modal"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
         {/* Body */}
         <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>

@@ -1,6 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { clsx } from 'clsx';
 import { LogIn, Mail, Lock, Eye, EyeOff, Activity } from 'lucide-react';
 import { signIn, signInWithGoogle } from '@/services/firebase/auth';
 import { useAuthStore } from '@/stores/authStore';

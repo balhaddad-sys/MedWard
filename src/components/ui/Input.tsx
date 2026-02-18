@@ -39,20 +39,6 @@ function fieldBaseClasses(variant: InputVariant, hasError: boolean) {
   );
 }
 
-function LabelAndMessages({
-  label,
-  error,
-  helperText,
-  id,
-}: {
-  label?: string;
-  error?: string;
-  helperText?: string;
-  id?: string;
-}) {
-  return { labelEl: label, errorEl: error, helperEl: helperText, labelId: id };
-}
-
 /* -------------------------------------------------------------------------- */
 /*  Input                                                                     */
 /* -------------------------------------------------------------------------- */

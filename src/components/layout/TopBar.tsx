@@ -1,5 +1,5 @@
 import { Bell, Menu } from 'lucide-react'
-import { useModeContext } from '@/context/ModeContext'
+import { useModeContext } from '@/context/useModeContext'
 import { useNotificationStore } from '@/stores/notificationStore'
 
 // ---------------------------------------------------------------------------

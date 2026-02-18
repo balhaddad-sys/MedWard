@@ -1,8 +1,37 @@
 import { httpsCallable } from 'firebase/functions'
 import { functions } from '@/config/firebase'
-import type { AnalyzedLab, RawLabImage, LabTest } from '../models/Lab'
-
 import type { ExtractionResponse } from '@/types/lab'
+
+export interface LabTest {
+  name: string
+  value: string
+  unit?: string
+  refRange?: string
+  isAbnormal: boolean
+}
+
+export interface RawLabImage {
+  id: string
+  patientId: string
+  base64Data: string
+  uploadedAt: Date
+}
+
+export interface AnalyzedLab {
+  id: string
+  patientId: string
+  rawImageId: string
+  uploadedAt: Date
+  analyzedAt: Date
+  labName?: string
+  testDate?: Date
+  category: string
+  ocrText: string
+  tests: LabTest[]
+  confidence: number
+  isConfirmed: boolean
+  status: 'pending' | 'confirmed' | 'rejected'
+}
 
 interface LabImageResponse {
   content: string
