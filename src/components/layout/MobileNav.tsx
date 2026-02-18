@@ -12,6 +12,7 @@ import {
   Pill,
   Settings,
   X,
+  Repeat,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useModeContext } from '@/context/useModeContext'
@@ -55,6 +56,7 @@ const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
     { to: '/drugs', label: 'Drug Info', icon: Pill },
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/settings', label: 'Settings', icon: Settings },
+    { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],
   acute: [
     { to: '/ai', label: 'AI Assistant', icon: Bot },
@@ -62,11 +64,13 @@ const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
     { to: '/patients', label: 'Patients', icon: Users },
     { to: '/settings', label: 'Settings', icon: Settings },
+    { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],
   clerking: [
     { to: '/ai', label: 'AI Assistant', icon: Bot },
     { to: '/drugs', label: 'Drug Info', icon: Pill },
     { to: '/settings', label: 'Settings', icon: Settings },
+    { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],
 }
 

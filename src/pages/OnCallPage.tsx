@@ -164,7 +164,7 @@ export default function OnCallPage() {
                       )}
 
                       {/* Escalation flags */}
-                      {entry.escalationFlags.length > 0 && (
+                      {entry.escalationFlags?.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-3">
                           {entry.escalationFlags.map((flag, i) => (
                             <Badge key={i} variant="warning" size="sm">

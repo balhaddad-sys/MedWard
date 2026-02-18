@@ -309,7 +309,7 @@ export default function PatientListPage() {
         type="button"
         onClick={() => setShowAddModal(true)}
         className={clsx(
-          'fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg',
+          'fixed bottom-20 right-6 w-14 h-14 rounded-full shadow-lg',
           'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
           'flex items-center justify-center',
           'transition-all duration-200',
