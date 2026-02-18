@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { clsx } from 'clsx';
 import {
   FileText,
@@ -58,7 +58,7 @@ export default function ClerkingPage() {
   const [noteId, setNoteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [signing, setSigning] = useState(false);
-  const [autoSaveTimer, setAutoSaveTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [expandedSteps, setExpandedSteps] = useState<Set<StepKey>>(new Set(['history']));
   const [error, setError] = useState<string | null>(null);
@@ -149,14 +149,14 @@ export default function ClerkingPage() {
 
   // Debounced auto-save
   const triggerAutoSave = useCallback(() => {
-    if (autoSaveTimer) clearTimeout(autoSaveTimer);
-    const timer = setTimeout(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
       if (noteId) {
         performSave();
       }
     }, 3000);
-    setAutoSaveTimer(timer);
-  }, [noteId, autoSaveTimer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteId]);
 
   // Trigger auto-save on any field change
   useEffect(() => {
@@ -164,9 +164,10 @@ export default function ClerkingPage() {
       triggerAutoSave();
     }
     return () => {
-      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
   }, [
+    noteId, triggerAutoSave,
     hpi, pmh, psh, medications, allergies, familyHistory, socialHistory, systemsReview,
     generalAppearance, heartRate, bloodPressure, respiratoryRate, temperature, oxygenSat,
     cardiovascularExam, respiratoryExam, abdominalExam, neurologicalExam,
