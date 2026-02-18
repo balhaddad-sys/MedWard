@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRightLeft, Download, Sparkles, CheckSquare, Square, Users, AlertTriangle } from 'lucide-react'
+import { ArrowRightLeft, Download, Sparkles, Users, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { usePatientStore } from '@/stores/patientStore'

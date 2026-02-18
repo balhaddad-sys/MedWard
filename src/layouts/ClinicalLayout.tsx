@@ -26,7 +26,7 @@ import { useTaskStore } from '@/stores/taskStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { signOut } from '@/services/firebase/auth'
 import { APP_NAME } from '@/config/constants'
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useClickOutside } from '@/hooks/useClickOutside'
 import type { ClinicalMode } from '@/config/modes'
 
@@ -255,8 +255,6 @@ function BottomNav({ mode }: { mode: ClinicalMode }) {
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
   const isMoreActive = more.some((item) => isActive(item.path))
-
-  useEffect(() => { setShowMore(false) }, [location.pathname])
 
   return (
     <>
@@ -513,6 +511,7 @@ function TopHeader({ mode }: { mode: ClinicalMode }) {
 export default function ClinicalLayout() {
   const { mode, isTransitioning } = useClinicalMode()
   const isMobile = useUIStore((s) => s.isMobile)
+  const location = useLocation()
   const isDark = mode === 'acute'
 
   return (
@@ -536,7 +535,7 @@ export default function ClinicalLayout() {
         </main>
       </div>
 
-      {isMobile && <BottomNav mode={mode} />}
+      {isMobile && <BottomNav key={location.pathname} mode={mode} />}
     </div>
   )
 }
