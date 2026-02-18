@@ -198,7 +198,7 @@ export default function LabAnalysisPage() {
 
     const totalFiles = files.length;
     let allLabValues: LabValue[] = [];
-    let allPanelNames: string[] = [];
+    const allPanelNames: string[] = [];
     let lastLabPanel: (Omit<LabPanel, 'id' | 'createdAt'>) | null = null;
 
     try {
