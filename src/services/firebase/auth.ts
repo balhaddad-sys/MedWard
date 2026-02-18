@@ -37,7 +37,7 @@ export const getOrCreateProfile = async (firebaseUser: FirebaseUser): Promise<Us
         defaultWard: '',
         defaultMode: 'ward' as const,
         notificationSettings: { criticalLabs: true, taskReminders: true, handoverAlerts: true },
-        displaySettings: { compactView: false, showAISuggestions: true, labTrendDays: 7 },
+        displaySettings: { compactView: false, showAISuggestions: true, labTrendDays: 7, labPriorityProfile: 'ward' as const },
       },
       createdAt: serverTimestamp(),
       lastLoginAt: serverTimestamp(),

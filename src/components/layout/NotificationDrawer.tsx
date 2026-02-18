@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { markNotificationAsRead } from '@/services/firebase/notifications'
 import type { Notification, NotificationType, NotificationSeverity } from '@/types/notification'
 
 // ---------------------------------------------------------------------------
@@ -87,7 +88,7 @@ function formatTimestamp(ts: unknown): string {
 
 export default function NotificationDrawer({ open, onClose }: NotificationDrawerProps) {
   const navigate = useNavigate()
-  const { notifications, markAsRead, clearAll } = useNotificationStore()
+  const { notifications, markAsRead } = useNotificationStore()
   const drawerRef = useRef<HTMLDivElement>(null)
 
   // Close on outside click
@@ -119,11 +120,30 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
   }, [open, onClose])
 
   function handleNotificationClick(n: Notification) {
-    markAsRead(n.id)
+    if (!n.readAt) {
+      markAsRead(n.id)
+      void markNotificationAsRead(n.id).catch((error) => {
+        console.error('Failed to mark notification as read:', error)
+      })
+    }
+
     if (n.actionUrl) {
       navigate(n.actionUrl)
       onClose()
     }
+  }
+
+  function handleMarkAllAsRead() {
+    const unreadNotifications = notifications.filter((notification) => !notification.readAt)
+    if (unreadNotifications.length === 0) return
+
+    for (const notification of unreadNotifications) {
+      markAsRead(notification.id)
+    }
+
+    void Promise.allSettled(
+      unreadNotifications.map((notification) => markNotificationAsRead(notification.id))
+    )
   }
 
   const unread = notifications.filter((n) => !n.readAt)
@@ -167,12 +187,12 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
             {notifications.length > 0 && (
               <button
                 type="button"
-                onClick={clearAll}
+                onClick={handleMarkAllAsRead}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                title="Mark all as read and clear"
+                title="Mark all as read"
               >
                 <CheckCheck size={13} />
-                Clear all
+                Mark all read
               </button>
             )}
             <button
@@ -244,7 +264,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
         {/* Footer */}
         <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
           <p className="text-xs text-slate-400 text-center">
-            Notifications from this session only
+            Notifications are synced with your account
           </p>
         </div>
       </div>

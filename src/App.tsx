@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/services/firebase/auth'
 import { firebaseReady } from '@/config/firebase'
 import { useAuthStore } from '@/stores/authStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { ModeProvider } from '@/context/ModeContext'
 import ClinicalLayout from '@/components/layout/ClinicalLayout'
 import { Spinner } from '@/components/ui'
@@ -117,6 +118,7 @@ export default function App() {
           try {
             const profile = await getOrCreateProfile(fbUser)
             setUser(profile)
+            useSettingsStore.getState().hydrateFromPreferences(profile.preferences)
           } catch {
             setUser(null)
           }

@@ -27,6 +27,7 @@ export interface UserPreferences {
     compactView: boolean
     showAISuggestions: boolean
     labTrendDays: number
+    labPriorityProfile?: 'ward' | 'icu' | 'cardiac'
   }
 }
 

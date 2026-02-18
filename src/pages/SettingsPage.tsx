@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { clsx } from 'clsx';
 import {
   Settings,
@@ -9,15 +10,25 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useModeContext } from '@/context/useModeContext';
 import type { ClinicalMode } from '@/config/modes';
 import type { LabPriorityProfile } from '@/stores/settingsStore';
 import { APP_NAME, APP_VERSION } from '@/config/constants';
 import { RELEASE_STAGE } from '@/config/release';
+import { updateUserProfile } from '@/services/firebase/auth';
+import {
+  getNotificationPermission,
+  hasRequestedPermission,
+  markPermissionRequested,
+  requestNotificationPermission,
+} from '@/services/browserNotifications';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
+  const { setMode } = useModeContext();
+  const syncTimerRef = useRef<number | null>(null);
 
   const {
     defaultMode,
@@ -37,6 +48,94 @@ export default function SettingsPage() {
     setNotifyTaskReminders,
     setNotifyHandoverAlerts,
   } = useSettingsStore();
+
+  const queueProfileSync = useCallback(() => {
+    const currentUser = useAuthStore.getState().user;
+    if (!currentUser) return;
+
+    if (syncTimerRef.current !== null) {
+      window.clearTimeout(syncTimerRef.current);
+    }
+
+    syncTimerRef.current = window.setTimeout(async () => {
+      const latestUser = useAuthStore.getState().user;
+      if (!latestUser) return;
+
+      const preferences = useSettingsStore.getState().toUserPreferences();
+      try {
+        await updateUserProfile(latestUser.id, { preferences });
+        useAuthStore.getState().setUser({ ...latestUser, preferences });
+      } catch (error) {
+        console.error('Failed to sync settings:', error);
+      }
+    }, 350);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (syncTimerRef.current !== null) {
+        window.clearTimeout(syncTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const maybeRequestNotificationPermission = useCallback((nextEnabled: boolean) => {
+    if (!nextEnabled) return;
+    if (getNotificationPermission() === 'granted') return;
+    if (hasRequestedPermission()) return;
+
+    void requestNotificationPermission().finally(() => {
+      markPermissionRequested();
+    });
+  }, []);
+
+  function handleDefaultModeChange(mode: ClinicalMode) {
+    setDefaultMode(mode);
+    setMode(mode);
+    queueProfileSync();
+  }
+
+  function handleCompactViewToggle() {
+    setCompactView(!compactView);
+    queueProfileSync();
+  }
+
+  function handleAISuggestionsToggle() {
+    setShowAISuggestions(!showAISuggestions);
+    queueProfileSync();
+  }
+
+  function handleLabTrendDaysChange(days: number) {
+    setLabTrendDays(days);
+    queueProfileSync();
+  }
+
+  function handleLabPriorityProfileChange(profile: LabPriorityProfile) {
+    setLabPriorityProfile(profile);
+    queueProfileSync();
+  }
+
+  function handleNotifyCriticalLabsToggle() {
+    const next = !notifyCriticalLabs;
+    setNotifyCriticalLabs(next);
+    maybeRequestNotificationPermission(next);
+    queueProfileSync();
+  }
+
+  function handleNotifyTaskRemindersToggle() {
+    const next = !notifyTaskReminders;
+    setNotifyTaskReminders(next);
+    maybeRequestNotificationPermission(next);
+    queueProfileSync();
+  }
+
+  function handleNotifyHandoverAlertsToggle() {
+    const next = !notifyHandoverAlerts;
+    setNotifyHandoverAlerts(next);
+    maybeRequestNotificationPermission(next);
+    queueProfileSync();
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -107,7 +206,7 @@ export default function SettingsPage() {
               </label>
               <select
                 value={defaultMode}
-                onChange={(e) => setDefaultMode(e.target.value as ClinicalMode)}
+                onChange={(e) => handleDefaultModeChange(e.target.value as ClinicalMode)}
                 className={clsx(
                   'block w-full h-10 px-3 pr-8 rounded-lg text-sm text-gray-900',
                   'bg-white border border-gray-300',
@@ -135,7 +234,7 @@ export default function SettingsPage() {
                 type="button"
                 role="switch"
                 aria-checked={compactView}
-                onClick={() => setCompactView(!compactView)}
+                onClick={handleCompactViewToggle}
                 className={clsx(
                   'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
@@ -166,7 +265,7 @@ export default function SettingsPage() {
                 type="button"
                 role="switch"
                 aria-checked={showAISuggestions}
-                onClick={() => setShowAISuggestions(!showAISuggestions)}
+                onClick={handleAISuggestionsToggle}
                 className={clsx(
                   'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
@@ -202,7 +301,7 @@ export default function SettingsPage() {
                 type="button"
                 role="switch"
                 aria-checked={notifyCriticalLabs}
-                onClick={() => setNotifyCriticalLabs(!notifyCriticalLabs)}
+                onClick={handleNotifyCriticalLabsToggle}
                 className={clsx(
                   'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
@@ -229,7 +328,7 @@ export default function SettingsPage() {
                 type="button"
                 role="switch"
                 aria-checked={notifyTaskReminders}
-                onClick={() => setNotifyTaskReminders(!notifyTaskReminders)}
+                onClick={handleNotifyTaskRemindersToggle}
                 className={clsx(
                   'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
@@ -256,7 +355,7 @@ export default function SettingsPage() {
                 type="button"
                 role="switch"
                 aria-checked={notifyHandoverAlerts}
-                onClick={() => setNotifyHandoverAlerts(!notifyHandoverAlerts)}
+                onClick={handleNotifyHandoverAlertsToggle}
                 className={clsx(
                   'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
@@ -295,7 +394,7 @@ export default function SettingsPage() {
                 min={3}
                 max={30}
                 value={labTrendDays}
-                onChange={(e) => setLabTrendDays(Number(e.target.value))}
+                onChange={(e) => handleLabTrendDaysChange(Number(e.target.value))}
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
               />
               <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -314,7 +413,7 @@ export default function SettingsPage() {
               </label>
               <select
                 value={labPriorityProfile}
-                onChange={(e) => setLabPriorityProfile(e.target.value as LabPriorityProfile)}
+                onChange={(e) => handleLabPriorityProfileChange(e.target.value as LabPriorityProfile)}
                 className={clsx(
                   'block w-full h-10 px-3 pr-8 rounded-lg text-sm text-gray-900',
                   'bg-white border border-gray-300',
