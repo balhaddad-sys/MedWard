@@ -1,297 +1,180 @@
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState, lazy, Suspense } from 'react'
-import ClinicalLayout from '@/layouts/ClinicalLayout'
-import { ModeProvider } from '@/context/ModeContext'
-import { useClinicalMode } from '@/context/useClinicalMode'
-import { Login } from '@/pages/Login'
-import { Dashboard } from '@/pages/Dashboard'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { ModalController } from '@/components/layout/ModalController'
-import { ToastContainer } from '@/components/ui/Toast'
-import { ReleaseGuard } from '@/components/ReleaseGuard'
-
-const PatientDetailPage = lazy(() => import('@/pages/PatientDetailPage').then(m => ({ default: m.PatientDetailPage })))
-const TasksPage = lazy(() => import('@/pages/TasksPage').then(m => ({ default: m.TasksPage })))
-const HandoverPage = lazy(() => import('@/pages/HandoverPage').then(m => ({ default: m.HandoverPage })))
-const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
-const AIAssistantPage = lazy(() => import('@/pages/AIAssistantPage').then(m => ({ default: m.AIAssistantPage })))
-const LabAnalysisPage = lazy(() => import('@/pages/LabAnalysisPage').then(m => ({ default: m.LabAnalysisPage })))
-const DrugInfoPage = lazy(() => import('@/pages/DrugInfoPage').then(m => ({ default: m.DrugInfoPage })))
-const PrivacyPage = lazy(() => import('@/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })))
-const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })))
-const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then(m => ({ default: m.NotFoundPage })))
-const ShiftView = lazy(() => import('@/pages/roots/ShiftView'))
-const ClerkingRoot = lazy(() => import('@/pages/roots/ClerkingRoot'))
-const ModeSelectionPage = lazy(() => import('@/pages/ModeSelectionPage').then(m => ({ default: m.ModeSelectionPage })))
-
-import { HIPAADisclaimer } from '@/components/HIPAADisclaimer'
-import { PilotBanner } from '@/components/PilotBanner'
-import { useAuthStore } from '@/stores/authStore'
-import { useUIStore } from '@/stores/uiStore'
-import { usePatientStore } from '@/stores/patientStore'
-import { useTaskStore } from '@/stores/taskStore'
-import { firebaseReady } from '@/config/firebase'
+import { Toaster } from 'react-hot-toast'
 import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/services/firebase/auth'
-import { subscribeToUserPatients } from '@/services/firebase/patients'
-import { subscribeToUserTasks, purgeExpiredCompletedTasks } from '@/services/firebase/tasks'
-import { useMissedTaskNotifications } from '@/hooks/useMissedTaskNotifications'
+import { firebaseReady } from '@/config/firebase'
+import { useAuthStore } from '@/stores/authStore'
+import { ModeProvider } from '@/context/ModeContext'
+import ClinicalLayout from '@/components/layout/ClinicalLayout'
+import { Spinner } from '@/components/ui'
 
-function PageLoader() {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin h-8 w-8 border-3 border-primary-600 border-t-transparent rounded-full" />
-    </div>
-  )
-}
+// Pages
+import Login from '@/pages/Login'
+import ModeSelectionPage from '@/pages/ModeSelectionPage'
+import Dashboard from '@/pages/Dashboard'
+import PatientListPage from '@/pages/PatientListPage'
+import PatientDetailPage from '@/pages/PatientDetailPage'
+import TasksPage from '@/pages/TasksPage'
+import HandoverPage from '@/pages/HandoverPage'
+import LabAnalysisPage from '@/pages/LabAnalysisPage'
+import AIAssistantPage from '@/pages/AIAssistantPage'
+import DrugInfoPage from '@/pages/DrugInfoPage'
+import OnCallPage from '@/pages/OnCallPage'
+import ShiftViewPage from '@/pages/ShiftViewPage'
+import ClerkingPage from '@/pages/ClerkingPage'
+import SettingsPage from '@/pages/SettingsPage'
+import PrivacyPage from '@/pages/PrivacyPage'
+import TermsPage from '@/pages/TermsPage'
+import NotFoundPage from '@/pages/NotFoundPage'
 
-function FirebaseConfigError() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-lg w-full bg-white rounded-xl shadow-lg border border-yellow-200 p-8">
-        <div className="text-center">
-          <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Firebase not configured</h1>
-          <p className="text-sm text-gray-600 mb-4">
-            Missing Firebase environment variables. Run the following to get started:
-          </p>
-        </div>
-        <div className="bg-gray-900 rounded-lg p-4 mb-4">
-          <code className="text-sm text-green-400 block">
-            <span className="text-gray-500"># Copy the example env file</span><br />
-            cp .env.example .env<br /><br />
-            <span className="text-gray-500"># Or use the setup script</span><br />
-            npm run setup<br /><br />
-            <span className="text-gray-500"># Start emulators + dev server</span><br />
-            npm run firebase:emulators &amp; npm run dev
-          </code>
-        </div>
-        <p className="text-xs text-gray-500 text-center">
-          The default <code className="bg-gray-100 px-1 rounded">.env.example</code> is
-          pre-configured for local Firebase emulators. For production, replace with
-          your real Firebase credentials.
-        </p>
-      </div>
-    </div>
-  )
-}
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const user = useAuthStore((s) => s.user)
-  const firebaseUser = useAuthStore((s) => s.firebaseUser)
-  const loading = useAuthStore((s) => s.loading)
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { firebaseUser, loading } = useAuthStore()
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-ward-bg">
-        <div className="text-center">
-          <div className="animate-spin h-10 w-10 border-3 border-primary-600 border-t-transparent rounded-full mx-auto" />
-          <p className="text-sm text-ward-muted mt-4">Loading MedWard Pro...</p>
-        </div>
+        <Spinner size="lg" label="Loading..." />
       </div>
     )
   }
 
-  if (!firebaseUser || !user) {
+  if (!firebaseUser) {
     return <Navigate to="/login" replace />
   }
 
   return <>{children}</>
 }
 
-function DataSubscriptions() {
-  const setPatients = usePatientStore((s) => s.setPatients)
-  const setTasks = useTaskStore((s) => s.setTasks)
-  const setIsMobile = useUIStore((s) => s.setIsMobile)
-  const firebaseUser = useAuthStore((s) => s.firebaseUser)
-
-  // Enable missed task notifications
-  useMissedTaskNotifications()
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [setIsMobile])
-
-  useEffect(() => {
-    if (!firebaseUser) {
-      setPatients([])
-      setTasks([])
-      return
-    }
-    const unsubPatients = subscribeToUserPatients(firebaseUser.uid, (patients) => {
-      setPatients(patients)
-    })
-    const unsubTasks = subscribeToUserTasks(firebaseUser.uid, (tasks) => {
-      setTasks(tasks)
-    })
-    return () => {
-      unsubPatients()
-      unsubTasks()
-    }
-  }, [firebaseUser, setPatients, setTasks])
-
-  useEffect(() => {
-    if (!firebaseUser) return
-
-    const runCleanup = async () => {
-      try {
-        await purgeExpiredCompletedTasks(firebaseUser.uid)
-      } catch (error) {
-        console.warn('Expired task cleanup skipped:', error)
-      }
-    }
-
-    void runCleanup()
-    const intervalId = window.setInterval(() => {
-      void runCleanup()
-    }, 30 * 60 * 1000)
-
-    return () => window.clearInterval(intervalId)
-  }, [firebaseUser])
-
-  return null
-}
-
-function ModeRequiredLayout() {
-  const { isModeSelected } = useClinicalMode()
-
-  if (!isModeSelected) {
-    return <Navigate to="/mode" replace />
-  }
-
+function AppRoutes() {
   return (
-    <>
-      <DataSubscriptions />
-      <ClinicalLayout />
-    </>
+    <Routes>
+      {/* Public routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+
+      {/* Mode selection */}
+      <Route
+        path="/mode"
+        element={
+          <AuthGate>
+            <ModeSelectionPage />
+          </AuthGate>
+        }
+      />
+
+      {/* Authenticated routes with clinical layout */}
+      <Route
+        element={
+          <AuthGate>
+            <ClinicalLayout />
+          </AuthGate>
+        }
+      >
+        <Route index element={<Dashboard />} />
+        <Route path="patients" element={<PatientListPage />} />
+        <Route path="patients/:id" element={<PatientDetailPage />} />
+        <Route path="tasks" element={<TasksPage />} />
+        <Route path="handover" element={<HandoverPage />} />
+        <Route path="labs" element={<LabAnalysisPage />} />
+        <Route path="ai" element={<AIAssistantPage />} />
+        <Route path="drugs" element={<DrugInfoPage />} />
+        <Route path="on-call" element={<OnCallPage />} />
+        <Route path="shift" element={<ShiftViewPage />} />
+        <Route path="clerking" element={<ClerkingPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+      </Route>
+
+      {/* 404 */}
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   )
 }
 
 export default function App() {
-  const setFirebaseUser = useAuthStore((s) => s.setFirebaseUser)
-  const setUser = useAuthStore((s) => s.setUser)
-  const setLoading = useAuthStore((s) => s.setLoading)
-  const firebaseUser = useAuthStore((s) => s.firebaseUser)
-
-  // null = still resolving, true = ready, false = missing config
-  const [firebaseOk, setFirebaseOk] = useState<boolean | null>(null)
+  const { setFirebaseUser, setUser, setLoading } = useAuthStore()
+  const [firebaseOk, setFirebaseOk] = useState(false)
 
   useEffect(() => {
-    firebaseReady.then(setFirebaseOk)
-  }, [])
+    let unsubscribe: (() => void) | undefined
 
-  useEffect(() => {
-    if (firebaseOk !== true) return
+    const init = async () => {
+      const ready = await firebaseReady
+      setFirebaseOk(ready)
 
-    // Process any pending redirect sign-in result (mobile / popup-blocked)
-    handleRedirectResult()
+      if (!ready) {
+        setLoading(false)
+        return
+      }
 
-    // Safety timeout: if auth never responds, stop loading so the user
-    // sees the login screen instead of an infinite spinner.
-    const timeout = setTimeout(() => {
-      setLoading(false)
-    }, 10_000)
+      // Handle redirect result for Google auth
+      await handleRedirectResult()
 
-    const unsubscribe = onAuthChange(async (firebaseUser) => {
-      clearTimeout(timeout)
-      setFirebaseUser(firebaseUser)
-      if (firebaseUser) {
-        localStorage.setItem('user_id', firebaseUser.uid)
-        try {
-          const profile = await getOrCreateProfile(firebaseUser)
-          setUser(profile)
-        } catch (err) {
-          console.error('[MedWard] Profile creation failed — retrying once', err)
-          // Retry once after a short delay (Firestore cold-start / rules propagation)
+      unsubscribe = onAuthChange(async (fbUser) => {
+        setFirebaseUser(fbUser)
+
+        if (fbUser) {
           try {
-            await new Promise((r) => setTimeout(r, 2000))
-            const profile = await getOrCreateProfile(firebaseUser)
+            const profile = await getOrCreateProfile(fbUser)
             setUser(profile)
-          } catch (retryErr) {
-            console.error('[MedWard] Profile creation retry failed', retryErr)
+          } catch {
             setUser(null)
           }
+        } else {
+          setUser(null)
         }
-      } else {
-        localStorage.removeItem('user_id')
-        sessionStorage.removeItem('clinical_mode_selected')
-        setUser(null)
-      }
-      setLoading(false)
-    })
-    return () => {
-      clearTimeout(timeout)
-      unsubscribe()
-    }
-  }, [firebaseOk, setFirebaseUser, setUser, setLoading])
 
-  if (firebaseOk === null) {
+        setLoading(false)
+
+        // Remove splash screen
+        const splash = document.getElementById('splash-screen')
+        if (splash) {
+          splash.classList.add('hidden')
+          setTimeout(() => splash.remove(), 500)
+        }
+      })
+    }
+
+    init()
+    return () => unsubscribe?.()
+  }, [setFirebaseUser, setUser, setLoading])
+
+  if (!firebaseOk && !useAuthStore.getState().loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-ward-bg">
         <div className="text-center">
-          <div className="animate-spin h-10 w-10 border-3 border-primary-600 border-t-transparent rounded-full mx-auto" />
-          <p className="text-sm text-ward-muted mt-4">Loading MedWard Pro...</p>
+          <h1 className="text-xl font-semibold text-slate-900 mb-2">Configuration Error</h1>
+          <p className="text-slate-500">Firebase is not configured. Check your environment variables.</p>
         </div>
       </div>
     )
   }
 
-  if (firebaseOk === false) {
-    return <FirebaseConfigError />
-  }
-
   return (
-    <ErrorBoundary>
-      <ModeProvider key={firebaseUser?.uid ?? 'anon'}>
-        <ReleaseGuard>
-          <BrowserRouter>
-            <PilotBanner />
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/mode"
-                element={
-                  <ProtectedRoute>
-                    <Suspense fallback={<PageLoader />}><ModeSelectionPage /></Suspense>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <ModeRequiredLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/patients" element={<Dashboard />} />
-                <Route path="/patients/:id" element={<Suspense fallback={<PageLoader />}><PatientDetailPage /></Suspense>} />
-                <Route path="/on-call" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
-                <Route path="/shift" element={<Suspense fallback={<PageLoader />}><ShiftView /></Suspense>} />
-                <Route path="/clerking" element={<Suspense fallback={<PageLoader />}><ClerkingRoot /></Suspense>} />
-                <Route path="/tasks" element={<Suspense fallback={<PageLoader />}><TasksPage /></Suspense>} />
-                <Route path="/handover" element={<Suspense fallback={<PageLoader />}><HandoverPage /></Suspense>} />
-                <Route path="/ai" element={<Suspense fallback={<PageLoader />}><AIAssistantPage /></Suspense>} />
-                <Route path="/labs" element={<Suspense fallback={<PageLoader />}><LabAnalysisPage /></Suspense>} />
-                <Route path="/drugs" element={<Suspense fallback={<PageLoader />}><DrugInfoPage /></Suspense>} />
-                <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
-              </Route>
-              <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense>} />
-              <Route path="/terms" element={<Suspense fallback={<PageLoader />}><TermsPage /></Suspense>} />
-              <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFoundPage /></Suspense>} />
-            </Routes>
-            <ModalController />
-            <ToastContainer />
-            <HIPAADisclaimer />
-          </BrowserRouter>
-        </ReleaseGuard>
+    <BrowserRouter>
+      <ModeProvider>
+        <AppRoutes />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              borderRadius: '10px',
+              background: '#fff',
+              color: '#0f172a',
+              boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.08)',
+              padding: '12px 16px',
+              fontSize: '14px',
+            },
+            success: {
+              iconTheme: { primary: '#10b981', secondary: '#fff' },
+            },
+            error: {
+              iconTheme: { primary: '#dc2626', secondary: '#fff' },
+            },
+          }}
+        />
       </ModeProvider>
-    </ErrorBoundary>
+    </BrowserRouter>
   )
 }

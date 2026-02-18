@@ -1,275 +1,343 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
-import { Bot, Send, Trash2, Sparkles, Stethoscope, Pill, FlaskConical, ClipboardList, User } from 'lucide-react'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { clinicalAIService } from '@/services/ClinicalAIService'
-import { usePatientStore } from '@/stores/patientStore'
-import { Markdown } from '@/components/ui/Markdown'
-import { AIDisclaimerBanner } from '@/components/AIDisclaimerBanner'
-import { clsx } from 'clsx'
+import { useState, useRef, useEffect } from 'react';
+import { clsx } from 'clsx';
+import {
+  Bot,
+  Send,
+  User,
+  Sparkles,
+  Stethoscope,
+  Pill,
+  Beaker,
+  Loader2,
+  ChevronDown,
+} from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
+import { usePatientStore } from '@/stores/patientStore';
+import { useAuthStore } from '@/stores/authStore';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: Date
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
 }
 
 const quickPrompts = [
-  { icon: <Stethoscope className="h-4 w-4" />, label: 'Differential Diagnosis', prompt: 'Help me generate a differential diagnosis for a patient presenting with:' },
-  { icon: <Pill className="h-4 w-4" />, label: 'Drug Information', prompt: 'Provide clinical information about this medication including dosing, interactions, and side effects:' },
-  { icon: <FlaskConical className="h-4 w-4" />, label: 'Lab Interpretation', prompt: 'Help me interpret these lab results and their clinical significance:' },
-  { icon: <ClipboardList className="h-4 w-4" />, label: 'Clinical Guidelines', prompt: 'Summarize the current clinical guidelines for managing:' },
-]
+  { label: 'Differential diagnosis', icon: Stethoscope, prompt: 'What are the key differential diagnoses to consider?' },
+  { label: 'Drug interactions', icon: Pill, prompt: 'Are there any significant drug interactions to be aware of?' },
+  { label: 'Lab interpretation', icon: Beaker, prompt: 'Can you help interpret these lab results?' },
+];
 
-export function AIAssistantPage() {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [selectedPatientId, setSelectedPatientId] = useState<string>('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-  const patients = usePatientStore((s) => s.patients)
+export default function AIAssistantPage() {
+  const user = useAuthStore((s) => s.user);
+  const patients = usePatientStore((s) => s.patients);
 
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const selectedPatient = patients.find((p) => p.id === selectedPatientId);
+
+  // Auto-scroll to bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  // Update AI service patient context when selection changes
-  useEffect(() => {
-    clinicalAIService.setPatientContext(selectedPatientId || undefined)
-  }, [selectedPatientId])
-
-  // Clear patient context on unmount
-  useEffect(() => {
-    return () => {
-      clinicalAIService.clearPatientContext()
+  // Auto-resize textarea
+  function handleInputChange(value: string) {
+    setInput(value);
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
     }
-  }, [])
+  }
 
-  const selectedPatient = useMemo(
-    () => patients.find((p) => p.id === selectedPatientId),
-    [patients, selectedPatientId]
-  )
+  async function sendMessage(messageText?: string) {
+    const text = (messageText || input).trim();
+    if (!text || loading) return;
 
-  const handleSend = async (text?: string) => {
-    const prompt = text || input.trim()
-    if (!prompt || loading) return
+    setError(null);
+    setInput('');
+    if (inputRef.current) inputRef.current.style.height = 'auto';
 
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
       role: 'user',
-      content: prompt,
+      content: text,
       timestamp: new Date(),
-    }
-    setMessages((prev) => [...prev, userMsg])
-    setInput('')
-    setLoading(true)
+    };
+    setMessages((prev) => [...prev, userMessage]);
+    setLoading(true);
 
     try {
-      const result = await clinicalAIService.sendMessage(prompt)
-      const aiMsg: Message = {
-        id: crypto.randomUUID(),
+      const clinicalChat = httpsCallable(functions, 'clinicalChat');
+      const patientContext = selectedPatient
+        ? {
+            name: `${selectedPatient.firstName} ${selectedPatient.lastName}`,
+            mrn: selectedPatient.mrn,
+            age: selectedPatient.dateOfBirth,
+            gender: selectedPatient.gender,
+            primaryDiagnosis: selectedPatient.primaryDiagnosis,
+            diagnoses: selectedPatient.diagnoses,
+            allergies: selectedPatient.allergies,
+            acuity: selectedPatient.acuity,
+            codeStatus: selectedPatient.codeStatus,
+          }
+        : undefined;
+
+      const result = await clinicalChat({
+        message: text,
+        patientContext,
+        conversationHistory: messages.slice(-10).map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      });
+
+      const data = result.data as { response?: string; message?: string; text?: string };
+      const aiResponse = data.response || data.message || data.text || 'I was unable to generate a response. Please try again.';
+
+      const assistantMessage: ChatMessage = {
+        id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: result.text,
+        content: aiResponse,
         timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, aiMsg])
-    } catch {
-      const errorMsg: Message = {
-        id: crypto.randomUUID(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error('AI chat error:', err);
+      const errorMessage: ChatMessage = {
+        id: `assistant-error-${Date.now()}`,
         role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please check that the AI service is configured and try again.',
+        content:
+          'I apologize, but I am currently unable to process your request. This could be due to a network issue or service unavailability. Please try again in a moment.',
         timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errorMsg])
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      setError('Failed to get AI response. The service may be temporarily unavailable.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
+      e.preventDefault();
+      sendMessage();
     }
-  }
-
-  const handleClear = () => {
-    setMessages([])
-    setInput('')
-    clinicalAIService.clearHistory()
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] sm:h-[calc(100vh-100px)] animate-fade-in">
-      <AIDisclaimerBanner />
-
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 flex-shrink-0">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-ward-text flex items-center gap-2">
-            <Bot className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" /> AI Assistant
-          </h1>
-          <p className="text-sm text-ward-muted mt-1">Clinical decision support powered by AI</p>
-        </div>
-        {messages.length > 0 && (
-          <Button variant="ghost" size="sm" icon={<Trash2 className="h-4 w-4" />} onClick={handleClear}>
-            Clear
-          </Button>
-        )}
-      </div>
-
-      {/* Patient context selector */}
-      <div className="flex-shrink-0 mb-3">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-ward-muted flex-shrink-0" />
-          <select
-            value={selectedPatientId}
-            onChange={(e) => setSelectedPatientId(e.target.value)}
-            className="input-field text-sm flex-1"
-          >
-            <option value="">No patient context (general query)</option>
-            {patients.map((p) => (
-              <option key={p.id} value={p.id}>
-                Bed {p.bedNumber} — {p.lastName}, {p.firstName} — {p.primaryDiagnosis}
-              </option>
-            ))}
-          </select>
-        </div>
-        {selectedPatient && (
-          <p className="text-xs text-primary-600 mt-1 ml-6">
-            AI responses will include {selectedPatient.firstName}'s history, labs, meds, and allergies
-          </p>
-        )}
-      </div>
-
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto space-y-4 min-h-0 pb-4">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
-            <div className="h-16 w-16 rounded-2xl bg-primary-100 flex items-center justify-center mb-4">
-              <Sparkles className="h-8 w-8 text-primary-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-ward-text mb-2">How can I help?</h2>
-            <p className="text-sm text-ward-muted mb-6 max-w-md">
-              Ask me about differential diagnoses, drug information, lab interpretations, clinical guidelines, and more.
-              {patients.length > 0 && ' Select a patient above for context-aware responses.'}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-              {quickPrompts.map((qp) => (
-                <Card
-                  key={qp.label}
-                  hover
-                  padding="sm"
-                  onClick={() => {
-                    setInput(qp.prompt + ' ')
-                    inputRef.current?.focus()
-                  }}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0 text-primary-600">
-                      {qp.icon}
-                    </div>
-                    <span className="text-sm font-medium text-ward-text">{qp.label}</span>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={clsx(
-                'flex',
-                msg.role === 'user' ? 'justify-end' : 'justify-start'
-              )}
-            >
-              <div
-                className={clsx(
-                  'max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3',
-                  msg.role === 'user'
-                    ? 'bg-primary-600 text-white rounded-br-md'
-                    : 'bg-white border border-ward-border rounded-bl-md'
-                )}
-              >
-                {msg.role === 'assistant' && (
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Bot className="h-3.5 w-3.5 text-primary-600" />
-                    <span className="text-xs font-medium text-primary-600">MedWard AI</span>
-                  </div>
-                )}
-                {msg.role === 'user' ? (
-                  <p className="text-sm whitespace-pre-wrap text-white">
-                    {msg.content}
-                  </p>
-                ) : (
-                  <Markdown content={msg.content} className="text-ward-text" />
-                )}
-                <p className={clsx(
-                  'text-[10px] mt-1.5',
-                  msg.role === 'user' ? 'text-white/70' : 'text-ward-muted'
-                )}>
-                  {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      <div className="bg-white border-b border-gray-200 shrink-0">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
+                <Bot size={20} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">Clinical AI Assistant</h1>
+                <p className="text-xs text-gray-500">
+                  Powered by AI &mdash; For clinical decision support only
                 </p>
               </div>
             </div>
-          ))
-        )}
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-ward-border rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex items-center gap-2">
-                <Bot className="h-3.5 w-3.5 text-primary-600" />
-                <div className="flex gap-1">
-                  <span className="h-2 w-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="h-2 w-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="h-2 w-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
+          </div>
+
+          {/* Patient context selector */}
+          <div className="mt-3">
+            <select
+              value={selectedPatientId}
+              onChange={(e) => setSelectedPatientId(e.target.value)}
+              className={clsx(
+                'w-full h-9 px-3 pr-8 rounded-lg text-sm',
+                'bg-gray-50 border border-gray-200',
+                'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
+                'appearance-none bg-no-repeat bg-[length:14px_14px] bg-[right_0.5rem_center]',
+                'bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
+              )}
+            >
+              <option value="">No patient context (general query)</option>
+              {patients.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.firstName} {p.lastName} - {p.primaryDiagnosis}
+                </option>
+              ))}
+            </select>
+            {selectedPatient && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <Badge variant="info" size="sm">
+                  {selectedPatient.primaryDiagnosis}
+                </Badge>
+                <Badge variant="default" size="sm">
+                  Acuity {selectedPatient.acuity}
+                </Badge>
+                {selectedPatient.allergies.length > 0 && (
+                  <Badge variant="critical" size="sm">
+                    Allergies: {selectedPatient.allergies.join(', ')}
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Chat messages area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {messages.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center mb-4">
+                <Sparkles size={28} className="text-blue-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                How can I help you today?
+              </h2>
+              <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">
+                Ask clinical questions, request differential diagnoses, or get help interpreting lab
+                results. Select a patient for context-aware responses.
+              </p>
+
+              {/* Quick prompts */}
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
+                {quickPrompts.map((prompt) => {
+                  const Icon = prompt.icon;
+                  return (
+                    <button
+                      key={prompt.label}
+                      type="button"
+                      onClick={() => sendMessage(prompt.prompt)}
+                      className={clsx(
+                        'flex items-center gap-2 px-4 py-2.5 rounded-xl',
+                        'bg-white border border-gray-200 text-sm text-gray-700',
+                        'hover:bg-gray-50 hover:border-gray-300 transition-colors',
+                      )}
+                    >
+                      <Icon size={16} className="text-blue-500" />
+                      {prompt.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={clsx(
+                    'flex gap-3',
+                    msg.role === 'user' ? 'justify-end' : 'justify-start',
+                  )}
+                >
+                  {msg.role === 'assistant' && (
+                    <div className="shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                      <Bot size={16} className="text-white" />
+                    </div>
+                  )}
+                  <div
+                    className={clsx(
+                      'max-w-[80%] rounded-2xl px-4 py-3',
+                      msg.role === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white border border-gray-200 text-gray-800',
+                    )}
+                  >
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <p
+                      className={clsx(
+                        'text-xs mt-1',
+                        msg.role === 'user' ? 'text-blue-200' : 'text-gray-400',
+                      )}
+                    >
+                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  {msg.role === 'user' && (
+                    <div className="shrink-0 w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                      <User size={16} className="text-gray-600" />
+                    </div>
+                  )}
+                </div>
+              ))}
 
-      {/* AI disclaimer */}
-      <div className="flex-shrink-0 mb-2">
-        <p className="text-[10px] text-ward-muted text-center italic">
-          AI-generated content is for clinical decision support only. Always verify with primary sources.
-        </p>
-      </div>
+              {/* Loading indicator */}
+              {loading && (
+                <div className="flex gap-3 justify-start">
+                  <div className="shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <Bot size={16} className="text-white" />
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Loader2 size={16} className="animate-spin text-blue-500" />
+                      <span className="text-sm text-gray-500">Thinking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-      {/* Input area */}
-      <div className="flex-shrink-0 flex gap-2 items-end">
-        <div className="flex-1 relative">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask a clinical question..."
-            rows={1}
-            className="input-field w-full resize-none pr-4 min-h-[44px] max-h-[120px]"
-            style={{ height: 'auto', minHeight: '44px' }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement
-              target.style.height = 'auto'
-              target.style.height = Math.min(target.scrollHeight, 120) + 'px'
-            }}
-          />
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
-        <Button
-          onClick={() => handleSend()}
-          disabled={!input.trim() || loading}
-          loading={loading}
-          icon={<Send className="h-4 w-4" />}
-          className="min-h-[44px] min-w-[44px]"
-        >
-          <span className="hidden sm:inline">Send</span>
-        </Button>
+      </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-2">
+          <div className="p-2 rounded-lg bg-red-50 border border-red-200">
+            <p className="text-xs text-red-600">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Input bar */}
+      <div className="bg-white border-t border-gray-200 shrink-0">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-end gap-3">
+            <div className="flex-1 relative">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask a clinical question..."
+                rows={1}
+                className={clsx(
+                  'w-full resize-none rounded-xl text-sm text-gray-900',
+                  'bg-gray-50 border border-gray-200 px-4 py-3',
+                  'placeholder:text-gray-400',
+                  'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white',
+                )}
+                style={{ maxHeight: '120px' }}
+              />
+            </div>
+            <Button
+              onClick={() => sendMessage()}
+              disabled={!input.trim() || loading}
+              loading={loading}
+              iconLeft={!loading ? <Send size={16} /> : undefined}
+              className="shrink-0"
+            >
+              Send
+            </Button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            AI responses are for clinical decision support only. Always apply clinical judgment.
+          </p>
+        </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,75 +1,145 @@
-import { useEffect, useRef } from 'react'
-import { X } from 'lucide-react'
-import { clsx } from 'clsx'
+import { useEffect, useCallback, type ReactNode, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
+import { clsx } from 'clsx';
+import { X } from 'lucide-react';
 
-interface ModalProps {
-  isOpen: boolean
-  onClose: () => void
-  title: string
-  children: React.ReactNode
-  size?: 'sm' | 'md' | 'lg' | 'full'
-  className?: string
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
+
+export interface ModalProps {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  size?: ModalSize;
+  children?: ReactNode;
+  /** Additional class names on the content panel */
+  className?: string;
+  /** Whether clicking the backdrop closes the modal (default: true) */
+  closeOnBackdropClick?: boolean;
+  /** Whether pressing Escape closes the modal (default: true) */
+  closeOnEscape?: boolean;
 }
 
-const sizeStyles = {
-  sm: 'max-w-md',
+const sizeStyles: Record<ModalSize, string> = {
+  sm: 'max-w-sm',
   md: 'max-w-lg',
   lg: 'max-w-2xl',
-  full: 'max-w-[95vw] max-h-[95vh]',
-}
+  xl: 'max-w-4xl',
+  full: 'max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)]',
+};
 
-export function Modal({ isOpen, onClose, title, children, size = 'md', className }: ModalProps) {
-  const overlayRef = useRef<HTMLDivElement>(null)
+function Modal({
+  open,
+  onClose,
+  title,
+  size = 'md',
+  children,
+  className,
+  closeOnBackdropClick = true,
+  closeOnEscape = true,
+}: ModalProps) {
+  const handleEscape = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && closeOnEscape) {
+        onClose();
+      }
+    },
+    [onClose, closeOnEscape],
+  );
 
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    if (isOpen) {
-      document.addEventListener('keydown', handleEsc)
-      document.body.style.overflow = 'hidden'
-    }
+    if (!open) return;
+
+    document.addEventListener('keydown', handleEscape);
+    document.body.style.overflow = 'hidden';
+
     return () => {
-      document.removeEventListener('keydown', handleEsc)
-      document.body.style.overflow = ''
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = '';
+    };
+  }, [open, handleEscape]);
+
+  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && closeOnBackdropClick) {
+      onClose();
     }
-  }, [isOpen, onClose])
+  };
 
-  if (!isOpen) return null
+  if (!open) return null;
 
-  return (
+  return createPortal(
     <div
-      ref={overlayRef}
+      className={clsx(
+        'fixed inset-0 z-50 flex items-center justify-center p-4',
+        'animate-in fade-in duration-150',
+      )}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="modal-title"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 animate-fade-in"
-      onClick={(e) => {
-        if (e.target === overlayRef.current) onClose()
-      }}
+      aria-label={title}
     >
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={handleBackdropClick}
+        aria-hidden="true"
+      />
+
+      {/* Content panel */}
       <div
         className={clsx(
-          'w-full bg-ward-card shadow-xl animate-slide-up',
-          'rounded-t-2xl sm:rounded-2xl',
-          'max-h-[90vh] sm:max-h-[85vh]',
-          'flex flex-col',
+          'relative w-full bg-white rounded-2xl shadow-xl',
+          'transform transition-all duration-200',
+          'animate-in slide-in-from-bottom-4 fade-in duration-200',
+          'flex flex-col max-h-[90vh]',
           sizeStyles[size],
-          className
+          className,
         )}
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-ward-border flex-shrink-0">
-          <h2 id="modal-title" className="text-base sm:text-lg font-semibold text-ward-text">{title}</h2>
-          <button
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="p-2 -mr-1 rounded-lg text-ward-muted hover:bg-ward-border transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="px-4 sm:px-6 py-4 overflow-y-auto flex-1 overscroll-contain">{children}</div>
+        {/* Header */}
+        {(title || true) && (
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+            {title && (
+              <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className={clsx(
+                'ml-auto p-1.5 rounded-lg text-gray-400',
+                'hover:text-gray-600 hover:bg-gray-100',
+                'transition-colors duration-150',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40',
+              )}
+              aria-label="Close modal"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
+        {/* Body */}
+        <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
       </div>
-    </div>
-  )
+    </div>,
+    document.body,
+  );
 }
+
+export interface ModalFooterProps {
+  children?: ReactNode;
+  className?: string;
+}
+
+function ModalFooter({ children, className }: ModalFooterProps) {
+  return (
+    <div
+      className={clsx(
+        'px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 shrink-0',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+export { Modal, ModalFooter };

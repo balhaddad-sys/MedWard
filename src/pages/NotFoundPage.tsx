@@ -1,36 +1,45 @@
-import { useNavigate } from 'react-router-dom'
-import { Home, ArrowLeft } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { useNavigate } from 'react-router-dom';
+import { Home, ArrowLeft, MapPin } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
-export function NotFoundPage() {
-  const navigate = useNavigate()
+export default function NotFoundPage() {
+  const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-ward-bg p-4">
-      <div className="max-w-md w-full text-center">
-        <div className="h-20 w-20 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto mb-6">
-          <span className="text-4xl font-bold text-primary-600">404</span>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="text-center max-w-md">
+        {/* Illustration */}
+        <div className="mb-8">
+          <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <MapPin size={40} className="text-gray-400" />
+          </div>
+          <div className="text-8xl font-bold text-gray-200 select-none">404</div>
         </div>
-        <h1 className="text-2xl font-bold text-ward-text mb-2">Page not found</h1>
-        <p className="text-sm text-ward-muted mb-8">
-          The page you are looking for does not exist or has been moved.
+
+        {/* Message */}
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Page Not Found</h1>
+        <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+          The page you are looking for does not exist or may have been moved.
+          Check the URL or navigate back to the dashboard.
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+
+        {/* Actions */}
+        <div className="flex items-center justify-center gap-3">
           <Button
-            onClick={() => navigate(-1)}
             variant="secondary"
-            icon={<ArrowLeft className="h-4 w-4" />}
+            onClick={() => navigate(-1)}
+            iconLeft={<ArrowLeft size={16} />}
           >
-            Go back
+            Go Back
           </Button>
           <Button
-            onClick={() => navigate('/')}
-            icon={<Home className="h-4 w-4" />}
+            onClick={() => navigate('/', { replace: true })}
+            iconLeft={<Home size={16} />}
           >
-            Dashboard
+            Go Home
           </Button>
         </div>
       </div>
     </div>
-  )
+  );
 }

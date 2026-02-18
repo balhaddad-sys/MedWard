@@ -1,116 +1,184 @@
-import { useMemo } from 'react'
-import type { ElementType } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { clsx } from 'clsx'
-import { ChevronRight, ClipboardList, Siren, Stethoscope } from 'lucide-react'
-import { MODES } from '@/config/modes'
-import type { ClinicalMode } from '@/config/modes'
-import { APP_NAME } from '@/config/constants'
-import { useClinicalMode } from '@/context/useClinicalMode'
-import { triggerHaptic } from '@/utils/haptics'
+import { useNavigate } from 'react-router-dom';
+import { clsx } from 'clsx';
+import {
+  Users,
+  Phone,
+  FileText,
+  CheckCircle2,
+  ArrowRight,
+  Activity,
+} from 'lucide-react';
+import { useModeContext } from '@/context/ModeContext';
+import type { ClinicalMode } from '@/config/modes';
 
-const MODE_TARGET: Record<ClinicalMode, string> = {
-  ward: '/',
-  acute: '/on-call',
-  clerking: '/clerking',
+interface ModeCardConfig {
+  id: ClinicalMode;
+  title: string;
+  description: string;
+  icon: typeof Users;
+  themeColor: string;
+  bgGradient: string;
+  borderColor: string;
+  iconBg: string;
+  features: string[];
 }
 
-const MODE_META: Record<ClinicalMode, { icon: ElementType; subtitle: string; highlights: string[] }> = {
-  ward: {
-    icon: ClipboardList,
-    subtitle: 'Routine inpatient workflow with structured follow-up.',
-    highlights: ['Census and round management', 'Tasks and labs in one view', 'Handover-ready patient tracking'],
+const modeCards: ModeCardConfig[] = [
+  {
+    id: 'ward',
+    title: 'Ward Round',
+    description: 'Full patient management with labs, tasks, and handover',
+    icon: Users,
+    themeColor: 'text-blue-600',
+    bgGradient: 'from-blue-50 to-blue-100/50',
+    borderColor: 'border-blue-200 hover:border-blue-400',
+    iconBg: 'bg-blue-100 text-blue-600',
+    features: [
+      'Patient list management',
+      'Lab tracking and trends',
+      'Task delegation',
+      'SBAR handover generation',
+      'AI clinical assistant',
+    ],
   },
-  acute: {
-    icon: Siren,
-    subtitle: 'Fast triage and escalation for on-call and unstable patients.',
-    highlights: ['Rapid critical worklist', 'Escalation-first dashboard', 'Time-sensitive task prioritization'],
+  {
+    id: 'acute',
+    title: 'On-Call',
+    description: 'Rapid assessment and escalation for on-call shifts',
+    icon: Phone,
+    themeColor: 'text-red-600',
+    bgGradient: 'from-red-50 to-red-100/50',
+    borderColor: 'border-red-200 hover:border-red-400',
+    iconBg: 'bg-red-100 text-red-600',
+    features: [
+      'On-call patient list',
+      'Shift overview dashboard',
+      'Critical alerts and escalation',
+      'Priority-sorted task view',
+      'Quick clinical scoring',
+    ],
   },
-  clerking: {
-    icon: Stethoscope,
-    subtitle: 'Admission and clerking workflow with guided documentation.',
-    highlights: ['Structured intake flow', 'Decision-support calculators', 'Focused plan and task generation'],
+  {
+    id: 'clerking',
+    title: 'Clerking',
+    description: 'Structured admission clerking workflow',
+    icon: FileText,
+    themeColor: 'text-emerald-600',
+    bgGradient: 'from-emerald-50 to-emerald-100/50',
+    borderColor: 'border-emerald-200 hover:border-emerald-400',
+    iconBg: 'bg-emerald-100 text-emerald-600',
+    features: [
+      'Step-by-step clerking form',
+      'Auto-save progress',
+      'AI-assisted assessment',
+      'Problem list generation',
+      'SBAR output and sign-off',
+    ],
   },
-}
+];
 
-export function ModeSelectionPage() {
-  const navigate = useNavigate()
-  const { mode, confirmModeSelection } = useClinicalMode()
+export default function ModeSelectionPage() {
+  const navigate = useNavigate();
+  const { mode: currentMode, setMode } = useModeContext();
 
-  const modeCards = useMemo(
-    () => (['ward', 'acute', 'clerking'] as ClinicalMode[]).map((modeId) => ({
-      modeId,
-      config: MODES[modeId],
-      meta: MODE_META[modeId],
-    })),
-    []
-  )
-
-  const handleSelectMode = (modeId: ClinicalMode) => {
-    triggerHaptic('tap')
-    confirmModeSelection(modeId)
-    navigate(MODE_TARGET[modeId], { replace: true })
+  function handleSelectMode(mode: ClinicalMode) {
+    setMode(mode);
+    navigate('/');
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50 px-4 py-8 sm:py-12">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Clinical Workspace Setup</p>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-slate-900">{APP_NAME}</h1>
-          <p className="mt-2 text-sm sm:text-base text-slate-600">
-            Select the clinical mode for this session.
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4 py-8 text-center">
+          <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
+            <Activity size={24} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Select Clinical Mode</h1>
+          <p className="mt-2 text-gray-500 max-w-lg mx-auto">
+            Choose how you want to use MedWard Pro. Each mode is optimized for a different
+            clinical workflow. You can switch modes at any time.
           </p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {modeCards.map(({ modeId, config, meta }) => {
-            const Icon = meta.icon
-            const isCurrent = mode === modeId
+      {/* Mode cards */}
+      <div className="max-w-5xl mx-auto px-4 py-10">
+        <div className="grid gap-6 md:grid-cols-3">
+          {modeCards.map((card) => {
+            const Icon = card.icon;
+            const isCurrentMode = currentMode === card.id;
+
             return (
               <button
-                key={modeId}
-                onClick={() => handleSelectMode(modeId)}
+                key={card.id}
+                type="button"
+                onClick={() => handleSelectMode(card.id)}
                 className={clsx(
-                  'group text-left rounded-2xl border p-5 transition-all duration-200',
-                  'bg-white hover:shadow-lg hover:-translate-y-0.5',
-                  isCurrent ? 'border-primary-300 shadow-md' : 'border-slate-200 hover:border-primary-200'
+                  'relative text-left rounded-2xl border-2 p-6 bg-white',
+                  'transition-all duration-200 ease-in-out',
+                  'hover:shadow-lg hover:-translate-y-1',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+                  isCurrentMode
+                    ? clsx(card.borderColor, 'shadow-md ring-1 ring-offset-0', card.borderColor.split(' ')[0])
+                    : 'border-gray-200 hover:border-gray-300',
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className={clsx(
-                    'h-10 w-10 rounded-xl flex items-center justify-center',
-                    modeId === 'acute' ? 'bg-amber-100 text-amber-700' : 'bg-primary-100 text-primary-700'
-                  )}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  {isCurrent && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-primary-50 text-primary-700 border border-primary-200">
-                      Current
+                {/* Current mode indicator */}
+                {isCurrentMode && (
+                  <div className="absolute top-4 right-4">
+                    <span className={clsx(
+                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
+                      card.iconBg,
+                    )}>
+                      <CheckCircle2 size={12} />
+                      Active
                     </span>
-                  )}
+                  </div>
+                )}
+
+                {/* Icon */}
+                <div className={clsx(
+                  'w-14 h-14 rounded-xl flex items-center justify-center mb-4',
+                  card.iconBg,
+                )}>
+                  <Icon size={28} />
                 </div>
 
-                <h2 className="mt-4 text-lg font-semibold text-slate-900">{config.label}</h2>
-                <p className="mt-1 text-sm text-slate-600">{meta.subtitle}</p>
+                {/* Title & description */}
+                <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                  {card.title}
+                </h2>
+                <p className="text-sm text-gray-500 mb-5">
+                  {card.description}
+                </p>
 
-                <div className="mt-4 space-y-1.5">
-                  {meta.highlights.map((item) => (
-                    <p key={item} className="text-xs text-slate-500 leading-relaxed">
-                      {item}
-                    </p>
+                {/* Feature highlights */}
+                <ul className="space-y-2 mb-6">
+                  {card.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
+                      <CheckCircle2
+                        size={14}
+                        className={clsx('mt-0.5 shrink-0', card.themeColor)}
+                      />
+                      {feature}
+                    </li>
                   ))}
-                </div>
+                </ul>
 
-                <div className="mt-5 flex items-center justify-between text-sm font-medium">
-                  <span className="text-primary-700">Enter Mode</span>
-                  <ChevronRight className="h-4 w-4 text-primary-500 group-hover:translate-x-0.5 transition-transform" />
+                {/* CTA */}
+                <div className={clsx(
+                  'flex items-center gap-1 text-sm font-medium',
+                  card.themeColor,
+                )}>
+                  {isCurrentMode ? 'Continue with this mode' : 'Select mode'}
+                  <ArrowRight size={14} />
                 </div>
               </button>
-            )
+            );
           })}
         </div>
       </div>
     </div>
-  )
+  );
 }

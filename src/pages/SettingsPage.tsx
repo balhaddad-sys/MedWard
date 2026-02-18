@@ -1,627 +1,386 @@
-import { useCallback, useEffect, useState } from 'react'
-import { clsx } from 'clsx'
-import { Bell, BellOff, CheckCircle } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { useSettingsStore } from '@/stores/settingsStore'
-import { useAuthStore } from '@/stores/authStore'
-import { useUIStore } from '@/stores/uiStore'
-import { usePatientStore } from '@/stores/patientStore'
-import { subscribeToUserPatients, deletePatient } from '@/services/firebase/patients'
-import { APP_NAME, APP_VERSION } from '@/config/constants'
-import { SheetIntegrationCard } from '@/components/features/sheets/SheetIntegrationCard'
+import { clsx } from 'clsx';
 import {
-  isNotificationSupported,
-  getNotificationPermission,
-  requestNotificationPermission,
-  type NotificationPermissionStatus,
-} from '@/services/browserNotifications'
-import type { Patient } from '@/types'
+  Settings,
+  User,
+  Bell,
+  Beaker,
+  Monitor,
+  Info,
+  Shield,
+} from 'lucide-react';
+import { useAuthStore } from '@/stores/authStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import type { ClinicalMode } from '@/config/modes';
+import type { LabPriorityProfile } from '@/stores/settingsStore';
+import { APP_NAME, APP_VERSION } from '@/config/constants';
+import { RELEASE_STAGE } from '@/config/release';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Select } from '@/components/ui/Input';
 
-function SettingToggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
+export default function SettingsPage() {
+  const user = useAuthStore((s) => s.user);
+
+  const {
+    defaultMode,
+    compactView,
+    showAISuggestions,
+    labTrendDays,
+    labPriorityProfile,
+    notifyCriticalLabs,
+    notifyTaskReminders,
+    notifyHandoverAlerts,
+    setDefaultMode,
+    setCompactView,
+    setShowAISuggestions,
+    setLabTrendDays,
+    setLabPriorityProfile,
+    setNotifyCriticalLabs,
+    setNotifyTaskReminders,
+    setNotifyHandoverAlerts,
+  } = useSettingsStore();
+
   return (
-    <label className="flex items-start gap-3 cursor-pointer group">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 mt-0.5"
-      />
-      <div>
-        <span className="text-sm font-medium text-ward-text group-hover:text-primary-600 transition-colors">{label}</span>
-        <p className="text-xs text-ward-muted mt-0.5">{description}</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center gap-3">
+            <Settings size={24} className="text-gray-400" />
+            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+          </div>
+        </div>
       </div>
-    </label>
-  )
-}
 
-const STATE_COLORS: Record<string, string> = {
-  incoming: 'bg-blue-100 text-blue-700',
-  active: 'bg-green-100 text-green-700',
-  unstable: 'bg-red-100 text-red-700',
-  ready_dc: 'bg-amber-100 text-amber-700',
-  discharged: 'bg-gray-100 text-gray-500',
-}
-
-const STATE_LABELS: Record<string, string> = {
-  incoming: 'Incoming',
-  active: 'Active',
-  unstable: 'Unstable',
-  ready_dc: 'Ready D/C',
-  discharged: 'Discharged',
-}
-
-const ACUITY_COLORS: Record<number, string> = {
-  1: 'bg-red-600 text-white',
-  2: 'bg-orange-500 text-white',
-  3: 'bg-yellow-400 text-yellow-900',
-  4: 'bg-green-500 text-white',
-  5: 'bg-blue-400 text-white',
-}
-
-const CODE_STATUS_LABELS: Record<string, string> = {
-  full: 'Full Code',
-  DNR: 'DNR',
-  DNI: 'DNI',
-  comfort: 'Comfort',
-}
-
-function formatDate(ts: unknown): string {
-  if (!ts) return '—'
-  const date = typeof ts === 'object' && ts !== null && 'toDate' in ts
-    ? (ts as { toDate: () => Date }).toDate()
-    : new Date(ts as string)
-  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })
-}
-
-function PatientManagementCard() {
-  const user = useAuthStore((s) => s.user)
-  const addToast = useUIStore((s) => s.addToast)
-  const removePatient = usePatientStore((s) => s.removePatient)
-
-  const [patients, setPatients] = useState<Patient[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [confirming, setConfirming] = useState<'selected' | 'all' | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteProgress, setDeleteProgress] = useState({ done: 0, total: 0 })
-  const [filterState, setFilterState] = useState<string>('all')
-
-  useEffect(() => {
-    if (!user?.id) return
-    const unsubscribe = subscribeToUserPatients(user.id, (pts) => {
-      setPatients(pts.sort((a, b) => `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`)))
-      setLoading(false)
-      setSelected((prev) => {
-        const existingIds = new Set(pts.map((p) => p.id))
-        const next = new Set([...prev].filter((id) => existingIds.has(id)))
-        return next.size === prev.size ? prev : next
-      })
-    })
-    return unsubscribe
-  }, [user?.id])
-
-  const filteredPatients = filterState === 'all'
-    ? patients
-    : patients.filter((p) => p.state === filterState)
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
-
-  const toggleSelectAll = useCallback(() => {
-    const ids = filteredPatients.map((p) => p.id)
-    const allFilteredSelected = ids.length > 0 && ids.every((id) => selected.has(id))
-    if (allFilteredSelected) {
-      setSelected((prev) => {
-        const next = new Set(prev)
-        ids.forEach((id) => next.delete(id))
-        return next
-      })
-    } else {
-      setSelected((prev) => {
-        const next = new Set(prev)
-        ids.forEach((id) => next.add(id))
-        return next
-      })
-    }
-  }, [filteredPatients, selected])
-
-  const handleDelete = useCallback(async (ids: string[]) => {
-    if (ids.length === 0) return
-    setDeleting(true)
-    setDeleteProgress({ done: 0, total: ids.length })
-
-    let succeeded = 0
-    for (const id of ids) {
-      try {
-        await deletePatient(id)
-        removePatient(id)
-        succeeded++
-        setDeleteProgress({ done: succeeded, total: ids.length })
-      } catch (err) {
-        console.error('Failed to delete patient:', id, err)
-        addToast({
-          type: 'error',
-          title: 'Deletion failed',
-          message: `Deleted ${succeeded} of ${ids.length}. Check permissions.`,
-        })
-        break
-      }
-    }
-
-    if (succeeded === ids.length) {
-      addToast({ type: 'success', title: `Deleted ${succeeded} patient${succeeded !== 1 ? 's' : ''}` })
-    }
-
-    setSelected(new Set())
-    setConfirming(null)
-    setDeleting(false)
-  }, [addToast, removePatient])
-
-  const confirmIds = confirming === 'all' ? filteredPatients.map((p) => p.id) : [...selected]
-  const allFilteredSelected = filteredPatients.length > 0 && filteredPatients.every((p) => selected.has(p.id))
-
-  // Count patients per state for filter badges
-  const stateCounts = patients.reduce<Record<string, number>>((acc, p) => {
-    acc[p.state] = (acc[p.state] || 0) + 1
-    return acc
-  }, {})
-
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader><CardTitle>Patient Management</CardTitle></CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 py-4 justify-center">
-            <div className="w-4 h-4 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-ward-muted">Loading patients...</p>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Profile Section */}
+        <Card padding="md">
+          <div className="flex items-center gap-2 mb-4">
+            <User size={18} className="text-gray-400" />
+            <h2 className="text-base font-semibold text-gray-900">Profile</h2>
           </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <CardHeader><CardTitle>Patient Management</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        {patients.length === 0 ? (
-          <div className="py-6 text-center">
-            <p className="text-sm text-ward-muted">No patients found.</p>
-            <p className="text-xs text-ward-muted mt-1">Patients you add will appear here for management.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-gray-500">Display Name</p>
+              <p className="text-sm font-medium text-gray-900 mt-0.5">
+                {user?.displayName || 'Not set'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Role</p>
+              <p className="text-sm font-medium text-gray-900 mt-0.5 capitalize">
+                {user?.role || 'Not set'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Department</p>
+              <p className="text-sm font-medium text-gray-900 mt-0.5">
+                {user?.department || 'Not set'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500">Email</p>
+              <p className="text-sm font-medium text-gray-900 mt-0.5">
+                {user?.email || 'Not set'}
+              </p>
+            </div>
+            {user?.teamId && (
+              <div>
+                <p className="text-xs text-gray-500">Team ID</p>
+                <p className="text-sm font-medium text-gray-900 mt-0.5">
+                  {user.teamId}
+                </p>
+              </div>
+            )}
           </div>
-        ) : (
-          <>
-            {/* State filter pills */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-              <button
-                onClick={() => setFilterState('all')}
+        </Card>
+
+        {/* Preferences Section */}
+        <Card padding="md">
+          <div className="flex items-center gap-2 mb-4">
+            <Monitor size={18} className="text-gray-400" />
+            <h2 className="text-base font-semibold text-gray-900">Preferences</h2>
+          </div>
+          <div className="space-y-5">
+            {/* Default mode */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Default Clinical Mode
+              </label>
+              <select
+                value={defaultMode}
+                onChange={(e) => setDefaultMode(e.target.value as ClinicalMode)}
                 className={clsx(
-                  'text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors flex-shrink-0',
-                  filterState === 'all'
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  'block w-full h-10 px-3 pr-8 rounded-lg text-sm text-gray-900',
+                  'bg-white border border-gray-300',
+                  'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
+                  'appearance-none bg-no-repeat bg-[length:16px_16px] bg-[right_0.5rem_center]',
+                  'bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
                 )}
               >
-                All ({patients.length})
+                <option value="ward">Ward Round</option>
+                <option value="acute">On-Call</option>
+                <option value="clerking">Clerking</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                The mode that loads when you open the app
+              </p>
+            </div>
+
+            {/* Compact view toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Compact View</p>
+                <p className="text-xs text-gray-500">Display patient cards in a condensed format</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={compactView}
+                onClick={() => setCompactView(!compactView)}
+                className={clsx(
+                  'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+                  compactView ? 'bg-blue-600' : 'bg-gray-200',
+                )}
+              >
+                <span
+                  className={clsx(
+                    'inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform duration-200',
+                    compactView ? 'translate-x-5.5' : 'translate-x-0.5',
+                    compactView ? 'ml-[2px] mt-[2px]' : 'ml-[2px] mt-[2px]',
+                  )}
+                  style={{
+                    transform: compactView ? 'translateX(20px)' : 'translateX(2px)',
+                    marginTop: '2px',
+                  }}
+                />
               </button>
-              {Object.entries(STATE_LABELS).map(([key, label]) =>
-                stateCounts[key] ? (
-                  <button
-                    key={key}
-                    onClick={() => setFilterState(key)}
-                    className={clsx(
-                      'text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-colors flex-shrink-0',
-                      filterState === key
-                        ? STATE_COLORS[key]
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    )}
-                  >
-                    {label} ({stateCounts[key]})
-                  </button>
-                ) : null
-              )}
             </div>
 
-            {/* Action bar — stacks vertically on mobile */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={toggleSelectAll}
-                  disabled={deleting || filteredPatients.length === 0}
-                  className="text-xs font-medium px-3 py-2 min-h-[36px] rounded-lg border border-ward-border hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  {allFilteredSelected ? 'Deselect All' : 'Select All'}
-                </button>
-
-                <span className="text-xs text-ward-muted">
-                  {selected.size} selected
-                </span>
+            {/* AI suggestions toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">AI Suggestions</p>
+                <p className="text-xs text-gray-500">Show AI-powered clinical suggestions</p>
               </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showAISuggestions}
+                onClick={() => setShowAISuggestions(!showAISuggestions)}
+                className={clsx(
+                  'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+                  showAISuggestions ? 'bg-blue-600' : 'bg-gray-200',
+                )}
+              >
+                <span
+                  className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+                  style={{
+                    transform: showAISuggestions ? 'translateX(20px)' : 'translateX(2px)',
+                    marginTop: '2px',
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+        </Card>
 
-              <div className="flex items-center gap-2 sm:ml-auto">
-                <button
-                  onClick={() => setConfirming('selected')}
-                  disabled={selected.size === 0 || deleting}
-                  className={clsx(
-                    'text-xs font-medium px-3 py-2 min-h-[36px] rounded-lg transition-colors flex-1 sm:flex-none',
-                    selected.size > 0 && !deleting
-                      ? 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
-                      : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  )}
-                >
-                  Delete Selected ({selected.size})
-                </button>
-
-                <button
-                  onClick={() => { setSelected(new Set(filteredPatients.map((p) => p.id))); setConfirming('all') }}
-                  disabled={deleting || filteredPatients.length === 0}
-                  className="text-xs font-medium px-3 py-2 min-h-[36px] rounded-lg border border-red-300 text-red-600 hover:bg-red-50 active:bg-red-100 transition-colors disabled:opacity-50 flex-1 sm:flex-none"
-                >
-                  Delete All
-                </button>
+        {/* Notifications Section */}
+        <Card padding="md">
+          <div className="flex items-center gap-2 mb-4">
+            <Bell size={18} className="text-gray-400" />
+            <h2 className="text-base font-semibold text-gray-900">Notifications</h2>
+          </div>
+          <div className="space-y-4">
+            {/* Critical labs */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Critical Lab Values</p>
+                <p className="text-xs text-gray-500">Alert when critical lab results arrive</p>
               </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notifyCriticalLabs}
+                onClick={() => setNotifyCriticalLabs(!notifyCriticalLabs)}
+                className={clsx(
+                  'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+                  notifyCriticalLabs ? 'bg-blue-600' : 'bg-gray-200',
+                )}
+              >
+                <span
+                  className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+                  style={{
+                    transform: notifyCriticalLabs ? 'translateX(20px)' : 'translateX(2px)',
+                    marginTop: '2px',
+                  }}
+                />
+              </button>
             </div>
 
-            {/* Confirmation banner */}
-            {confirming && !deleting && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-800 font-medium">
-                  Permanently delete {confirmIds.length} patient{confirmIds.length !== 1 ? 's' : ''}? This cannot be undone.
-                </p>
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => setConfirming(null)}
-                    className="text-xs font-medium px-3 py-2 min-h-[36px] rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => handleDelete(confirmIds)}
-                    className="text-xs font-medium px-3 py-2 min-h-[36px] rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                  >
-                    Confirm Delete
-                  </button>
-                </div>
+            {/* Task reminders */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Task Reminders</p>
+                <p className="text-xs text-gray-500">Notify about upcoming and overdue tasks</p>
               </div>
-            )}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notifyTaskReminders}
+                onClick={() => setNotifyTaskReminders(!notifyTaskReminders)}
+                className={clsx(
+                  'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+                  notifyTaskReminders ? 'bg-blue-600' : 'bg-gray-200',
+                )}
+              >
+                <span
+                  className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+                  style={{
+                    transform: notifyTaskReminders ? 'translateX(20px)' : 'translateX(2px)',
+                    marginTop: '2px',
+                  }}
+                />
+              </button>
+            </div>
 
-            {/* Deleting progress */}
-            {deleting && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <p className="text-sm text-amber-800 font-medium">
-                  Deleting {deleteProgress.done} of {deleteProgress.total}...
-                </p>
-                <div className="w-full h-1.5 bg-amber-200 rounded-full mt-2 overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 rounded-full transition-all"
-                    style={{ width: `${(deleteProgress.done / deleteProgress.total) * 100}%` }}
-                  />
-                </div>
+            {/* Handover alerts */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Handover Alerts</p>
+                <p className="text-xs text-gray-500">Notifications for handover-related events</p>
               </div>
-            )}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={notifyHandoverAlerts}
+                onClick={() => setNotifyHandoverAlerts(!notifyHandoverAlerts)}
+                className={clsx(
+                  'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+                  notifyHandoverAlerts ? 'bg-blue-600' : 'bg-gray-200',
+                )}
+              >
+                <span
+                  className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+                  style={{
+                    transform: notifyHandoverAlerts ? 'translateX(20px)' : 'translateX(2px)',
+                    marginTop: '2px',
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+        </Card>
 
-            {/* Patient list — responsive cards */}
-            <div className="border border-ward-border rounded-lg divide-y divide-ward-border max-h-[420px] overflow-y-auto overscroll-contain">
-              {filteredPatients.map((p) => (
-                <label
-                  key={p.id}
-                  className={clsx(
-                    'flex gap-3 px-3 py-3 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors',
-                    selected.has(p.id) && 'bg-red-50/50'
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected.has(p.id)}
-                    onChange={() => toggleSelect(p.id)}
-                    disabled={deleting}
-                    className="rounded border-gray-300 text-red-600 focus:ring-red-500 flex-shrink-0 mt-1 w-4 h-4"
-                  />
-                  <div className="flex-1 min-w-0 space-y-1">
-                    {/* Row 1: Name + State badge */}
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold text-ward-text leading-tight">
-                        {p.lastName}, {p.firstName}
-                      </p>
-                      <span className={clsx(
-                        'text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0',
-                        STATE_COLORS[p.state] || 'bg-gray-100 text-gray-500'
-                      )}>
-                        {STATE_LABELS[p.state] || p.state}
-                      </span>
-                    </div>
-
-                    {/* Row 2: Key identifiers */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ward-muted">
-                      <span>MRN: {p.mrn || '—'}</span>
-                      <span>Bed: {p.wardId}/{p.bedNumber || '—'}</span>
-                      {p.acuity && (
-                        <span className={clsx(
-                          'text-[10px] font-bold px-1.5 py-0 rounded',
-                          ACUITY_COLORS[p.acuity] || 'bg-gray-200 text-gray-700'
-                        )}>
-                          ESI {p.acuity}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Row 3: Diagnosis */}
-                    {p.primaryDiagnosis && (
-                      <p className="text-xs text-ward-text truncate">
-                        {p.primaryDiagnosis}
-                      </p>
-                    )}
-
-                    {/* Row 4: Additional details */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-ward-muted">
-                      {p.attendingPhysician && <span>Dr. {p.attendingPhysician}</span>}
-                      {p.admissionDate && <span>Adm: {formatDate(p.admissionDate)}</span>}
-                      {p.codeStatus && p.codeStatus !== 'full' && (
-                        <span className="text-red-600 font-medium">{CODE_STATUS_LABELS[p.codeStatus] || p.codeStatus}</span>
-                      )}
-                      {p.allergies && p.allergies.length > 0 && (
-                        <span className="text-orange-600 font-medium">Allergies: {p.allergies.length}</span>
-                      )}
-                    </div>
-                  </div>
+        {/* Lab Settings Section */}
+        <Card padding="md">
+          <div className="flex items-center gap-2 mb-4">
+            <Beaker size={18} className="text-gray-400" />
+            <h2 className="text-base font-semibold text-gray-900">Lab Settings</h2>
+          </div>
+          <div className="space-y-5">
+            {/* Trend days slider */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Lab Trend Days
                 </label>
-              ))}
-              {filteredPatients.length === 0 && (
-                <div className="py-4 text-center">
-                  <p className="text-xs text-ward-muted">No patients match this filter.</p>
-                </div>
-              )}
+                <span className="text-sm font-semibold text-blue-600">{labTrendDays} days</span>
+              </div>
+              <input
+                type="range"
+                min={3}
+                max={30}
+                value={labTrendDays}
+                onChange={(e) => setLabTrendDays(Number(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>3 days</span>
+                <span>30 days</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Number of days of lab trend data to display in charts
+              </p>
             </div>
 
-            <p className="text-xs text-ward-muted">
-              {patients.length} patient{patients.length !== 1 ? 's' : ''} total
-              {filterState !== 'all' ? `, ${filteredPatients.length} shown` : ''}.
-              Deleted patients cannot be recovered.
-            </p>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function BrowserNotificationCard() {
-  const addToast = useUIStore((s) => s.addToast)
-  const [permission, setPermission] = useState<NotificationPermissionStatus>(getNotificationPermission())
-  const [requesting, setRequesting] = useState(false)
-
-  const handleRequestPermission = async () => {
-    setRequesting(true)
-    try {
-      const result = await requestNotificationPermission()
-      setPermission(result)
-      if (result === 'granted') {
-        addToast({
-          type: 'success',
-          title: 'Browser notifications enabled',
-          message: "You'll receive alerts for urgent and overdue tasks.",
-        })
-      } else if (result === 'denied') {
-        addToast({
-          type: 'error',
-          title: 'Notifications blocked',
-          message: 'Please enable notifications in your browser settings.',
-        })
-      }
-    } catch (error) {
-      addToast({
-        type: 'error',
-        title: 'Failed to enable notifications',
-        message: String(error),
-      })
-    } finally {
-      setRequesting(false)
-    }
-  }
-
-  if (!isNotificationSupported()) {
-    return (
-      <Card>
-        <CardHeader><CardTitle>Browser Notifications</CardTitle></CardHeader>
-        <CardContent>
-          <div className="flex items-start gap-3">
-            <BellOff className="h-5 w-5 text-ward-muted flex-shrink-0 mt-0.5" />
+            {/* Priority profile */}
             <div>
-              <p className="text-sm text-ward-text">Not supported in this browser</p>
-              <p className="text-xs text-ward-muted mt-1">
-                Browser notifications require a modern browser with notification support.
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Lab Priority Profile
+              </label>
+              <select
+                value={labPriorityProfile}
+                onChange={(e) => setLabPriorityProfile(e.target.value as LabPriorityProfile)}
+                className={clsx(
+                  'block w-full h-10 px-3 pr-8 rounded-lg text-sm text-gray-900',
+                  'bg-white border border-gray-300',
+                  'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
+                  'appearance-none bg-no-repeat bg-[length:16px_16px] bg-[right_0.5rem_center]',
+                  'bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
+                )}
+              >
+                <option value="ward">Ward (General Medical)</option>
+                <option value="icu">ICU (Intensive Care)</option>
+                <option value="cardiac">Cardiac</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Determines which labs are highlighted as priorities
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-    )
-  }
+        </Card>
 
-  return (
-    <Card>
-      <CardHeader><CardTitle>Browser Notifications</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-xs text-ward-muted">
-          Enable browser notifications to receive alerts for urgent and overdue tasks even when MedWard is not in focus.
-        </p>
-
-        {permission === 'granted' ? (
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
-            <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-green-700">Notifications enabled</p>
-              <p className="text-xs text-green-600 mt-0.5">
-                You'll receive browser alerts for critical tasks and overdue items.
-              </p>
+        {/* About Section */}
+        <Card padding="md">
+          <div className="flex items-center gap-2 mb-4">
+            <Info size={18} className="text-gray-400" />
+            <h2 className="text-base font-semibold text-gray-900">About</h2>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">App Name</span>
+              <span className="text-sm font-medium text-gray-900">{APP_NAME}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Version</span>
+              <span className="text-sm font-medium text-gray-900">{APP_VERSION}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Release Stage</span>
+              <Badge
+                variant={RELEASE_STAGE === 'production' ? 'success' : 'info'}
+                size="sm"
+              >
+                {RELEASE_STAGE}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Built with</span>
+              <span className="text-sm text-gray-500">React 19, TypeScript, Firebase</span>
             </div>
           </div>
-        ) : permission === 'denied' ? (
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
-            <BellOff className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-red-700">Notifications blocked</p>
-              <p className="text-xs text-red-600 mt-0.5">
-                To enable notifications, update your browser settings and refresh the page.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <Button
-            size="sm"
-            icon={<Bell className="h-4 w-4" />}
-            onClick={handleRequestPermission}
-            disabled={requesting}
-            className="min-h-[44px]"
-          >
-            {requesting ? 'Requesting...' : 'Enable Browser Notifications'}
-          </Button>
-        )}
-
-        <div className="space-y-2 pt-2 border-t border-ward-border">
-          <p className="text-xs font-medium text-ward-text">What you'll be notified about:</p>
-          <ul className="space-y-1 text-xs text-ward-muted ml-4">
-            <li className="list-disc">Critical and high-priority tasks that need acknowledgment</li>
-            <li className="list-disc">Tasks that are overdue or approaching their due date</li>
-            <li className="list-disc">Urgent patient care alerts</li>
-          </ul>
-          <p className="text-xs text-ward-muted pt-1">
-            These notifications appear even when MedWard is in the background. You'll also see in-app toast notifications.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-export function SettingsPage() {
-  const settings = useSettingsStore()
-  const user = useAuthStore((s) => s.user)
-
-  return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-ward-text">Settings</h1>
-        <p className="text-sm text-ward-muted mt-1">Customize how {APP_NAME} works for you</p>
-      </div>
-
-      <Card>
-        <CardHeader><CardTitle>Profile</CardTitle></CardHeader>
-        <CardContent>
-          <dl className="space-y-3">
-            <div className="flex justify-between items-center">
-              <dt className="text-xs text-ward-muted">Name</dt>
-              <dd className="text-sm font-medium">{user?.displayName || 'Not set'}</dd>
-            </div>
-            <div className="flex justify-between items-center">
-              <dt className="text-xs text-ward-muted">Email</dt>
-              <dd className="text-sm">{user?.email || 'Not set'}</dd>
-            </div>
-            <div className="flex justify-between items-center">
-              <dt className="text-xs text-ward-muted">Role</dt>
-              <dd className="text-sm capitalize">{user?.role || 'Not set'}</dd>
-            </div>
-          </dl>
-          <p className="text-xs text-ward-muted mt-3 pt-3 border-t border-ward-border">
-            Profile information is managed by your hospital administrator.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Display</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-ward-text mb-1">Default Mode</label>
-            <select
-              className="input-field"
-              value={settings.defaultMode}
-              onChange={(e) => settings.setDefaultMode(e.target.value as 'ward' | 'acute' | 'clerking')}
+          <div className="mt-4 pt-4 border-t border-gray-100 flex gap-4">
+            <a
+              href="/privacy"
+              className="text-sm text-blue-600 hover:underline"
             >
-              <option value="ward">Ward Round — Full patient management</option>
-              <option value="acute">On-Call — Acute care, calculators, escalation tools</option>
-              <option value="clerking">Clerking — Structured patient admission workflow</option>
-            </select>
-            <p className="text-xs text-ward-muted mt-1">This mode will be selected when you first open the app.</p>
-          </div>
-          <SettingToggle
-            label="Compact view"
-            description="Show condensed patient cards to see more patients at once."
-            checked={settings.compactView}
-            onChange={settings.setCompactView}
-          />
-          <SettingToggle
-            label="Show AI suggestions"
-            description="Display AI-powered analysis and suggestions for labs, tasks, and handovers."
-            checked={settings.showAISuggestions}
-            onChange={settings.setShowAISuggestions}
-          />
-          <div>
-            <label className="block text-sm font-medium text-ward-text mb-1">Lab Trend Days</label>
-            <select className="input-field" value={settings.labTrendDays} onChange={(e) => settings.setLabTrendDays(Number(e.target.value))}>
-              {[3, 7, 14, 30].map((d) => <option key={d} value={d}>{d} days</option>)}
-            </select>
-            <p className="text-xs text-ward-muted mt-1">How far back to show lab trends in charts and analysis.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-ward-text mb-1">Lab Priority Profile</label>
-            <select
-              className="input-field"
-              value={settings.labPriorityProfile}
-              onChange={(e) => settings.setLabPriorityProfile(e.target.value as 'ward' | 'icu' | 'cardiac')}
+              Privacy Policy
+            </a>
+            <a
+              href="/terms"
+              className="text-sm text-blue-600 hover:underline"
             >
-              <option value="ward">Ward — balanced electrolyte, infection, and trend signals</option>
-              <option value="icu">ICU — heavy weight on perfusion, acid-base, and rapid drift</option>
-              <option value="cardiac">Cardiac — heavy weight on troponin, BNP, and coagulation</option>
-            </select>
-            <p className="text-xs text-ward-muted mt-1">
-              Changes how analytes are ranked in the Labs Trend Matrix.
-            </p>
+              Terms of Service
+            </a>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle>Notifications</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-xs text-ward-muted -mt-1">Choose which alerts you want to receive while using the app.</p>
-          <SettingToggle
-            label="Critical lab value alerts"
-            description="Get notified immediately when a patient has a critical lab result."
-            checked={settings.notifyCriticalLabs}
-            onChange={settings.setNotifyCriticalLabs}
-          />
-          <SettingToggle
-            label="Task reminders"
-            description="Receive reminders for pending and overdue tasks."
-            checked={settings.notifyTaskReminders}
-            onChange={settings.setNotifyTaskReminders}
-          />
-          <SettingToggle
-            label="Handover alerts"
-            description="Get notified when a handover report is ready or a shift change is approaching."
-            checked={settings.notifyHandoverAlerts}
-            onChange={settings.setNotifyHandoverAlerts}
-          />
-        </CardContent>
-      </Card>
-
-      <BrowserNotificationCard />
-
-      <SheetIntegrationCard />
-
-      <PatientManagementCard />
-
-      <div className="text-center text-xs text-ward-muted py-4">
-        {APP_NAME} v{APP_VERSION}
+        </Card>
       </div>
     </div>
-  )
+  );
 }
