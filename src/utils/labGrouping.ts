@@ -1,4 +1,12 @@
-import type { LabTestResult } from '@/components/features/labs/LabResultRow'
+export interface LabTestResult {
+  name: string
+  code?: string
+  value: string | number
+  unit?: string
+  refRange?: string
+  flag?: string
+  isAbnormal?: boolean
+}
 
 export interface LabGroup {
   name: string
