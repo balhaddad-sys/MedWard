@@ -87,20 +87,38 @@ export default function HandoverPage() {
     }));
 
     try {
-      const generateSBARFn = httpsCallable(functions, 'generateSBAR');
-      const result = await generateSBARFn({
-        patientId: patient.id,
-        patientName: `${patient.firstName} ${patient.lastName}`,
-        bedNumber: patient.bedNumber,
-        acuity: patient.acuity,
-        primaryDiagnosis: patient.primaryDiagnosis,
-        diagnoses: patient.diagnoses,
-        allergies: patient.allergies,
-        codeStatus: patient.codeStatus,
-      });
+      const patientData = [
+        `Patient: ${patient.firstName} ${patient.lastName}, Bed ${patient.bedNumber}`,
+        `Primary Diagnosis: ${patient.primaryDiagnosis}`,
+        `Acuity: ${ACUITY_LEVELS[patient.acuity].label}, Code Status: ${patient.codeStatus}`,
+        `Diagnoses: ${(patient.diagnoses || []).join(', ') || 'None listed'}`,
+        `Allergies: ${(patient.allergies || []).join(', ') || 'NKDA'}`,
+      ].join('\n');
 
-      const data = result.data as { sbar?: string; text?: string };
-      const sbarText = data.sbar || data.text || generateLocalSBAR(patient);
+      const generateSBARFn = httpsCallable(functions, 'generateSBAR');
+      const result = await generateSBARFn({ patientData });
+
+      const data = result.data as {
+        situation?: string;
+        background?: string;
+        assessment?: string;
+        recommendation?: string;
+      };
+      const sbarText = data.situation
+        ? [
+            'SITUATION',
+            data.situation,
+            '',
+            'BACKGROUND',
+            data.background || '',
+            '',
+            'ASSESSMENT',
+            data.assessment || '',
+            '',
+            'RECOMMENDATION',
+            data.recommendation || '',
+          ].join('\n')
+        : generateLocalSBAR(patient);
 
       setSbarResults((prev) => ({
         ...prev,

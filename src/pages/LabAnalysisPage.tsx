@@ -1,22 +1,99 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { clsx } from 'clsx';
 import {
   Beaker,
   Upload,
   X,
   AlertTriangle,
+  Loader2,
+  CheckCircle2,
+  ImageDown,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
 import { uploadLabImage, getLabPanels, addLabPanel } from '@/services/firebase/labs';
-import type { LabPanel, LabFlag } from '@/types/lab';
+import type { LabPanel, LabFlag, LabValue } from '@/types/lab';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Spinner } from '@/components/ui/Spinner';
+
+/* -------------------------------------------------------------------------- */
+/*  Image compression                                                         */
+/* -------------------------------------------------------------------------- */
+
+interface CompressOptions {
+  maxWidth: number;
+  maxHeight: number;
+  quality: number;
+  maxSizeKB: number;
+}
+
+const DEFAULT_COMPRESS: CompressOptions = {
+  maxWidth: 2048,
+  maxHeight: 2048,
+  quality: 0.82,
+  maxSizeKB: 1500,
+};
+
+/**
+ * Compress an image file using canvas.
+ * Iteratively reduces quality until the output is under maxSizeKB.
+ * Returns { blob, base64, originalKB, compressedKB }.
+ */
+async function compressImage(
+  file: File,
+  opts: CompressOptions = DEFAULT_COMPRESS,
+): Promise<{ blob: Blob; base64: string; originalKB: number; compressedKB: number }> {
+  const originalKB = Math.round(file.size / 1024);
+
+  const bitmap = await createImageBitmap(file);
+  let { width, height } = bitmap;
+
+  // Scale to fit within max dimensions while preserving aspect ratio
+  if (width > opts.maxWidth || height > opts.maxHeight) {
+    const ratio = Math.min(opts.maxWidth / width, opts.maxHeight / height);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
+  }
+
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  // Iteratively reduce quality until under target size
+  let quality = opts.quality;
+  let blob: Blob;
+  const MIN_QUALITY = 0.35;
+
+  do {
+    blob = await canvas.convertToBlob({ type: 'image/jpeg', quality });
+    if (blob.size / 1024 <= opts.maxSizeKB || quality <= MIN_QUALITY) break;
+    quality -= 0.08;
+  } while (quality >= MIN_QUALITY);
+
+  // Convert to base64
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
+  const compressedKB = Math.round(blob.size / 1024);
+
+  return { blob, base64, originalKB, compressedKB };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Component                                                                 */
+/* -------------------------------------------------------------------------- */
 
 export default function LabAnalysisPage() {
   const user = useAuthStore((s) => s.user);
@@ -26,9 +103,10 @@ export default function LabAnalysisPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadStep, setUploadStep] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [, setUploadedImageUrl] = useState<string | null>(null);
+  const [compressionInfo, setCompressionInfo] = useState<string | null>(null);
   const [extractedResults, setExtractedResults] = useState<LabPanel | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [patientLabs, setPatientLabs] = useState<LabPanel[]>([]);
@@ -49,24 +127,25 @@ export default function LabAnalysisPage() {
       .finally(() => setLabsLoading(false));
   }, [selectedPatientId]);
 
-  function handleFileSelect(selectedFile: File) {
+  const handleFileSelect = useCallback((selectedFile: File) => {
     if (!selectedFile.type.startsWith('image/')) {
       setUploadError('Please select an image file (JPG, PNG, etc.)');
       return;
     }
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setUploadError('File size must be less than 10MB');
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      setUploadError('File size must be less than 20MB');
       return;
     }
     setFile(selectedFile);
     setUploadError(null);
     setExtractedResults(null);
     setAiAnalysis(null);
+    setCompressionInfo(null);
 
     const reader = new FileReader();
     reader.onload = (e) => setPreview(e.target?.result as string);
     reader.readAsDataURL(selectedFile);
-  }
+  }, []);
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -88,10 +167,10 @@ export default function LabAnalysisPage() {
   function clearFile() {
     setFile(null);
     setPreview(null);
-    setUploadedImageUrl(null);
     setExtractedResults(null);
     setAiAnalysis(null);
     setUploadError(null);
+    setCompressionInfo(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
@@ -101,50 +180,119 @@ export default function LabAnalysisPage() {
     setUploading(true);
     setUploadProgress(0);
     setUploadError(null);
+    setCompressionInfo(null);
 
     try {
-      // Simulate progress steps
-      setUploadProgress(20);
-      const imageUrl = await uploadLabImage(user.id, file, file.name);
-      setUploadedImageUrl(imageUrl);
-      setUploadProgress(50);
+      // Step 1: Compress image
+      setUploadStep('Compressing image...');
+      setUploadProgress(10);
+      const { blob: compressedBlob, base64, originalKB, compressedKB } = await compressImage(file);
+      const savings = originalKB > compressedKB
+        ? `${originalKB} KB → ${compressedKB} KB (${Math.round((1 - compressedKB / originalKB) * 100)}% smaller)`
+        : `${originalKB} KB (no compression needed)`;
+      setCompressionInfo(savings);
+      setUploadProgress(25);
 
-      // Create a placeholder lab panel from the upload
-      // In production, this would trigger OCR/AI extraction
-      const mockPanel: Omit<LabPanel, 'id' | 'createdAt'> = {
+      // Step 2: Upload compressed image to Firebase Storage
+      setUploadStep('Uploading to storage...');
+      const imageUrl = await uploadLabImage(user.id, compressedBlob, file.name);
+      setUploadProgress(45);
+
+      // Step 3: Call AI extraction
+      setUploadStep('AI extracting lab values...');
+      setUploadProgress(55);
+
+      const analyzeLabImage = httpsCallable<
+        { imageBase64: string; mediaType: string },
+        { content?: string; structured?: unknown; panels?: Array<{ panel_name: string; results: Array<{ test_name: string; value: number | null; value_raw: string; unit: string; ref_low: number | null; ref_high: number | null; flag: string }> }> }
+      >(functions, 'analyzeLabImage');
+
+      const aiResult = await analyzeLabImage({
+        imageBase64: base64,
+        mediaType: 'image/jpeg',
+      });
+      setUploadProgress(80);
+
+      // Step 4: Parse AI results into lab panel
+      setUploadStep('Saving results...');
+      const { Timestamp } = await import('firebase/firestore');
+      const now = Timestamp.fromDate(new Date());
+
+      const aiData = aiResult.data;
+      const panels = aiData.panels || (aiData.structured as { panels?: Array<{ panel_name: string; results: Array<{ test_name: string; value: number | null; value_raw: string; unit: string; ref_low: number | null; ref_high: number | null; flag: string }> }> })?.panels || [];
+
+      const labValues: LabValue[] = [];
+      let panelName = `Lab Upload - ${file.name}`;
+
+      if (panels.length > 0) {
+        panelName = panels.map((p) => p.panel_name).join(', ');
+        for (const panel of panels) {
+          for (const r of panel.results || []) {
+            labValues.push({
+              name: r.test_name,
+              value: r.value_raw || String(r.value ?? ''),
+              unit: r.unit || '',
+              referenceMin: r.ref_low ?? undefined,
+              referenceMax: r.ref_high ?? undefined,
+              flag: (r.flag as LabFlag) || 'normal',
+            });
+          }
+        }
+      }
+
+      const labPanel: Omit<LabPanel, 'id' | 'createdAt'> = {
         patientId: selectedPatientId,
         category: 'MISC',
-        panelName: `Lab Upload - ${file.name}`,
-        values: [],
-        collectedAt: new (await import('firebase/firestore')).Timestamp(
-          Math.floor(Date.now() / 1000),
-          0
-        ),
-        resultedAt: new (await import('firebase/firestore')).Timestamp(
-          Math.floor(Date.now() / 1000),
-          0
-        ),
+        panelName,
+        values: labValues,
+        collectedAt: now,
+        resultedAt: now,
         orderedBy: user.id,
-        status: 'pending',
+        status: labValues.length > 0 ? 'resulted' : 'pending',
         source: 'image',
         imageUrl,
       };
 
-      setUploadProgress(80);
-      await addLabPanel(selectedPatientId, mockPanel);
+      await addLabPanel(selectedPatientId, labPanel);
+      setUploadProgress(95);
+
+      // Show results
+      setExtractedResults({ ...labPanel, id: 'preview', createdAt: now } as LabPanel);
+
+      const criticalCount = labValues.filter(
+        (v) => v.flag === 'critical_high' || v.flag === 'critical_low'
+      ).length;
+      const abnormalCount = labValues.filter(
+        (v) => v.flag !== 'normal'
+      ).length;
+
+      if (labValues.length > 0) {
+        setAiAnalysis(
+          `Extracted ${labValues.length} lab values from ${panels.length} panel(s).` +
+          (criticalCount > 0 ? ` ${criticalCount} critical value(s) detected!` : '') +
+          (abnormalCount > 0 ? ` ${abnormalCount} abnormal value(s) flagged.` : ' All values within normal range.')
+        );
+      } else {
+        setAiAnalysis(
+          aiData.content ||
+          'Image uploaded but no structured lab values could be extracted. The image may need better resolution or different formatting.'
+        );
+      }
+
       setUploadProgress(100);
+      setUploadStep('Done');
 
       // Refresh labs list
       const updatedLabs = await getLabPanels(selectedPatientId);
       setPatientLabs(updatedLabs);
-
-      setAiAnalysis(
-        'Lab image uploaded successfully. AI extraction will process the image and extract lab values automatically. ' +
-        'Results will appear once processing is complete.'
-      );
     } catch (err) {
       console.error('Upload error:', err);
-      setUploadError('Failed to upload lab image. Please try again.');
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setUploadError(
+        message.includes('rate') || message.includes('Rate')
+          ? 'Rate limit reached. Please wait a moment and try again.'
+          : `Failed to analyze lab image: ${message}`
+      );
     } finally {
       setUploading(false);
     }
@@ -204,7 +352,7 @@ export default function LabAnalysisPage() {
               onDragLeave={handleDragLeave}
               onClick={() => fileInputRef.current?.click()}
               className={clsx(
-                'border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors',
+                'border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-colors',
                 dragOver
                   ? 'border-blue-400 bg-blue-50'
                   : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50',
@@ -215,7 +363,7 @@ export default function LabAnalysisPage() {
                 Drag and drop your lab image here
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                or click to browse. Supports JPG, PNG (max 10MB)
+                or click to browse. Supports JPG, PNG (max 20MB, auto-compressed)
               </p>
               <input
                 ref={fileInputRef}
@@ -251,6 +399,12 @@ export default function LabAnalysisPage() {
                   <p className="text-sm font-medium text-gray-900">{file.name}</p>
                   <p className="text-xs text-gray-500">
                     {(file.size / 1024 / 1024).toFixed(2)} MB
+                    {compressionInfo && (
+                      <span className="ml-2 text-emerald-600">
+                        <ImageDown size={10} className="inline mr-0.5" />
+                        {compressionInfo}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <Button
@@ -259,7 +413,7 @@ export default function LabAnalysisPage() {
                   disabled={!selectedPatientId}
                   iconLeft={!uploading ? <Upload size={16} /> : undefined}
                 >
-                  {uploading ? 'Uploading...' : 'Upload & Analyze'}
+                  {uploading ? 'Analyzing...' : 'Upload & Analyze'}
                 </Button>
               </div>
 
@@ -269,11 +423,17 @@ export default function LabAnalysisPage() {
 
               {/* Progress bar */}
               {uploading && (
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Loader2 size={12} className="animate-spin text-blue-500" />
+                    <p className="text-xs text-gray-600">{uploadStep}</p>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -281,7 +441,10 @@ export default function LabAnalysisPage() {
 
           {uploadError && (
             <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
-              <p className="text-sm text-red-700">{uploadError}</p>
+              <div className="flex items-start gap-2">
+                <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{uploadError}</p>
+              </div>
             </div>
           )}
         </Card>
@@ -291,7 +454,7 @@ export default function LabAnalysisPage() {
           <Card padding="md" className="border-blue-200 bg-blue-50/30">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-blue-100 rounded-lg shrink-0">
-                <Beaker size={18} className="text-blue-600" />
+                <CheckCircle2 size={18} className="text-blue-600" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-gray-900">AI Analysis</h3>
@@ -387,13 +550,13 @@ export default function LabAnalysisPage() {
                       className={clsx(hasCritical && 'border-red-200')}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-sm font-semibold text-gray-900">{panel.panelName}</h3>
                           <Badge variant="default" size="sm">{panel.category}</Badge>
                           {hasCritical && (
                             <Badge variant="critical" size="sm">
                               <AlertTriangle size={10} className="mr-1" />
-                              Critical Values
+                              Critical
                             </Badge>
                           )}
                         </div>
@@ -435,11 +598,6 @@ export default function LabAnalysisPage() {
                               +{panel.values.length - 6} more
                             </span>
                           )}
-                        </div>
-                      )}
-                      {panel.aiAnalysis && (
-                        <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                          <p className="text-xs text-blue-700">{panel.aiAnalysis.summary}</p>
                         </div>
                       )}
                     </Card>

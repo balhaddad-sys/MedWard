@@ -77,31 +77,18 @@ export default function AIAssistantPage() {
 
     try {
       const clinicalChat = httpsCallable(functions, 'clinicalChat');
-      const patientContext = selectedPatient
-        ? {
-            name: `${selectedPatient.firstName} ${selectedPatient.lastName}`,
-            mrn: selectedPatient.mrn,
-            age: selectedPatient.dateOfBirth,
-            gender: selectedPatient.gender,
-            primaryDiagnosis: selectedPatient.primaryDiagnosis,
-            diagnoses: selectedPatient.diagnoses,
-            allergies: selectedPatient.allergies,
-            acuity: selectedPatient.acuity,
-            codeStatus: selectedPatient.codeStatus,
-          }
-        : undefined;
 
       const result = await clinicalChat({
         message: text,
-        patientContext,
+        patientId: selectedPatient?.id,
         conversationHistory: messages.slice(-10).map((m) => ({
           role: m.role,
           content: m.content,
         })),
       });
 
-      const data = result.data as { response?: string; message?: string; text?: string };
-      const aiResponse = data.response || data.message || data.text || 'I was unable to generate a response. Please try again.';
+      const data = result.data as { content?: string; response?: string; message?: string };
+      const aiResponse = data.content || data.response || data.message || 'I was unable to generate a response. Please try again.';
 
       const assistantMessage: ChatMessage = {
         id: `assistant-${Date.now()}`,
