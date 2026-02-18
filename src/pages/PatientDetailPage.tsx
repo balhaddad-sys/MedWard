@@ -21,7 +21,6 @@ import {
   BedDouble,
   TrendingUp,
   TrendingDown,
-  Minus,
   AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -37,7 +36,6 @@ import { completeTask } from '@/services/firebase/tasks';
 import { getPatientHistory } from '@/services/firebase/history';
 import { getLabPanels } from '@/services/firebase/labs';
 import { analyzeTrend } from '@/utils/deltaEngine';
-import { LAB_REFERENCES } from '@/utils/labUtils';
 import { ACUITY_LEVELS } from '@/config/constants';
 import { STATE_METADATA } from '@/types/patientState';
 import type { Patient, PatientFormData } from '@/types/patient';
@@ -52,27 +50,17 @@ import { Tabs } from '@/components/ui/Tabs';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 
-// Lab priority profiles — which labs to highlight in each clinical context
-const LAB_PRIORITY_SETS: Record<string, string[]> = {
-  ward: ['NA', 'K', 'CR', 'UREA', 'GLU', 'HGB', 'WBC', 'PLT', 'CA', 'MG', 'ALB', 'INR'],
-  icu: ['NA', 'K', 'CR', 'GLU', 'LACT', 'HGB', 'WBC', 'PLT', 'CA', 'MG', 'PO4', 'INR', 'TROP', 'CO2', 'AG'],
-  cardiac: ['TROP', 'BNP', 'CK', 'K', 'MG', 'CR', 'INR', 'HGB', 'PLT', 'GLU', 'NA', 'LACT'],
-};
-
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const showAISuggestions = useSettingsStore((s) => s.showAISuggestions);
   const labTrendDays = useSettingsStore((s) => s.labTrendDays);
-  const labPriorityProfile = useSettingsStore((s) => s.labPriorityProfile);
 
   const patients = usePatientStore((s) => s.patients);
   const updatePatientStore = usePatientStore((s) => s.updatePatient);
   const removePatientStore = usePatientStore((s) => s.removePatient);
   const getTasksByPatient = useTaskStore((s) => s.getTasksByPatient);
-
-  const priorityLabs = LAB_PRIORITY_SETS[labPriorityProfile] || LAB_PRIORITY_SETS.ward;
 
   const patient = useMemo(
     () => patients.find((p) => p.id === id) || null,
@@ -229,17 +217,6 @@ export default function PatientDetailPage() {
       case 'critical_low': return 'text-red-600 font-bold';
       case 'critical_high': return 'text-red-600 font-bold';
       default: return 'text-gray-600';
-    }
-  }
-
-  function getLabFlagBadge(flag: LabFlag) {
-    switch (flag) {
-      case 'normal': return null;
-      case 'low': return <Badge variant="info" size="sm">Low</Badge>;
-      case 'high': return <Badge variant="warning" size="sm">High</Badge>;
-      case 'critical_low': return <Badge variant="critical" size="sm">Critical Low</Badge>;
-      case 'critical_high': return <Badge variant="critical" size="sm">Critical High</Badge>;
-      default: return null;
     }
   }
 
