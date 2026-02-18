@@ -19,11 +19,16 @@ import {
   FileText,
   Plus,
   BedDouble,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import {
   updatePatient as updatePatientFirebase,
   deletePatient as deletePatientFirebase,
@@ -31,11 +36,13 @@ import {
 import { completeTask } from '@/services/firebase/tasks';
 import { getPatientHistory } from '@/services/firebase/history';
 import { getLabPanels } from '@/services/firebase/labs';
+import { analyzeTrend } from '@/utils/deltaEngine';
+import { LAB_REFERENCES } from '@/utils/labUtils';
 import { ACUITY_LEVELS } from '@/config/constants';
 import { STATE_METADATA } from '@/types/patientState';
 import type { Patient, PatientFormData } from '@/types/patient';
 import type { PatientHistory } from '@/types/history';
-import type { LabPanel, LabFlag } from '@/types/lab';
+import type { LabPanel, LabFlag, LabTrend } from '@/types/lab';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -45,15 +52,27 @@ import { Tabs } from '@/components/ui/Tabs';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 
+// Lab priority profiles — which labs to highlight in each clinical context
+const LAB_PRIORITY_SETS: Record<string, string[]> = {
+  ward: ['NA', 'K', 'CR', 'UREA', 'GLU', 'HGB', 'WBC', 'PLT', 'CA', 'MG', 'ALB', 'INR'],
+  icu: ['NA', 'K', 'CR', 'GLU', 'LACT', 'HGB', 'WBC', 'PLT', 'CA', 'MG', 'PO4', 'INR', 'TROP', 'CO2', 'AG'],
+  cardiac: ['TROP', 'BNP', 'CK', 'K', 'MG', 'CR', 'INR', 'HGB', 'PLT', 'GLU', 'NA', 'LACT'],
+};
+
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const showAISuggestions = useSettingsStore((s) => s.showAISuggestions);
+  const labTrendDays = useSettingsStore((s) => s.labTrendDays);
+  const labPriorityProfile = useSettingsStore((s) => s.labPriorityProfile);
 
   const patients = usePatientStore((s) => s.patients);
   const updatePatientStore = usePatientStore((s) => s.updatePatient);
   const removePatientStore = usePatientStore((s) => s.removePatient);
   const getTasksByPatient = useTaskStore((s) => s.getTasksByPatient);
+
+  const priorityLabs = LAB_PRIORITY_SETS[labPriorityProfile] || LAB_PRIORITY_SETS.ward;
 
   const patient = useMemo(
     () => patients.find((p) => p.id === id) || null,
@@ -97,6 +116,34 @@ export default function PatientDetailPage() {
         .finally(() => setLabsLoading(false));
     }
   }, [activeTab, id, labs.length]);
+
+  // Compute lab trends from panels filtered by labTrendDays setting
+  const labTrends = useMemo(() => {
+    if (labs.length < 2) return [];
+    const cutoff = Date.now() - labTrendDays * 24 * 60 * 60 * 1000;
+    const recentLabs = labs.filter((p) => {
+      if (!p.collectedAt) return true;
+      const ts = typeof p.collectedAt === 'object' && 'toDate' in p.collectedAt
+        ? p.collectedAt.toDate().getTime()
+        : 0;
+      return ts >= cutoff || ts === 0;
+    });
+    if (recentLabs.length < 2) return [];
+
+    const labNames = new Set<string>();
+    for (const panel of recentLabs) {
+      for (const val of panel.values) {
+        if (val.name) labNames.add(val.name);
+      }
+    }
+
+    const trends: LabTrend[] = [];
+    for (const name of labNames) {
+      const trend = analyzeTrend(recentLabs, name);
+      if (trend) trends.push(trend);
+    }
+    return trends;
+  }, [labs, labTrendDays]);
 
   // Populate edit form when patient changes
   useEffect(() => {
@@ -667,74 +714,179 @@ export default function PatientDetailPage() {
                 />
               </Card>
             ) : (
-              labs.map((panel) => (
-                <Card key={panel.id} padding="md">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">{panel.panelName}</h3>
-                      <p className="text-xs text-gray-500">
-                        {panel.category} &middot;{' '}
-                        {panel.collectedAt && typeof panel.collectedAt === 'object' && 'toDate' in panel.collectedAt
-                          ? format(panel.collectedAt.toDate(), 'MMM d, yyyy HH:mm')
-                          : 'Date unknown'}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={panel.status === 'reviewed' ? 'success' : panel.status === 'resulted' ? 'info' : 'muted'}
-                      size="sm"
-                    >
-                      {panel.status}
-                    </Badge>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-gray-100">
-                          <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500">Test</th>
-                          <th className="text-right py-2 px-4 text-xs font-medium text-gray-500">Value</th>
-                          <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Unit</th>
-                          <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Reference</th>
-                          <th className="text-left py-2 pl-4 text-xs font-medium text-gray-500">Flag</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {panel.values.map((val, vi) => (
-                          <tr
-                            key={vi}
+              <>
+                {/* Mobile-friendly Trend Summary */}
+                {labTrends.length > 0 && (
+                  <Card padding="md">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                      Trends ({labTrendDays}d)
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {labTrends.map((trend) => {
+                        const isPriority = priorityLabs.some((code) => {
+                          const ref = LAB_REFERENCES[code];
+                          return ref && trend.labName.toLowerCase().includes(ref.name.toLowerCase());
+                        });
+                        return (
+                          <div
+                            key={trend.labName}
                             className={clsx(
-                              'border-b border-gray-50',
-                              (val.flag === 'critical_low' || val.flag === 'critical_high') && 'bg-red-50',
+                              'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm',
+                              trend.direction === 'fluctuating'
+                                ? 'border-amber-200 bg-amber-50/50'
+                                : trend.direction === 'increasing'
+                                ? 'border-red-200 bg-red-50/30'
+                                : trend.direction === 'decreasing'
+                                ? 'border-blue-200 bg-blue-50/30'
+                                : 'border-gray-200 bg-gray-50/30',
+                              isPriority && 'ring-1 ring-blue-300',
                             )}
                           >
-                            <td className="py-2 pr-4 font-medium text-gray-900">{val.name}</td>
-                            <td className={clsx('py-2 px-4 text-right tabular-nums', getLabFlagColor(val.flag))}>
-                              {val.value}
-                              {val.previousValue !== undefined && (
-                                <span className="text-xs text-gray-400 ml-1">
-                                  (prev: {val.previousValue})
-                                </span>
+                            <div className="shrink-0">
+                              {trend.direction === 'increasing' ? (
+                                <TrendingUp size={16} className="text-red-500" />
+                              ) : trend.direction === 'decreasing' ? (
+                                <TrendingDown size={16} className="text-blue-500" />
+                              ) : trend.direction === 'fluctuating' ? (
+                                <AlertTriangle size={16} className="text-amber-500" />
+                              ) : (
+                                <Minus size={16} className="text-gray-400" />
                               )}
-                            </td>
-                            <td className="py-2 px-4 text-gray-500">{val.unit}</td>
-                            <td className="py-2 px-4 text-gray-500 text-xs">
-                              {val.referenceMin !== undefined && val.referenceMax !== undefined
-                                ? `${val.referenceMin} - ${val.referenceMax}`
-                                : 'N/A'}
-                            </td>
-                            <td className="py-2 pl-4">{getLabFlagBadge(val.flag)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {panel.aiAnalysis && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                      <p className="text-xs font-medium text-blue-700 mb-1">AI Analysis</p>
-                      <p className="text-sm text-blue-900">{panel.aiAnalysis.summary}</p>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-900 truncate">
+                                {trend.labName}
+                                {isPriority && <span className="text-blue-500 ml-1">*</span>}
+                              </p>
+                              <p className="text-[10px] text-gray-500 truncate">
+                                {trend.interpretation}
+                              </p>
+                            </div>
+                            {trend.values.length > 0 && (
+                              <div className="shrink-0 text-right">
+                                <p className="text-xs font-semibold tabular-nums text-gray-900">
+                                  {trend.values[trend.values.length - 1].value}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </Card>
-              ))
+                    <p className="text-[10px] text-gray-400 mt-2">
+                      * Priority labs for {labPriorityProfile.toUpperCase()} profile
+                    </p>
+                  </Card>
+                )}
+
+                {/* Lab Panels */}
+                {labs.map((panel) => (
+                  <Card key={panel.id} padding="md">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">{panel.panelName}</h3>
+                        <p className="text-xs text-gray-500">
+                          {panel.category} &middot;{' '}
+                          {panel.collectedAt && typeof panel.collectedAt === 'object' && 'toDate' in panel.collectedAt
+                            ? format(panel.collectedAt.toDate(), 'MMM d, yyyy HH:mm')
+                            : 'Date unknown'}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={panel.status === 'reviewed' ? 'success' : panel.status === 'resulted' ? 'info' : 'muted'}
+                        size="sm"
+                      >
+                        {panel.status}
+                      </Badge>
+                    </div>
+
+                    {/* Mobile card layout + Desktop table */}
+                    <div className="hidden sm:block overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-100">
+                            <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500">Test</th>
+                            <th className="text-right py-2 px-4 text-xs font-medium text-gray-500">Value</th>
+                            <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Unit</th>
+                            <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Reference</th>
+                            <th className="text-left py-2 pl-4 text-xs font-medium text-gray-500">Flag</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {panel.values.map((val, vi) => (
+                            <tr
+                              key={vi}
+                              className={clsx(
+                                'border-b border-gray-50',
+                                (val.flag === 'critical_low' || val.flag === 'critical_high') && 'bg-red-50',
+                              )}
+                            >
+                              <td className="py-2 pr-4 font-medium text-gray-900">{val.name}</td>
+                              <td className={clsx('py-2 px-4 text-right tabular-nums', getLabFlagColor(val.flag))}>
+                                {val.value}
+                                {val.previousValue !== undefined && (
+                                  <span className="text-xs text-gray-400 ml-1">
+                                    (prev: {val.previousValue})
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2 px-4 text-gray-500">{val.unit}</td>
+                              <td className="py-2 px-4 text-gray-500 text-xs">
+                                {val.referenceMin !== undefined && val.referenceMax !== undefined
+                                  ? `${val.referenceMin} - ${val.referenceMax}`
+                                  : 'N/A'}
+                              </td>
+                              <td className="py-2 pl-4">{getLabFlagBadge(val.flag)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile: stacked card layout for lab values */}
+                    <div className="sm:hidden space-y-1.5">
+                      {panel.values.map((val, vi) => (
+                        <div
+                          key={vi}
+                          className={clsx(
+                            'flex items-center justify-between px-2.5 py-2 rounded-lg border',
+                            val.flag === 'critical_low' || val.flag === 'critical_high'
+                              ? 'bg-red-50 border-red-200'
+                              : val.flag === 'high'
+                              ? 'bg-amber-50/50 border-amber-200'
+                              : val.flag === 'low'
+                              ? 'bg-blue-50/50 border-blue-200'
+                              : 'bg-white border-gray-100',
+                          )}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-900 truncate">{val.name}</p>
+                            <p className="text-[10px] text-gray-400">
+                              {val.unit}
+                              {val.referenceMin !== undefined && val.referenceMax !== undefined
+                                ? ` (${val.referenceMin}-${val.referenceMax})`
+                                : ''}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={clsx('text-sm font-semibold tabular-nums', getLabFlagColor(val.flag))}>
+                              {val.value}
+                            </span>
+                            {val.flag !== 'normal' && getLabFlagBadge(val.flag)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {showAISuggestions && panel.aiAnalysis && (
+                      <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                        <p className="text-xs font-medium text-blue-700 mb-1">AI Analysis</p>
+                        <p className="text-sm text-blue-900">{panel.aiAnalysis.summary}</p>
+                      </div>
+                    )}
+                  </Card>
+                ))}
+              </>
             )}
           </div>
         )}

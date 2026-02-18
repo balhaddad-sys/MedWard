@@ -10,17 +10,23 @@ export interface DeltaResult {
   significance: 'critical' | 'significant' | 'minor' | 'none'
 }
 
+// Thresholds in Kuwait SI units (mmol/L, umol/L, etc.)
 const SIGNIFICANCE_THRESHOLDS: Record<string, { significant: number; critical: number }> = {
-  HGB: { significant: 1.0, critical: 2.0 },
-  PLT: { significant: 30, critical: 50 },
-  WBC: { significant: 3.0, critical: 10.0 },
-  NA: { significant: 3, critical: 6 },
-  K: { significant: 0.5, critical: 1.0 },
-  CR: { significant: 0.3, critical: 0.5 },
-  GLU: { significant: 50, critical: 100 },
-  TROP: { significant: 0.02, critical: 0.1 },
-  LACT: { significant: 0.5, critical: 1.5 },
-  INR: { significant: 0.3, critical: 1.0 },
+  HGB: { significant: 1.0, critical: 2.0 },         // g/dL
+  PLT: { significant: 30, critical: 50 },            // x10⁹/L
+  WBC: { significant: 3.0, critical: 10.0 },         // x10⁹/L
+  NA: { significant: 3, critical: 6 },               // mmol/L
+  K: { significant: 0.5, critical: 1.0 },            // mmol/L
+  CR: { significant: 26, critical: 44 },             // umol/L (was 0.3/0.5 mg/dL)
+  GLU: { significant: 2.8, critical: 5.5 },          // mmol/L (was 50/100 mg/dL)
+  UREA: { significant: 1.5, critical: 3.0 },         // mmol/L
+  CA: { significant: 0.15, critical: 0.30 },         // mmol/L
+  TROP: { significant: 0.02, critical: 0.1 },        // ng/mL
+  LACT: { significant: 0.5, critical: 1.5 },         // mmol/L
+  INR: { significant: 0.3, critical: 1.0 },          // ratio
+  TBILI: { significant: 5, critical: 15 },            // umol/L
+  MG: { significant: 0.1, critical: 0.2 },           // mmol/L
+  PO4: { significant: 0.15, critical: 0.3 },         // mmol/L
 }
 
 export const calculateDeltas = (

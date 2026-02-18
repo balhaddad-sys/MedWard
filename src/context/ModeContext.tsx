@@ -6,6 +6,7 @@ import {
 import type { ReactNode } from 'react'
 import { MODES } from '@/config/modes'
 import type { ClinicalMode } from '@/config/modes'
+import { useSettingsStore } from '@/stores/settingsStore'
 import { ModeContext } from './modeContextDef'
 
 // ---------------------------------------------------------------------------
@@ -14,9 +15,7 @@ import { ModeContext } from './modeContextDef'
 
 const STORAGE_KEY = 'medward:clinical-mode'
 
-const DEFAULT_MODE: ClinicalMode = 'ward'
-
-function readPersistedMode(): ClinicalMode {
+function readPersistedMode(fallback: ClinicalMode): ClinicalMode {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored && (stored === 'ward' || stored === 'acute' || stored === 'clerking')) {
@@ -25,7 +24,7 @@ function readPersistedMode(): ClinicalMode {
   } catch {
     // localStorage may be unavailable (SSR, private browsing quota, etc.)
   }
-  return DEFAULT_MODE
+  return fallback
 }
 
 // ---------------------------------------------------------------------------
@@ -37,7 +36,8 @@ interface ModeProviderProps {
 }
 
 export function ModeProvider({ children }: ModeProviderProps) {
-  const [mode, setModeState] = useState<ClinicalMode>(readPersistedMode)
+  const defaultMode = useSettingsStore((s) => s.defaultMode)
+  const [mode, setModeState] = useState<ClinicalMode>(() => readPersistedMode(defaultMode))
 
   const setMode = useCallback((next: ClinicalMode) => {
     setModeState(next)

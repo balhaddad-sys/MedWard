@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { subscribeToUserPatients, createPatient } from '@/services/firebase/patients';
 import { ACUITY_LEVELS } from '@/config/constants';
 import { STATE_METADATA } from '@/types/patientState';
@@ -112,6 +113,8 @@ export default function PatientListPage() {
     getFilteredPatients,
     setLoading,
   } = usePatientStore();
+
+  const compactView = useSettingsStore((s) => s.compactView);
 
   const [sortKey, setSortKey] = useState<SortKey>('acuity');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -381,16 +384,18 @@ export default function PatientListPage() {
               key={patient.id}
               onClick={() => navigate(`/patients/${patient.id}`)}
               className={clsx(
-                'flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 rounded-xl',
+                'flex items-center gap-2 sm:gap-3 px-3 sm:px-4 rounded-xl',
                 'bg-white border border-gray-200 cursor-pointer',
                 'hover:shadow-sm transition-all duration-150',
                 ACUITY_BORDER[patient.acuity],
                 ACUITY_BG[patient.acuity],
+                compactView ? 'py-1.5' : 'py-3',
               )}
             >
               {/* Acuity number circle */}
               <div className={clsx(
-                'flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full text-xs sm:text-sm font-bold',
+                'shrink-0 items-center justify-center rounded-full font-bold flex',
+                compactView ? 'h-6 w-6 text-[10px]' : 'h-8 w-8 sm:h-9 sm:w-9 text-xs sm:text-sm',
                 patient.acuity === 1 ? 'bg-red-100 text-red-700' :
                 patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
                 patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
@@ -401,9 +406,12 @@ export default function PatientListPage() {
               </div>
 
               {/* Bed badge */}
-              <div className="flex h-8 w-11 sm:h-9 sm:w-14 shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200">
+              <div className={clsx(
+                'shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200 flex',
+                compactView ? 'h-6 w-9' : 'h-8 w-11 sm:h-9 sm:w-14',
+              )}>
                 <div className="text-center">
-                  <BedDouble size={11} className="mx-auto text-slate-400 hidden sm:block" />
+                  {!compactView && <BedDouble size={11} className="mx-auto text-slate-400 hidden sm:block" />}
                   <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-none">{patient.bedNumber}</p>
                 </div>
               </div>
@@ -411,7 +419,10 @@ export default function PatientListPage() {
               {/* Patient info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                  <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate max-w-[120px] sm:max-w-none">
+                  <p className={clsx(
+                    'font-semibold text-gray-900 truncate max-w-[120px] sm:max-w-none',
+                    compactView ? 'text-xs' : 'text-xs sm:text-sm',
+                  )}>
                     {patient.lastName}, {patient.firstName}
                   </p>
                   {patient.dateOfBirth && (
@@ -426,15 +437,17 @@ export default function PatientListPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <p className="text-[10px] sm:text-xs text-gray-500 truncate">
-                    MR{patient.mrn}
-                    {' · '}
-                    {patient.primaryDiagnosis}
-                  </p>
-                </div>
+                {!compactView && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <p className="text-[10px] sm:text-xs text-gray-500 truncate">
+                      MR{patient.mrn}
+                      {' · '}
+                      {patient.primaryDiagnosis}
+                    </p>
+                  </div>
+                )}
                 {/* State badge on mobile - shown inline */}
-                {patient.state && (
+                {!compactView && patient.state && (
                   <div className="mt-1 sm:hidden">
                     <Badge variant={getStateVariant(patient.state)} size="sm">
                       {STATE_METADATA[patient.state]?.label || patient.state}
@@ -465,7 +478,7 @@ export default function PatientListPage() {
                 )}
 
                 {/* State badge - desktop only */}
-                {patient.state && (
+                {!compactView && patient.state && (
                   <span className="hidden sm:inline-flex">
                     <Badge variant={getStateVariant(patient.state)} size="sm">
                       {STATE_METADATA[patient.state]?.label || patient.state}
