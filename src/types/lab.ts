@@ -16,6 +16,8 @@ export interface LabValue {
   previousValue?: number | string
   delta?: number
   deltaPercent?: number
+  /** Canonical analyte key (e.g. 'sodium', 'potassium') for trend matching across panels */
+  analyteKey?: string
 }
 
 export interface LabPanel {

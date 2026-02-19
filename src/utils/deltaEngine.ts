@@ -43,7 +43,11 @@ export const calculateDeltas = (
       : parseFloat(String(currentValue.value))
     if (isNaN(currNum)) continue
 
-    const previousValue = (previousPanel.values ?? []).find((v) => v.name === currentValue.name)
+    // Match by analyteKey first (canonical), fall back to name
+    const previousValue = (previousPanel.values ?? []).find((v) =>
+      (currentValue.analyteKey && v.analyteKey && v.analyteKey === currentValue.analyteKey) ||
+      v.name === currentValue.name
+    )
     if (!previousValue) continue
     const prevNum = typeof previousValue.value === 'number'
       ? previousValue.value
@@ -84,11 +88,15 @@ export const calculateDeltas = (
   return results
 }
 
-export const analyzeTrend = (panels: LabPanel[], labName: string): LabTrend | null => {
+export const analyzeTrend = (panels: LabPanel[], labName: string, analyteKey?: string): LabTrend | null => {
   const values: { date: LabTrend['values'][0]['date']; value: number }[] = []
 
   for (const panel of panels) {
-    const labValue = (panel.values ?? []).find((v) => v.name === labName)
+    // Match by analyteKey first (canonical), fall back to name
+    const labValue = (panel.values ?? []).find((v) =>
+      (analyteKey && v.analyteKey && v.analyteKey === analyteKey) ||
+      v.name === labName
+    )
     if (!labValue) continue
     // Values may be stored as strings from AI extraction — parse them
     const numVal = typeof labValue.value === 'number'

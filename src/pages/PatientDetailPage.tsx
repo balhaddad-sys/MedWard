@@ -118,16 +118,20 @@ export default function PatientDetailPage() {
     });
     if (recentLabs.length < 2) return [];
 
-    const labNames = new Set<string>();
+    // Collect unique lab tests by analyteKey (preferred) or name
+    const labTests = new Map<string, { name: string; analyteKey?: string }>();
     for (const panel of recentLabs) {
       for (const val of panel.values) {
-        if (val.name) labNames.add(val.name);
+        const key = val.analyteKey || val.name;
+        if (key && !labTests.has(key)) {
+          labTests.set(key, { name: val.name, analyteKey: val.analyteKey });
+        }
       }
     }
 
     const trends: LabTrend[] = [];
-    for (const name of labNames) {
-      const trend = analyzeTrend(recentLabs, name);
+    for (const [, { name, analyteKey }] of labTests) {
+      const trend = analyzeTrend(recentLabs, name, analyteKey);
       if (trend) trends.push(trend);
     }
     return trends;
@@ -790,7 +794,6 @@ export default function PatientDetailPage() {
                   const testNames = [...new Set(panels.flatMap((p) => p.values.map((v) => v.name)))];
                   const displayPanels = panels.slice(0, 4);
                   const latest = displayPanels[0];
-                  const previous = displayPanels[1];
 
                   return (
                     <Card key={groupName} padding="sm">
@@ -880,66 +883,57 @@ export default function PatientDetailPage() {
                         </table>
                       </div>
 
-                      {/* Mobile: Compact latest results */}
-                      <div className="sm:hidden divide-y divide-gray-100">
-                        {testNames.map((name) => {
-                          const latestVal = latest.values.find((v) => v.name === name);
-                          const prevVal = previous?.values.find((v) => v.name === name);
-                          if (!latestVal) return null;
-                          const isCritical = latestVal.flag === 'critical_low' || latestVal.flag === 'critical_high';
-                          const isAbnormal = latestVal.flag !== 'normal';
-                          const flagText = getLabFlagText(latestVal.flag);
+                      {/* Mobile: Simple lab report table */}
+                      <table className="sm:hidden w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-200 text-gray-500">
+                            <th className="text-left py-1.5 font-medium">Test</th>
+                            <th className="text-right py-1.5 font-medium">Result</th>
+                            <th className="text-center py-1.5 font-medium w-8">Flag</th>
+                            <th className="text-right py-1.5 font-medium">Ref</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {testNames.map((name) => {
+                            const latestVal = latest.values.find((v) => v.name === name);
+                            if (!latestVal) return null;
+                            const isCritical = latestVal.flag === 'critical_low' || latestVal.flag === 'critical_high';
+                            const flagText = getLabFlagText(latestVal.flag);
 
-                          let deltaIcon = null;
-                          if (prevVal) {
-                            const curr = parseFloat(String(latestVal.value));
-                            const prev = parseFloat(String(prevVal.value));
-                            if (!isNaN(curr) && !isNaN(prev)) {
-                              if (curr > prev) deltaIcon = <TrendingUp size={10} className="text-red-400" />;
-                              else if (curr < prev) deltaIcon = <TrendingDown size={10} className="text-blue-400" />;
-                            }
-                          }
-
-                          return (
-                            <div
-                              key={name}
-                              className={clsx(
-                                'flex items-center justify-between px-1.5 py-1.5',
-                                isCritical && 'bg-red-50 rounded',
-                              )}
-                            >
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-medium text-gray-800 truncate">{name}</p>
-                                <p className="text-[9px] text-gray-400">
-                                  {latestVal.unit}
+                            return (
+                              <tr
+                                key={name}
+                                className={clsx(
+                                  'border-b border-gray-50',
+                                  isCritical && 'bg-red-50',
+                                )}
+                              >
+                                <td className="py-1.5 pr-2 text-gray-800 font-medium">{name}</td>
+                                <td className={clsx('py-1.5 text-right tabular-nums font-semibold', getLabFlagColor(latestVal.flag))}>
+                                  {cleanLabValue(latestVal.value)} <span className="font-normal text-gray-400">{latestVal.unit}</span>
+                                </td>
+                                <td className="py-1.5 text-center">
+                                  {flagText && (
+                                    <span className={clsx(
+                                      'text-[9px] font-bold px-1 py-0.5 rounded',
+                                      isCritical ? 'bg-red-100 text-red-700' :
+                                      latestVal.flag === 'high' ? 'bg-amber-100 text-amber-700' :
+                                      'bg-blue-100 text-blue-700',
+                                    )}>
+                                      {flagText}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-1.5 text-right text-gray-400 tabular-nums">
                                   {latestVal.referenceMin != null && latestVal.referenceMax != null
-                                    ? ` (${latestVal.referenceMin}–${latestVal.referenceMax})`
+                                    ? `${latestVal.referenceMin}–${latestVal.referenceMax}`
                                     : ''}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {deltaIcon}
-                                {prevVal && (
-                                  <span className="text-[9px] text-gray-400 tabular-nums">({cleanLabValue(prevVal.value)})</span>
-                                )}
-                                <span className={clsx('text-sm font-bold tabular-nums', getLabFlagColor(latestVal.flag))}>
-                                  {cleanLabValue(latestVal.value)}
-                                </span>
-                                {flagText && (
-                                  <span className={clsx(
-                                    'text-[9px] font-bold px-1 py-0.5 rounded',
-                                    isCritical ? 'bg-red-100 text-red-700' :
-                                    isAbnormal && latestVal.flag === 'high' ? 'bg-amber-100 text-amber-700' :
-                                    isAbnormal ? 'bg-blue-100 text-blue-700' : '',
-                                  )}>
-                                    {flagText}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
 
                       {/* AI Analysis */}
                       {showAISuggestions && latest.aiAnalysis && (
