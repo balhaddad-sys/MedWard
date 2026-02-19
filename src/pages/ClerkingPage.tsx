@@ -27,7 +27,6 @@ import type {
   InvestigationsData,
   PlanData,
   SafetyChecklist,
-  SystemReview,
 } from '@/types/clerking';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
