@@ -6,9 +6,11 @@ import MobileNav from '@/components/layout/MobileNav'
 import TopBar from '@/components/layout/TopBar'
 import NotificationDrawer from '@/components/layout/NotificationDrawer'
 import { subscribeToNotifications } from '@/services/firebase/notifications'
+import { subscribeToUserPatients } from '@/services/firebase/patients'
 import { showNotification } from '@/services/browserNotifications'
 import { useAuthStore } from '@/stores/authStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { usePatientStore } from '@/stores/patientStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { Notification } from '@/types/notification'
 
@@ -53,6 +55,7 @@ export default function ClinicalLayout() {
   const notifyTaskReminders = useSettingsStore((s) => s.notifyTaskReminders)
   const notifyHandoverAlerts = useSettingsStore((s) => s.notifyHandoverAlerts)
   const setNotifications = useNotificationStore((s) => s.setNotifications)
+  const setPatients = usePatientStore((s) => s.setPatients)
   const rawNotificationsRef = useRef<Notification[]>([])
   const seenNotificationIdsRef = useRef<Set<string>>(new Set())
   const hasPrimedSeenIdsRef = useRef(false)
@@ -61,6 +64,16 @@ export default function ClinicalLayout() {
     notifyTaskReminders,
     notifyHandoverAlerts,
   })
+
+  // Global patient subscription — ensures patients are available on all pages
+  useEffect(() => {
+    if (!userId) {
+      setPatients([])
+      return
+    }
+    const unsubscribe = subscribeToUserPatients(userId, setPatients)
+    return () => unsubscribe()
+  }, [userId, setPatients])
 
   useEffect(() => {
     if (!userId) {

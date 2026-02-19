@@ -240,9 +240,10 @@ export default function PatientDetailPage() {
   }
 
   /** Strip trailing flag letters (H, L, CH, CL) that AI extraction embeds in raw values */
-  function cleanLabValue(val: string | number): string {
+  function cleanLabValue(val: string | number | null | undefined): string {
+    if (val === null || val === undefined) return '—';
     const s = String(val).trim();
-    // Remove trailing " CH", " CL", " H", " L" (case-insensitive)
+    if (!s || s === 'null' || s === 'undefined' || s === 'NaN') return '—';
     return s.replace(/\s+(CH|CL|H|L)\s*$/i, '').trim();
   }
 
