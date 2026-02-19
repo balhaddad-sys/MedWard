@@ -29,6 +29,60 @@ const safeLabPanel = (id: string, data: Record<string, unknown>): LabPanel => ({
   id,
 } as unknown as LabPanel)
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== 'object') return false
+  return Object.getPrototypeOf(value) === Object.prototype
+}
+
+const deepStripUndefined = (value: unknown): unknown => {
+  if (value === undefined) return undefined
+
+  if (Array.isArray(value)) {
+    const cleanedArray = value
+      .map((item) => deepStripUndefined(item))
+      .filter((item) => item !== undefined)
+    return cleanedArray
+  }
+
+  if (isPlainObject(value)) {
+    const cleanedObject: Record<string, unknown> = {}
+    for (const [key, nested] of Object.entries(value)) {
+      const cleanedNested = deepStripUndefined(nested)
+      if (cleanedNested !== undefined) {
+        cleanedObject[key] = cleanedNested
+      }
+    }
+    return cleanedObject
+  }
+
+  return value
+}
+
+const findUndefinedPaths = (value: unknown, currentPath = ''): string[] => {
+  if (value === undefined) {
+    return [currentPath || '<root>']
+  }
+
+  if (Array.isArray(value)) {
+    const paths: string[] = []
+    value.forEach((item, index) => {
+      paths.push(...findUndefinedPaths(item, `${currentPath}[${index}]`))
+    })
+    return paths
+  }
+
+  if (isPlainObject(value)) {
+    const paths: string[] = []
+    for (const [key, nested] of Object.entries(value)) {
+      const nextPath = currentPath ? `${currentPath}.${key}` : key
+      paths.push(...findUndefinedPaths(nested, nextPath))
+    }
+    return paths
+  }
+
+  return []
+}
+
 export const getLabPanels = async (patientId: string, maxResults = 50): Promise<LabPanel[]> => {
   const q = query(
     collection(db, 'patients', patientId, 'labs'),
@@ -40,10 +94,17 @@ export const getLabPanels = async (patientId: string, maxResults = 50): Promise<
 }
 
 export const addLabPanel = async (patientId: string, panel: Omit<LabPanel, 'id' | 'createdAt'>): Promise<string> => {
-  const docRef = await addDoc(collection(db, 'patients', patientId, 'labs'), {
-    ...panel,
+  const sanitizedPanel = deepStripUndefined(panel) as Record<string, unknown>
+  const payload = {
+    ...sanitizedPanel,
     createdAt: serverTimestamp(),
-  })
+  }
+  const undefinedPaths = findUndefinedPaths(payload)
+  if (undefinedPaths.length > 0) {
+    throw new Error(`Lab payload contains undefined fields: ${undefinedPaths.join(', ')}`)
+  }
+
+  const docRef = await addDoc(collection(db, 'patients', patientId, 'labs'), payload)
   return docRef.id
 }
 

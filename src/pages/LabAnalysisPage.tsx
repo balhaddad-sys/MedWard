@@ -61,6 +61,8 @@ const LAB_FLAG_RANK: Record<LabFlag, number> = {
   normal: 1,
 };
 
+const VALID_LAB_FLAGS: LabFlag[] = ['normal', 'low', 'high', 'critical_low', 'critical_high'];
+
 type TrendDirection = 'up' | 'down' | 'stable';
 
 interface TrendInsight {
@@ -172,6 +174,10 @@ function getFlagLabel(flag: LabFlag): string {
 function getDirectionFromDelta(deltaPercent: number): TrendDirection {
   if (Math.abs(deltaPercent) < 3) return 'stable';
   return deltaPercent > 0 ? 'up' : 'down';
+}
+
+function coerceLabFlag(flag: unknown): LabFlag {
+  return VALID_LAB_FLAGS.includes(flag as LabFlag) ? (flag as LabFlag) : 'normal';
 }
 
 /* -------------------------------------------------------------------------- */
@@ -427,6 +433,7 @@ export default function LabAnalysisPage() {
 
   async function handleUpload() {
     if (files.length === 0 || !user || !selectedPatientId) return;
+    const orderedBy = user.id || user.email || 'unknown-user';
 
     setUploading(true);
     setUploadProgress(0);
@@ -504,19 +511,37 @@ export default function LabAnalysisPage() {
             const localRef = getRefRangeForAnalyte(r.analyte_key);
 
             // Use backend-computed flag, fall back to our parseCell hint
-            const flag: LabFlag = (r.flag as LabFlag) || parsed.flagHint || 'normal';
+            const flag = coerceLabFlag(r.flag || parsed.flagHint || 'normal');
 
             analyteKeys.push(r.analyte_key || '');
 
-            labValues.push({
-              name: displayName,
+            const labValue: LabValue = {
+              name: displayName || `Unnamed Test ${labValues.length + 1}`,
               value: parsed.value ?? parsed.display,
               unit: r.unit || '',
               flag,
-              referenceMin: r.ref_low ?? localRef?.min,
-              referenceMax: r.ref_high ?? localRef?.max,
-              analyteKey: r.analyte_key || undefined,
-            });
+            };
+
+            const resolvedRefLow =
+              typeof r.ref_low === 'number'
+                ? r.ref_low
+                : localRef?.min;
+            const resolvedRefHigh =
+              typeof r.ref_high === 'number'
+                ? r.ref_high
+                : localRef?.max;
+
+            if (typeof resolvedRefLow === 'number' && Number.isFinite(resolvedRefLow)) {
+              labValue.referenceMin = resolvedRefLow;
+            }
+            if (typeof resolvedRefHigh === 'number' && Number.isFinite(resolvedRefHigh)) {
+              labValue.referenceMax = resolvedRefHigh;
+            }
+            if (typeof r.analyte_key === 'string' && r.analyte_key.trim().length > 0) {
+              labValue.analyteKey = r.analyte_key.trim();
+            }
+
+            labValues.push(labValue);
           }
 
           // Validate
@@ -541,7 +566,7 @@ export default function LabAnalysisPage() {
             values: labValues,
             collectedAt,
             resultedAt: now,
-            orderedBy: user.id,
+            orderedBy,
             status: labValues.length > 0 ? 'resulted' : 'pending',
             source: 'image',
             imageUrl,
@@ -567,7 +592,7 @@ export default function LabAnalysisPage() {
           values: allLabValues,
           collectedAt: now,
           resultedAt: now,
-          orderedBy: user.id,
+          orderedBy,
           status: 'resulted' as const,
           source: 'image' as const,
           id: 'preview',
