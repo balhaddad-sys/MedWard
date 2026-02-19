@@ -38,15 +38,22 @@ export const calculateDeltas = (
   const results: DeltaResult[] = []
 
   for (const currentValue of (currentPanel.values ?? [])) {
-    if (typeof currentValue.value !== 'number') continue
+    const currNum = typeof currentValue.value === 'number'
+      ? currentValue.value
+      : parseFloat(String(currentValue.value))
+    if (isNaN(currNum)) continue
 
     const previousValue = (previousPanel.values ?? []).find((v) => v.name === currentValue.name)
-    if (!previousValue || typeof previousValue.value !== 'number') continue
+    if (!previousValue) continue
+    const prevNum = typeof previousValue.value === 'number'
+      ? previousValue.value
+      : parseFloat(String(previousValue.value))
+    if (isNaN(prevNum)) continue
 
-    const delta = currentValue.value - (previousValue.value as number)
+    const delta = currNum - prevNum
     const absDelta = Math.abs(delta)
     const deltaPercent =
-      previousValue.value !== 0 ? (delta / (previousValue.value as number)) * 100 : 0
+      prevNum !== 0 ? (delta / prevNum) * 100 : 0
 
     const direction: 'up' | 'down' | 'stable' =
       absDelta < 0.01 ? 'stable' : delta > 0 ? 'up' : 'down'
@@ -65,8 +72,8 @@ export const calculateDeltas = (
 
     results.push({
       labName: currentValue.name,
-      currentValue: currentValue.value,
-      previousValue: previousValue.value as number,
+      currentValue: currNum,
+      previousValue: prevNum,
       delta: Math.round(delta * 100) / 100,
       deltaPercent: Math.round(deltaPercent * 10) / 10,
       direction,
@@ -82,8 +89,13 @@ export const analyzeTrend = (panels: LabPanel[], labName: string): LabTrend | nu
 
   for (const panel of panels) {
     const labValue = (panel.values ?? []).find((v) => v.name === labName)
-    if (labValue && typeof labValue.value === 'number') {
-      values.push({ date: panel.collectedAt, value: labValue.value })
+    if (!labValue) continue
+    // Values may be stored as strings from AI extraction — parse them
+    const numVal = typeof labValue.value === 'number'
+      ? labValue.value
+      : parseFloat(String(labValue.value))
+    if (!isNaN(numVal)) {
+      values.push({ date: panel.collectedAt, value: numVal })
     }
   }
 

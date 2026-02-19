@@ -235,6 +235,13 @@ export default function PatientDetailPage() {
     return [...new Set(parts)].join(', ') || 'Misc';
   }
 
+  /** Strip trailing flag letters (H, L, CH, CL) that AI extraction embeds in raw values */
+  function cleanLabValue(val: string | number): string {
+    const s = String(val).trim();
+    // Remove trailing " CH", " CL", " H", " L" (case-insensitive)
+    return s.replace(/\s+(CH|CL|H|L)\s*$/i, '').trim();
+  }
+
   function getTimestampMs(ts: unknown): number {
     if (!ts) return 0;
     if (typeof ts === 'object' && ts !== null && 'toDate' in ts) {
@@ -770,7 +777,7 @@ export default function PatientDetailPage() {
                           {trend.labName}
                           {trend.values.length > 0 && (
                             <span className="font-bold tabular-nums ml-0.5">
-                              {trend.values[trend.values.length - 1].value}
+                              {cleanLabValue(trend.values[trend.values.length - 1].value)}
                             </span>
                           )}
                         </div>
@@ -849,7 +856,7 @@ export default function PatientDetailPage() {
 
                                     return (
                                       <td key={p.id} className={clsx('py-1.5 px-2 text-right tabular-nums text-xs', getLabFlagColor(val.flag))}>
-                                        <span className={clsx(pi === 0 && 'font-semibold')}>{val.value}</span>
+                                        <span className={clsx(pi === 0 && 'font-semibold')}>{cleanLabValue(val.value)}</span>
                                         {flagText && (
                                           <span className={clsx(
                                             'ml-0.5 text-[9px] font-bold',
@@ -913,10 +920,10 @@ export default function PatientDetailPage() {
                               <div className="flex items-center gap-1 shrink-0">
                                 {deltaIcon}
                                 {prevVal && (
-                                  <span className="text-[9px] text-gray-400 tabular-nums">({prevVal.value})</span>
+                                  <span className="text-[9px] text-gray-400 tabular-nums">({cleanLabValue(prevVal.value)})</span>
                                 )}
                                 <span className={clsx('text-sm font-bold tabular-nums', getLabFlagColor(latestVal.flag))}>
-                                  {latestVal.value}
+                                  {cleanLabValue(latestVal.value)}
                                 </span>
                                 {flagText && (
                                   <span className={clsx(

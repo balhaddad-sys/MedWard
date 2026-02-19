@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { clsx } from 'clsx';
 import {
   Beaker,
@@ -8,6 +8,13 @@ import {
   Loader2,
   CheckCircle2,
   ImageDown,
+  User,
+  ChevronRight,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  BarChart3,
+  Clock3,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { httpsCallable } from 'firebase/functions';
@@ -40,6 +47,28 @@ const DEFAULT_COMPRESS: CompressOptions = {
   quality: 0.82,
   maxSizeKB: 1500,
 };
+
+const LAB_FLAG_RANK: Record<LabFlag, number> = {
+  critical_high: 5,
+  critical_low: 5,
+  high: 3,
+  low: 3,
+  normal: 1,
+};
+
+type TrendDirection = 'up' | 'down' | 'stable';
+
+interface TrendInsight {
+  name: string;
+  unit: string;
+  latestValue: number;
+  previousValue: number;
+  latestFlag: LabFlag;
+  delta: number;
+  deltaPercent: number;
+  direction: TrendDirection;
+  points: number[];
+}
 
 /**
  * Compress an image file using canvas.
@@ -91,6 +120,55 @@ async function compressImage(
   return { blob, base64, originalKB, compressedKB };
 }
 
+function getTimestampMs(ts: unknown): number {
+  if (!ts || typeof ts !== 'object' || !('toDate' in ts)) return 0;
+  return (ts as { toDate: () => Date }).toDate().getTime();
+}
+
+function normalizeLabValue(raw: string | number | null | undefined): string {
+  const normalized = String(raw ?? '').trim();
+  if (!normalized || /^null$/i.test(normalized) || /^undefined$/i.test(normalized) || /^nan$/i.test(normalized)) {
+    return '--';
+  }
+  return normalized.replace(/\s+(CH|CL|H|L)\s*$/i, '').trim();
+}
+
+function parseNumericLabValue(raw: string | number): number | null {
+  const cleaned = normalizeLabValue(raw);
+  if (cleaned === '--') return null;
+  const parsed = Number.parseFloat(cleaned.replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getFlagVariant(flag: LabFlag): 'critical' | 'warning' | 'info' | 'success' {
+  switch (flag) {
+    case 'critical_low':
+    case 'critical_high':
+      return 'critical';
+    case 'high':
+      return 'warning';
+    case 'low':
+      return 'info';
+    default:
+      return 'success';
+  }
+}
+
+function getFlagLabel(flag: LabFlag): string {
+  switch (flag) {
+    case 'critical_high': return 'Critical High';
+    case 'critical_low': return 'Critical Low';
+    case 'high': return 'High';
+    case 'low': return 'Low';
+    default: return 'Normal';
+  }
+}
+
+function getDirectionFromDelta(deltaPercent: number): TrendDirection {
+  if (Math.abs(deltaPercent) < 3) return 'stable';
+  return deltaPercent > 0 ? 'up' : 'down';
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Component                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -114,6 +192,56 @@ export default function LabAnalysisPage() {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // All-patients lab overview
+  const [allPatientsLabs, setAllPatientsLabs] = useState<Map<string, LabPanel[]>>(new Map());
+  const [allLabsLoading, setAllLabsLoading] = useState(false);
+
+  const selectedPatient = useMemo(
+    () => patients.find((patient) => patient.id === selectedPatientId) ?? null,
+    [patients, selectedPatientId],
+  );
+
+  // Load all patients' labs on mount for overview
+  useEffect(() => {
+    if (patients.length === 0) return;
+    setAllLabsLoading(true);
+    Promise.all(
+      patients.map((p) =>
+        getLabPanels(p.id)
+          .then((labs) => [p.id, labs] as const)
+          .catch(() => [p.id, [] as LabPanel[]] as const)
+      )
+    )
+      .then((results) => {
+        const map = new Map<string, LabPanel[]>();
+        for (const [pid, labs] of results) {
+          if (labs.length > 0) map.set(pid, labs);
+        }
+        setAllPatientsLabs(map);
+      })
+      .finally(() => setAllLabsLoading(false));
+  }, [patients]);
+
+  // Patients with labs, sorted by most recent lab date
+  const patientsWithLabs = useMemo(() => {
+    const entries: { patient: typeof patients[0]; labs: LabPanel[]; latestDate: number; abnormalCount: number; criticalCount: number }[] = [];
+    for (const p of patients) {
+      const labs = allPatientsLabs.get(p.id);
+      if (!labs || labs.length === 0) continue;
+      const latest = labs.reduce((max, l) => {
+        const ts = l.collectedAt && typeof l.collectedAt === 'object' && 'toDate' in l.collectedAt
+          ? l.collectedAt.toDate().getTime() : 0;
+        return ts > max ? ts : max;
+      }, 0);
+      const latestPanel = labs[0];
+      const abnormalCount = latestPanel.values.filter((v) => v.flag !== 'normal').length;
+      const criticalCount = latestPanel.values.filter((v) => v.flag === 'critical_high' || v.flag === 'critical_low').length;
+      entries.push({ patient: p, labs, latestDate: latest, abnormalCount, criticalCount });
+    }
+    entries.sort((a, b) => b.latestDate - a.latestDate);
+    return entries;
+  }, [patients, allPatientsLabs]);
+
   // Load labs when patient is selected
   useEffect(() => {
     if (!selectedPatientId) {
@@ -126,6 +254,122 @@ export default function LabAnalysisPage() {
       .catch(console.error)
       .finally(() => setLabsLoading(false));
   }, [selectedPatientId]);
+
+  const latestPatientPanel = useMemo(() => patientLabs[0] ?? null, [patientLabs]);
+
+  const latestLabSummary = useMemo(() => {
+    if (!latestPatientPanel) {
+      return {
+        criticalCount: 0,
+        abnormalCount: 0,
+      };
+    }
+
+    const criticalCount = latestPatientPanel.values.filter(
+      (value) => value.flag === 'critical_high' || value.flag === 'critical_low',
+    ).length;
+    const abnormalCount = latestPatientPanel.values.filter((value) => value.flag !== 'normal').length;
+
+    return { criticalCount, abnormalCount };
+  }, [latestPatientPanel]);
+
+  const priorityFindings = useMemo(() => {
+    if (!latestPatientPanel) return [];
+
+    return latestPatientPanel.values
+      .filter((value) => value.flag !== 'normal')
+      .sort((a, b) => {
+        const rankDiff = LAB_FLAG_RANK[b.flag] - LAB_FLAG_RANK[a.flag];
+        if (rankDiff !== 0) return rankDiff;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, 8);
+  }, [latestPatientPanel]);
+
+  const trendWatchlist = useMemo<TrendInsight[]>(() => {
+    if (patientLabs.length < 2) return [];
+
+    const recentPanels = [...patientLabs].slice(0, 8).reverse();
+    const seriesMap = new Map<string, { value: number; flag: LabFlag; unit: string }[]>();
+
+    for (const panel of recentPanels) {
+      for (const value of panel.values) {
+        const numericValue = parseNumericLabValue(value.value);
+        if (numericValue == null) continue;
+
+        const testName = value.name.trim();
+        if (!testName) continue;
+
+        const existingSeries = seriesMap.get(testName) ?? [];
+        existingSeries.push({
+          value: numericValue,
+          flag: value.flag,
+          unit: value.unit ?? '',
+        });
+        seriesMap.set(testName, existingSeries);
+      }
+    }
+
+    const insights: TrendInsight[] = [];
+    for (const [name, values] of seriesMap) {
+      if (values.length < 2) continue;
+
+      const latest = values[values.length - 1];
+      const previous = values[values.length - 2];
+      const delta = latest.value - previous.value;
+      const deltaPercent = previous.value !== 0 ? (delta / previous.value) * 100 : 0;
+
+      insights.push({
+        name,
+        unit: latest.unit,
+        latestValue: latest.value,
+        previousValue: previous.value,
+        latestFlag: latest.flag,
+        delta: Number(delta.toFixed(2)),
+        deltaPercent: Number(deltaPercent.toFixed(1)),
+        direction: getDirectionFromDelta(deltaPercent),
+        points: values.map((entry) => entry.value),
+      });
+    }
+
+    insights.sort((a, b) => {
+      const flagPriority = LAB_FLAG_RANK[b.latestFlag] - LAB_FLAG_RANK[a.latestFlag];
+      if (flagPriority !== 0) return flagPriority;
+      return Math.abs(b.deltaPercent) - Math.abs(a.deltaPercent);
+    });
+
+    return insights.slice(0, 10);
+  }, [patientLabs]);
+
+  const extractedDisplayRows = useMemo(() => {
+    if (!extractedResults) return [];
+
+    return extractedResults.values
+      .map((value) => ({
+        ...value,
+        displayValue: normalizeLabValue(value.value),
+      }))
+      .filter((value) => {
+        return value.displayValue !== '--' || value.flag !== 'normal' || value.referenceMin != null || value.referenceMax != null;
+      })
+      .sort((a, b) => {
+        const severityDiff = LAB_FLAG_RANK[b.flag] - LAB_FLAG_RANK[a.flag];
+        if (severityDiff !== 0) return severityDiff;
+        return a.name.localeCompare(b.name);
+      });
+  }, [extractedResults]);
+
+  const extractedSummary = useMemo(() => {
+    const critical = extractedDisplayRows.filter(
+      (row) => row.flag === 'critical_high' || row.flag === 'critical_low',
+    ).length;
+    const abnormal = extractedDisplayRows.filter((row) => row.flag !== 'normal').length;
+    return {
+      total: extractedDisplayRows.length,
+      critical,
+      abnormal,
+    };
+  }, [extractedDisplayRows]);
 
   const handleFileSelect = useCallback((selectedFiles: File[]) => {
     const validFiles: File[] = [];
@@ -297,22 +541,23 @@ export default function LabAnalysisPage() {
         setExtractedResults(combined);
       }
 
-      const criticalCount = allLabValues.filter(
+      const meaningfulValues = allLabValues.filter((value) => normalizeLabValue(value.value) !== '--');
+      const criticalCount = meaningfulValues.filter(
         (v) => v.flag === 'critical_high' || v.flag === 'critical_low'
       ).length;
-      const abnormalCount = allLabValues.filter(
+      const abnormalCount = meaningfulValues.filter(
         (v) => v.flag !== 'normal'
       ).length;
 
-      if (allLabValues.length > 0) {
+      if (meaningfulValues.length > 0) {
         setAiAnalysis(
-          `Extracted ${allLabValues.length} lab values from ${totalFiles} image(s).` +
+          `Extracted ${meaningfulValues.length} usable lab values from ${totalFiles} image(s).` +
           (criticalCount > 0 ? ` ${criticalCount} critical value(s) detected!` : '') +
           (abnormalCount > 0 ? ` ${abnormalCount} abnormal value(s) flagged.` : ' All values within normal range.')
         );
       } else {
         setAiAnalysis(
-          'Images uploaded but no structured lab values could be extracted. The images may need better resolution or different formatting.'
+          'Images uploaded, but extracted values were mostly empty. Try a sharper image with visible numeric results and reference ranges.'
         );
       }
 
@@ -341,6 +586,15 @@ export default function LabAnalysisPage() {
       case 'critical_high': return 'text-red-600 font-bold';
       default: return 'text-gray-600';
     }
+  }
+
+  function cleanLabValue(val: string | number): string {
+    return normalizeLabValue(val);
+  }
+
+  function cleanPanelName(name: string): string {
+    const parts = name.split(',').map((s) => s.trim()).filter(Boolean);
+    return [...new Set(parts)].join(', ') || 'Misc';
   }
 
   return (
@@ -374,6 +628,272 @@ export default function LabAnalysisPage() {
             ))}
           </Select>
         </Card>
+
+        {selectedPatientId && (
+          <Card padding="md" className="border-slate-200 bg-gradient-to-br from-slate-50 via-white to-sky-50">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Clinical Lab Dashboard
+                </p>
+                <h2 className="text-base sm:text-lg font-semibold text-slate-900 mt-1">
+                  {selectedPatient ? `${selectedPatient.lastName}, ${selectedPatient.firstName}` : 'Selected Patient'}
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Bed {selectedPatient?.bedNumber || '--'} &middot; MRN {selectedPatient?.mrn || '--'}
+                </p>
+              </div>
+              <Badge variant="default" size="sm">
+                {patientLabs.length} panel{patientLabs.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-[11px] text-slate-500">Latest Panel</p>
+                <p className="text-sm font-semibold text-slate-900 mt-0.5">
+                  {latestPatientPanel ? cleanPanelName(latestPatientPanel.panelName) : 'No data'}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-[11px] text-slate-500">Collected</p>
+                <p className="text-sm font-semibold text-slate-900 mt-0.5 flex items-center gap-1">
+                  <Clock3 size={12} className="text-slate-400" />
+                  {latestPatientPanel && getTimestampMs(latestPatientPanel.collectedAt) > 0
+                    ? format(new Date(getTimestampMs(latestPatientPanel.collectedAt)), 'MMM d HH:mm')
+                    : '--'}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                <p className="text-[11px] text-red-700">Critical Values</p>
+                <p className="text-sm font-semibold text-red-700 mt-0.5">
+                  {latestLabSummary.criticalCount}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <p className="text-[11px] text-amber-700">Abnormal Values</p>
+                <p className="text-sm font-semibold text-amber-700 mt-0.5">
+                  {latestLabSummary.abnormalCount}
+                </p>
+              </div>
+            </div>
+
+            {latestPatientPanel ? (
+              <div className="mt-4 grid gap-3 xl:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-slate-900">Priority Findings</h3>
+                    <Badge variant="muted" size="sm">
+                      Latest panel
+                    </Badge>
+                  </div>
+
+                  {priorityFindings.length === 0 ? (
+                    <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                      No abnormal findings in the latest panel.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {priorityFindings.map((finding, findingIndex) => (
+                        <div
+                          key={`${finding.name}-${finding.unit}-${findingIndex}`}
+                          className="rounded-lg border border-slate-200 px-3 py-2.5 flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{finding.name}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {finding.referenceMin != null && finding.referenceMax != null
+                                ? `Ref ${finding.referenceMin} - ${finding.referenceMax}`
+                                : 'Reference range unavailable'}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className={clsx('text-sm font-semibold tabular-nums', getLabFlagColor(finding.flag))}>
+                              {cleanLabValue(finding.value)} {finding.unit}
+                            </p>
+                            <Badge variant={getFlagVariant(finding.flag)} size="sm">
+                              {getFlagLabel(finding.flag)}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-sm font-semibold text-slate-900">Trend Watchlist</h3>
+                    <Badge variant="info" size="sm">
+                      <BarChart3 size={11} className="mr-1" />
+                      Last {Math.min(patientLabs.length, 8)} panels
+                    </Badge>
+                  </div>
+
+                  {trendWatchlist.length === 0 ? (
+                    <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                      At least two panels are needed to calculate trends.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {trendWatchlist.slice(0, 6).map((trend) => {
+                        const min = Math.min(...trend.points);
+                        const max = Math.max(...trend.points);
+                        const span = Math.max(1, max - min);
+                        return (
+                          <div key={trend.name} className="rounded-lg border border-slate-200 px-3 py-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-900 truncate">{trend.name}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  Latest {trend.latestValue} {trend.unit || ''}
+                                </p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p
+                                  className={clsx(
+                                    'inline-flex items-center gap-1 text-xs font-semibold',
+                                    trend.direction === 'up'
+                                      ? 'text-amber-700'
+                                      : trend.direction === 'down'
+                                      ? 'text-blue-700'
+                                      : 'text-slate-600',
+                                  )}
+                                >
+                                  {trend.direction === 'up' && <TrendingUp size={13} />}
+                                  {trend.direction === 'down' && <TrendingDown size={13} />}
+                                  {trend.direction === 'stable' && <Minus size={13} />}
+                                  {trend.delta > 0 ? '+' : ''}{trend.delta} ({trend.deltaPercent > 0 ? '+' : ''}{trend.deltaPercent}%)
+                                </p>
+                                <Badge variant={getFlagVariant(trend.latestFlag)} size="sm" className="mt-1">
+                                  {getFlagLabel(trend.latestFlag)}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="mt-2 flex items-end gap-1 h-8">
+                              {trend.points.map((point, pointIndex) => {
+                                const height = 8 + ((point - min) / span) * 24;
+                                return (
+                                  <span
+                                    key={`${trend.name}-${pointIndex}`}
+                                    className={clsx(
+                                      'w-1.5 rounded-sm',
+                                      trend.direction === 'up'
+                                        ? 'bg-amber-400'
+                                        : trend.direction === 'down'
+                                        ? 'bg-blue-400'
+                                        : 'bg-slate-300',
+                                    )}
+                                    style={{ height: `${Math.round(height)}px` }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-xs text-slate-500 bg-white border border-slate-200 rounded-lg px-3 py-2">
+                No labs available for this patient yet. Upload an image to start trend tracking.
+              </p>
+            )}
+          </Card>
+        )}
+
+        {/* All-patients lab overview — shown when no patient selected */}
+        {!selectedPatientId && (
+          <div>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              All Patients — Recent Labs
+            </h2>
+            {allLabsLoading ? (
+              <div className="py-8">
+                <Spinner size="md" label="Loading labs for all patients..." />
+              </div>
+            ) : patientsWithLabs.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon={<Beaker size={24} />}
+                  title="No lab results yet"
+                  description="Upload lab images for your patients to see results here."
+                />
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {patientsWithLabs.map(({ patient, labs, latestDate, abnormalCount, criticalCount }) => {
+                  const latestPanel = labs[0];
+                  const panelName = cleanPanelName(latestPanel.panelName);
+                  const topAbnormal = latestPanel.values
+                    .filter((v) => v.flag !== 'normal')
+                    .slice(0, 4);
+                  return (
+                    <button
+                      key={patient.id}
+                      type="button"
+                      onClick={() => setSelectedPatientId(patient.id)}
+                      className="w-full text-left bg-white rounded-xl border border-gray-200 p-3 hover:border-primary-300 hover:bg-primary-50/30 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
+                            <User size={14} className="text-gray-500" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {patient.lastName}, {patient.firstName}
+                            </p>
+                            <p className="text-[10px] text-gray-400">
+                              Bed {patient.bedNumber} &middot; {panelName} &middot;{' '}
+                              {latestDate > 0 ? format(new Date(latestDate), 'MMM d HH:mm') : 'Unknown'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {criticalCount > 0 && (
+                            <Badge variant="critical" size="sm">{criticalCount} crit</Badge>
+                          )}
+                          {abnormalCount > 0 && criticalCount === 0 && (
+                            <Badge variant="warning" size="sm">{abnormalCount} abn</Badge>
+                          )}
+                          <span className="text-xs text-gray-300">{labs.length} panel{labs.length !== 1 ? 's' : ''}</span>
+                          <ChevronRight size={14} className="text-gray-300" />
+                        </div>
+                      </div>
+                      {topAbnormal.length > 0 && (
+                        <div className="flex gap-1.5 mt-2 overflow-x-auto scrollbar-none">
+                          {topAbnormal.map((v, i) => (
+                            <span
+                              key={i}
+                              className={clsx(
+                                'text-[10px] font-medium px-1.5 py-0.5 rounded-full border whitespace-nowrap shrink-0',
+                                v.flag === 'critical_high' || v.flag === 'critical_low'
+                                  ? 'bg-red-50 border-red-200 text-red-700'
+                                  : v.flag === 'high'
+                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                  : 'bg-blue-50 border-blue-200 text-blue-700',
+                              )}
+                            >
+                              {v.name}: {cleanLabValue(v.value)}{cleanLabValue(v.value) !== '--' && v.unit ? ` ${v.unit}` : ''}
+                              {v.flag === 'high' || v.flag === 'critical_high' ? ' ↑' : ' ↓'}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Upload zone */}
         <Card padding="md">
@@ -510,71 +1030,87 @@ export default function LabAnalysisPage() {
 
         {/* AI Analysis */}
         {aiAnalysis && (
-          <Card padding="md" className="border-blue-200 bg-blue-50/30">
+          <Card padding="md" className="border-blue-200 bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-blue-100 rounded-lg shrink-0">
                 <CheckCircle2 size={18} className="text-blue-600" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-sm font-semibold text-gray-900">AI Analysis</h3>
                 <p className="text-sm text-gray-700 mt-1">{aiAnalysis}</p>
+                {extractedSummary.total > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <Badge variant="default" size="sm">{extractedSummary.total} values</Badge>
+                    <Badge variant="critical" size="sm">{extractedSummary.critical} critical</Badge>
+                    <Badge variant="warning" size="sm">{extractedSummary.abnormal} abnormal</Badge>
+                  </div>
+                )}
               </div>
             </div>
           </Card>
         )}
 
         {/* Extracted results table */}
-        {extractedResults && extractedResults.values.length > 0 && (
+        {extractedResults && (
           <Card padding="md">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Extracted Lab Results</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500">Test</th>
-                    <th className="text-right py-2 px-4 text-xs font-medium text-gray-500">Value</th>
-                    <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Unit</th>
-                    <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Reference</th>
-                    <th className="text-left py-2 pl-4 text-xs font-medium text-gray-500">Flag</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {extractedResults.values.map((val, vi) => (
-                    <tr
-                      key={vi}
-                      className={clsx(
-                        'border-b border-gray-50',
-                        (val.flag === 'critical_low' || val.flag === 'critical_high') && 'bg-red-50',
-                      )}
-                    >
-                      <td className="py-2 pr-4 font-medium text-gray-900">{val.name}</td>
-                      <td className={clsx('py-2 px-4 text-right tabular-nums', getLabFlagColor(val.flag))}>
-                        {val.value}
-                      </td>
-                      <td className="py-2 px-4 text-gray-500">{val.unit}</td>
-                      <td className="py-2 px-4 text-gray-500 text-xs">
-                        {val.referenceMin !== undefined && val.referenceMax !== undefined
-                          ? `${val.referenceMin} - ${val.referenceMax}`
-                          : 'N/A'}
-                      </td>
-                      <td className="py-2 pl-4">
-                        {val.flag !== 'normal' && (
-                          <Badge
-                            variant={
-                              val.flag.startsWith('critical') ? 'critical' :
-                              val.flag === 'high' ? 'warning' : 'info'
-                            }
-                            size="sm"
-                          >
-                            {val.flag.replace('_', ' ')}
-                          </Badge>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h2 className="text-sm font-semibold text-gray-900">Extracted Lab Results</h2>
+              <div className="flex items-center gap-1.5">
+                <Badge variant="default" size="sm">{extractedSummary.total} shown</Badge>
+                {extractedSummary.critical > 0 && (
+                  <Badge variant="critical" size="sm">{extractedSummary.critical} critical</Badge>
+                )}
+              </div>
             </div>
+
+            {extractedDisplayRows.length === 0 ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-xs text-amber-800">
+                  Structured values were detected as empty. Try a clearer image or crop to the result table area.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500">Test</th>
+                      <th className="text-right py-2 px-4 text-xs font-medium text-gray-500">Value</th>
+                      <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Unit</th>
+                      <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Reference</th>
+                      <th className="text-left py-2 pl-4 text-xs font-medium text-gray-500">Flag</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {extractedDisplayRows.map((val, vi) => (
+                      <tr
+                        key={`${val.name}-${val.unit}-${vi}`}
+                        className={clsx(
+                          'border-b border-gray-50',
+                          (val.flag === 'critical_low' || val.flag === 'critical_high') && 'bg-red-50',
+                        )}
+                      >
+                        <td className="py-2 pr-4 font-medium text-gray-900">{val.name}</td>
+                        <td className={clsx('py-2 px-4 text-right tabular-nums', getLabFlagColor(val.flag))}>
+                          {val.displayValue}
+                        </td>
+                        <td className="py-2 px-4 text-gray-500">{val.unit || '--'}</td>
+                        <td className="py-2 px-4 text-gray-500 text-xs">
+                          {val.referenceMin !== undefined && val.referenceMax !== undefined
+                            ? `${val.referenceMin} - ${val.referenceMax}`
+                            : 'N/A'}
+                        </td>
+                        <td className="py-2 pl-4">
+                          <Badge variant={getFlagVariant(val.flag)} size="sm">
+                            {getFlagLabel(val.flag)}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         )}
 
@@ -610,7 +1146,7 @@ export default function LabAnalysisPage() {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm font-semibold text-gray-900">{panel.panelName}</h3>
+                          <h3 className="text-sm font-semibold text-gray-900">{cleanPanelName(panel.panelName)}</h3>
                           <Badge variant="default" size="sm">{panel.category}</Badge>
                           {hasCritical && (
                             <Badge variant="critical" size="sm">
@@ -649,7 +1185,7 @@ export default function LabAnalysisPage() {
                                   : 'bg-blue-50 border-blue-200 text-blue-700',
                               )}
                             >
-                              {val.name}: {val.value} {val.unit}
+                              {val.name}: {cleanLabValue(val.value)}{cleanLabValue(val.value) !== '--' && val.unit ? ` ${val.unit}` : ''}
                             </span>
                           ))}
                           {panel.values.length > 6 && (
