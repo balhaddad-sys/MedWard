@@ -8,6 +8,7 @@ import {
   Loader2,
   CheckCircle2,
   ImageDown,
+  Image as ImageIcon,
   User,
   ChevronRight,
   TrendingUp,
@@ -75,6 +76,12 @@ interface TrendInsight {
   deltaPercent: number;
   direction: TrendDirection;
   points: number[];
+}
+
+interface PatientLabImage {
+  url: string;
+  panelName: string;
+  collectedAtMs: number;
 }
 
 /**
@@ -180,6 +187,22 @@ function coerceLabFlag(flag: unknown): LabFlag {
   return VALID_LAB_FLAGS.includes(flag as LabFlag) ? (flag as LabFlag) : 'normal';
 }
 
+function isNumericLabValue(value: LabValue['value']): boolean {
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value !== 'string') return false;
+  const parsed = Number.parseFloat(value.replace(/,/g, ''));
+  return Number.isFinite(parsed);
+}
+
+function scoreLabValueQuality(value: LabValue): number {
+  let score = 0;
+  if (isNumericLabValue(value.value)) score += 4;
+  if (value.referenceMin != null && value.referenceMax != null) score += 2;
+  if (value.analyteKey) score += 1;
+  if (value.flag !== 'normal') score += 1;
+  return score;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Component                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -279,6 +302,25 @@ export default function LabAnalysisPage() {
 
     return { criticalCount, abnormalCount };
   }, [latestPatientPanel]);
+
+  const patientLabImages = useMemo<PatientLabImage[]>(() => {
+    const seen = new Set<string>();
+    const images: PatientLabImage[] = [];
+
+    for (const panel of patientLabs) {
+      const url = typeof panel.imageUrl === 'string' ? panel.imageUrl.trim() : '';
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      images.push({
+        url,
+        panelName: cleanPanelName(panel.panelName),
+        collectedAtMs: getTimestampMs(panel.collectedAt),
+      });
+    }
+
+    images.sort((a, b) => b.collectedAtMs - a.collectedAtMs);
+    return images;
+  }, [patientLabs]);
 
   const trendWatchlist = useMemo<TrendInsight[]>(() => {
     if (patientLabs.length < 2) return [];
@@ -442,7 +484,7 @@ export default function LabAnalysisPage() {
     setValidationWarnings([]);
 
     const totalFiles = files.length;
-    let allLabValues: LabValue[] = [];
+    const allLabValues: LabValue[] = [];
     const allPanelNames: string[] = [];
     const allWarnings: ValidationWarning[] = [];
     let savedPanelCount = 0;
@@ -455,6 +497,8 @@ export default function LabAnalysisPage() {
         { imageBase64: string; mediaType: string },
         { content?: string; structured?: ExtractionResponse }
       >(functions, 'analyzeLabImage');
+      const displayNameCache = new Map<string, string>();
+      const refRangeCache = new Map<string, { min: number; max: number } | null>();
 
       for (let i = 0; i < totalFiles; i++) {
         const currentFile = files[i];
@@ -490,33 +534,69 @@ export default function LabAnalysisPage() {
         const extractedPanels = structured?.panels ?? [];
 
         if (extractedPanels.length === 0) {
-          allWarnings.push({ type: 'empty_panel', message: `No panels found in ${currentFile.name}`, severity: 'error' });
+          const fallbackPanelName = `Unparsed Lab Image - ${currentFile.name}`;
+          const fallbackPanel: Omit<LabPanel, 'id' | 'createdAt'> = {
+            patientId: selectedPatientId,
+            category: 'MISC',
+            panelName: fallbackPanelName,
+            values: [],
+            collectedAt: now,
+            resultedAt: now,
+            orderedBy,
+            status: 'pending',
+            source: 'image',
+            imageUrl,
+          };
+          await addLabPanel(selectedPatientId, fallbackPanel);
+          savedPanelCount++;
+          allPanelNames.push(fallbackPanelName);
+          allWarnings.push({
+            type: 'empty_panel',
+            message: `No structured panels found in ${currentFile.name}. Image saved to patient history for manual review.`,
+            severity: 'warning',
+          });
           continue;
         }
 
         // Save each AI-extracted panel as a separate Firestore document
         for (const panel of extractedPanels) {
-          const labValues: LabValue[] = [];
+          const dedupedValues = new Map<string, LabValue>();
           const analyteKeys: string[] = [];
 
           for (const r of panel.results ?? []) {
+            if (!r) continue;
             // Clean the value: strip embedded flags, extract number
             const parsed = parseCell(r.value_raw || r.value);
             if (parsed.value === null && parsed.display === '--') continue;
 
             // Canonical display name from analyteKey
-            const displayName = canonicalizeTestName(r.analyte_key, r.test_name);
+            const safeAnalyteKey = typeof r.analyte_key === 'string' ? r.analyte_key.trim() : '';
+            const safeTestName = typeof r.test_name === 'string' ? r.test_name.trim() : '';
+            const displayCacheKey = `${safeAnalyteKey}|${safeTestName}`;
+            let displayName = displayNameCache.get(displayCacheKey);
+            if (!displayName) {
+              displayName = canonicalizeTestName(safeAnalyteKey || undefined, safeTestName);
+              displayNameCache.set(displayCacheKey, displayName);
+            }
 
             // Fill reference ranges from our LAB_REFERENCES if AI didn't provide them
-            const localRef = getRefRangeForAnalyte(r.analyte_key);
+            let localRef: { min: number; max: number } | null = null;
+            if (safeAnalyteKey) {
+              if (!refRangeCache.has(safeAnalyteKey)) {
+                refRangeCache.set(safeAnalyteKey, getRefRangeForAnalyte(safeAnalyteKey));
+              }
+              localRef = refRangeCache.get(safeAnalyteKey) ?? null;
+            }
 
             // Use backend-computed flag, fall back to our parseCell hint
             const flag = coerceLabFlag(r.flag || parsed.flagHint || 'normal');
 
-            analyteKeys.push(r.analyte_key || '');
+            if (safeAnalyteKey) {
+              analyteKeys.push(safeAnalyteKey);
+            }
 
             const labValue: LabValue = {
-              name: displayName || `Unnamed Test ${labValues.length + 1}`,
+              name: displayName || `Unnamed Test ${dedupedValues.size + 1}`,
               value: parsed.value ?? parsed.display,
               unit: r.unit || '',
               flag,
@@ -537,12 +617,18 @@ export default function LabAnalysisPage() {
             if (typeof resolvedRefHigh === 'number' && Number.isFinite(resolvedRefHigh)) {
               labValue.referenceMax = resolvedRefHigh;
             }
-            if (typeof r.analyte_key === 'string' && r.analyte_key.trim().length > 0) {
-              labValue.analyteKey = r.analyte_key.trim();
+            if (safeAnalyteKey) {
+              labValue.analyteKey = safeAnalyteKey;
             }
 
-            labValues.push(labValue);
+            const dedupeKey = safeAnalyteKey || labValue.name.toLowerCase();
+            const existing = dedupedValues.get(dedupeKey);
+            if (!existing || scoreLabValueQuality(labValue) > scoreLabValueQuality(existing)) {
+              dedupedValues.set(dedupeKey, labValue);
+            }
           }
+
+          const labValues = Array.from(dedupedValues.values());
 
           // Validate
           const warnings = validateExtractedValues(labValues);
@@ -558,11 +644,15 @@ export default function LabAnalysisPage() {
           }
 
           const category = inferCategory(analyteKeys);
+          const safePanelName =
+            typeof panel.panel_name === 'string' && panel.panel_name.trim().length > 0
+              ? panel.panel_name.trim()
+              : `Lab Panel ${savedPanelCount + 1}`;
 
           const labPanel: Omit<LabPanel, 'id' | 'createdAt'> = {
             patientId: selectedPatientId,
             category,
-            panelName: panel.panel_name || 'Lab Panel',
+            panelName: safePanelName,
             values: labValues,
             collectedAt,
             resultedAt: now,
@@ -574,8 +664,8 @@ export default function LabAnalysisPage() {
 
           await addLabPanel(selectedPatientId, labPanel);
           savedPanelCount++;
-          allLabValues = [...allLabValues, ...labValues];
-          allPanelNames.push(panel.panel_name || 'Lab Panel');
+          allLabValues.push(...labValues);
+          allPanelNames.push(safePanelName);
         }
       }
 
@@ -776,6 +866,53 @@ export default function LabAnalysisPage() {
                     })}
                 </tbody>
               </table>
+            </div>
+          </Card>
+        )}
+
+        {/* Patient image archive */}
+        {selectedPatientId && patientLabImages.length > 0 && (
+          <Card padding="md">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                  <ImageIcon size={14} className="text-slate-600" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">Lab Image Archive</h2>
+                  <p className="text-[11px] text-slate-500">Saved to patient record</p>
+                </div>
+              </div>
+              <Badge variant="default" size="sm">
+                {patientLabImages.length} image{patientLabImages.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {patientLabImages.map((image, imageIndex) => (
+                <a
+                  key={`${image.url}-${imageIndex}`}
+                  href={image.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group rounded-lg border border-slate-200 overflow-hidden bg-white hover:border-primary-300 transition-colors"
+                >
+                  <img
+                    src={image.url}
+                    alt={`Lab source ${imageIndex + 1}`}
+                    className="h-24 w-full object-cover bg-slate-100"
+                    loading="lazy"
+                  />
+                  <div className="p-2">
+                    <p className="text-[11px] font-medium text-slate-700 truncate group-hover:text-primary-700">
+                      {image.panelName}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      {image.collectedAtMs > 0 ? format(new Date(image.collectedAtMs), 'MMM d HH:mm') : 'Unknown time'}
+                    </p>
+                  </div>
+                </a>
+              ))}
             </div>
           </Card>
         )}
@@ -1161,6 +1298,19 @@ export default function LabAnalysisPage() {
                           : 'Unknown'}
                         {' '}&middot;{' '}Source: {panel.source}
                       </p>
+                      {panel.imageUrl && (
+                        <div className="mt-2">
+                          <a
+                            href={panel.imageUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary-700 hover:text-primary-800 font-medium"
+                          >
+                            <ImageIcon size={12} />
+                            View source lab image
+                          </a>
+                        </div>
+                      )}
                       {panel.values.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {panel.values.slice(0, 6).map((val, vi) => (

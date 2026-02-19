@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth'
-import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore'
+import { initializeFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore'
 import { getStorage, connectStorageEmulator, type FirebaseStorage } from 'firebase/storage'
 import { getFunctions, connectFunctionsEmulator, type Functions } from 'firebase/functions'
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
@@ -53,7 +53,7 @@ async function fetchHostingConfig(): Promise<FirebaseConfig | null> {
 function bootstrap(config: FirebaseConfig) {
   app = initializeApp(config)
   auth = getAuth(app)
-  db = getFirestore(app)
+  db = initializeFirestore(app, { ignoreUndefinedProperties: true })
   storage = getStorage(app)
   functions = getFunctions(app, 'europe-west1')
 
