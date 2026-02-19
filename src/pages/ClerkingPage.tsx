@@ -19,7 +19,16 @@ import {
   updateClerkingNote,
   signClerkingNote,
 } from '@/services/firebase/clerkingNotes';
-import type { HistoryData, SectionStatus } from '@/types/clerking';
+import type {
+  HistoryData,
+  SectionStatus,
+  ExaminationData,
+  VitalSigns,
+  InvestigationsData,
+  PlanData,
+  SafetyChecklist,
+  SystemReview,
+} from '@/types/clerking';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Input';
@@ -59,6 +68,8 @@ export default function ClerkingPage() {
   const [saving, setSaving] = useState(false);
   const [signing, setSigning] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref to always point at the latest performSave — avoids stale closure in auto-save timer
+  const performSaveRef = useRef<() => Promise<void>>(async () => {});
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [expandedSteps, setExpandedSteps] = useState<Set<StepKey>>(new Set(['history']));
   const [error, setError] = useState<string | null>(null);
@@ -147,15 +158,14 @@ export default function ClerkingPage() {
     }
   }
 
-  // Debounced auto-save
+  // Debounced auto-save — calls via ref to avoid stale closure over form state
   const triggerAutoSave = useCallback(() => {
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
       if (noteId) {
-        performSave();
+        void performSaveRef.current();
       }
     }, 3000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
 
   // Trigger auto-save on any field change
@@ -181,6 +191,11 @@ export default function ClerkingPage() {
     if (!noteId) return;
     setSaving(true);
     try {
+      // Parse BP string "120/80" into systolic/diastolic
+      const bpParts = bloodPressure.split('/');
+      const bpSys = bpParts[0] ? parseInt(bpParts[0], 10) : undefined;
+      const bpDia = bpParts[1] ? parseInt(bpParts[1], 10) : undefined;
+
       await updateClerkingNote(noteId, {
         presentingComplaint,
         workingDiagnosis,
@@ -189,11 +204,81 @@ export default function ClerkingPage() {
           historyOfPresentingIllness: hpi,
           pastMedicalHistory: pmh.split('\n').filter(Boolean),
           pastSurgicalHistory: psh.split('\n').filter(Boolean),
+          medications: medications.split('\n').filter(Boolean).map((line) => ({
+            name: line.trim(), dose: '', frequency: '', route: '',
+          })),
+          allergies: allergies.split('\n').filter(Boolean).map((line) => ({
+            substance: line.trim(), reaction: 'unknown', severity: 'mild' as const, type: 'drug' as const,
+          })),
           familyHistory,
-          socialHistory: {
-            occupation: socialHistory,
-          },
+          socialHistory: { occupation: socialHistory },
+          systemsReview: { constitutional: systemsReview },
         } as Partial<HistoryData>,
+        examination: {
+          general: {
+            appearance: generalAppearance,
+            distress: false,
+            hydration: '',
+            pallor: false,
+            jaundice: false,
+            cyanosis: false,
+          },
+          vitals: {
+            heartRate: heartRate ? parseInt(heartRate, 10) : undefined,
+            bloodPressureSystolic: bpSys && !isNaN(bpSys) ? bpSys : undefined,
+            bloodPressureDiastolic: bpDia && !isNaN(bpDia) ? bpDia : undefined,
+            respiratoryRate: respiratoryRate ? parseInt(respiratoryRate, 10) : undefined,
+            temperature: temperature ? parseFloat(temperature) : undefined,
+            oxygenSaturation: oxygenSat ? parseFloat(oxygenSat) : undefined,
+            timestamp: new Date(),
+          } as VitalSigns,
+          cardiovascular: { findings: cardiovascularExam, isNormal: !cardiovascularExam },
+          respiratory: { findings: respiratoryExam, isNormal: !respiratoryExam },
+          abdominal: { findings: abdominalExam, isNormal: !abdominalExam },
+          neurological: { findings: neurologicalExam, isNormal: !neurologicalExam },
+        } as Partial<ExaminationData>,
+        investigations: {
+          labs: [],
+          imaging: [],
+          microbiology: [],
+          notes: investigationsNotes,
+          pendingResults: pendingResults.split('\n').filter(Boolean),
+        } as Partial<InvestigationsData>,
+        assessmentSummary: assessmentNotes,
+        problemList: problemList.split('\n').filter(Boolean).map((line, i) => ({
+          id: `problem-${i}`,
+          title: line.trim(),
+          evidence: [],
+          severity: 'medium' as const,
+          plan: [],
+          tasks: [],
+          isActive: true,
+        })),
+        plan: {
+          managementPlan,
+          disposition,
+          monitoring: {
+            vitalsFrequency: monitoringPlan,
+            neuroObservations: false,
+            fluidBalance: false,
+            urineOutput: false,
+            escalationTriggers: [],
+          },
+          fluids: {},
+          medications: [],
+          investigations: [],
+          consults: [],
+          tasks: [],
+        } as Partial<PlanData>,
+        safety: {
+          vteProph: { considered: vteConsidered },
+          giProph: { indicated: giProphIndicated },
+          linesReview: { done: linesReviewed },
+          fallsRisk: { risk: fallsRisk },
+          pressureInjury: { risk: pressureRisk },
+          sepsisSix: { applicable: false },
+          other: safetyNotes ? [safetyNotes] : [],
+        } as Partial<SafetyChecklist>,
         sectionStatus,
         completionPercentage,
       });
@@ -204,6 +289,12 @@ export default function ClerkingPage() {
       setSaving(false);
     }
   }
+
+  // Keep ref pointing at the latest performSave after every render
+  // This prevents the stale closure in the auto-save timer
+  useEffect(() => {
+    performSaveRef.current = performSave;
+  });
 
   async function handleManualSave() {
     await performSave();

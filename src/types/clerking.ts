@@ -156,6 +156,7 @@ export interface InvestigationsData {
   imaging: ImagingStudy[];
   microbiology: MicrobiologyResult[];
   pendingResults: string[];
+  notes?: string;
 }
 
 // ============================================================================
@@ -281,6 +282,7 @@ export interface ClerkingNote {
   history: Partial<HistoryData>;
   examination: Partial<ExaminationData>;
   investigations: Partial<InvestigationsData>;
+  assessmentSummary?: string;
   problemList: ProblemListItem[];
   plan: Partial<PlanData>;
   safety: Partial<SafetyChecklist>;
