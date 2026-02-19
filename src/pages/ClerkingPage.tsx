@@ -192,8 +192,17 @@ export default function ClerkingPage() {
     try {
       // Parse BP string "120/80" into systolic/diastolic
       const bpParts = bloodPressure.split('/');
-      const bpSys = bpParts[0] ? parseInt(bpParts[0], 10) : undefined;
-      const bpDia = bpParts[1] ? parseInt(bpParts[1], 10) : undefined;
+      const bpSys = bpParts[0] ? parseInt(bpParts[0], 10) : NaN;
+      const bpDia = bpParts[1] ? parseInt(bpParts[1], 10) : NaN;
+
+      // Build vitals without undefined fields — Firestore rejects undefined
+      const vitals: VitalSigns = { timestamp: new Date() };
+      if (heartRate) vitals.heartRate = parseInt(heartRate, 10);
+      if (!isNaN(bpSys)) vitals.bloodPressureSystolic = bpSys;
+      if (!isNaN(bpDia)) vitals.bloodPressureDiastolic = bpDia;
+      if (respiratoryRate) vitals.respiratoryRate = parseInt(respiratoryRate, 10);
+      if (temperature) vitals.temperature = parseFloat(temperature);
+      if (oxygenSat) vitals.oxygenSaturation = parseFloat(oxygenSat);
 
       await updateClerkingNote(noteId, {
         presentingComplaint,
@@ -222,15 +231,7 @@ export default function ClerkingPage() {
             jaundice: false,
             cyanosis: false,
           },
-          vitals: {
-            heartRate: heartRate ? parseInt(heartRate, 10) : undefined,
-            bloodPressureSystolic: bpSys && !isNaN(bpSys) ? bpSys : undefined,
-            bloodPressureDiastolic: bpDia && !isNaN(bpDia) ? bpDia : undefined,
-            respiratoryRate: respiratoryRate ? parseInt(respiratoryRate, 10) : undefined,
-            temperature: temperature ? parseFloat(temperature) : undefined,
-            oxygenSaturation: oxygenSat ? parseFloat(oxygenSat) : undefined,
-            timestamp: new Date(),
-          } as VitalSigns,
+          vitals,
           cardiovascular: { findings: cardiovascularExam, isNormal: !cardiovascularExam },
           respiratory: { findings: respiratoryExam, isNormal: !respiratoryExam },
           abdominal: { findings: abdominalExam, isNormal: !abdominalExam },
