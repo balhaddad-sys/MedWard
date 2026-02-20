@@ -485,19 +485,20 @@ function JobsTab({ userId }: { userId: string }) {
 // PATIENTS TAB
 // ===========================================================================
 
-function PatientsTab() {
+function PatientsTab({ userId }: { userId: string }) {
   const navigate = useNavigate()
   const patients = usePatientStore((s) => s.patients)
   const [onCallEntries, setOnCallEntries] = useState<OnCallListEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsub = subscribeToOnCallList((data) => {
+    if (!userId) return
+    const unsub = subscribeToOnCallList(userId, (data) => {
       setOnCallEntries(data)
       setLoading(false)
     })
     return () => unsub()
-  }, [])
+  }, [userId])
 
   const patientMap = useMemo(() => {
     const m = new Map<string, Patient>()
@@ -1401,7 +1402,7 @@ function HandoverTab({ userId }: { userId: string }) {
   useEffect(() => {
     if (!userId) return
     const unsubJobs = subscribeToOnCallJobs(userId, setJobs)
-    const unsubList = subscribeToOnCallList(setEntries)
+    const unsubList = subscribeToOnCallList(userId, setEntries)
     return () => { unsubJobs(); unsubList() }
   }, [userId])
 
@@ -1556,7 +1557,7 @@ export default function OnCallPage() {
       {/* Tab content */}
       <div>
         {activeTab === 'jobs' && <JobsTab userId={userId} />}
-        {activeTab === 'patients' && <PatientsTab />}
+        {activeTab === 'patients' && <PatientsTab userId={userId} />}
         {activeTab === 'reference' && <ReferenceTab />}
         {activeTab === 'handover' && <HandoverTab userId={userId} />}
       </div>

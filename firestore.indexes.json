@@ -53,6 +53,7 @@
       "collectionGroup": "on_call_list",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "addedBy", "order": "ASCENDING" },
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]

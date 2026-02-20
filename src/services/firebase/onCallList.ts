@@ -17,13 +17,15 @@ import type { OnCallListEntry } from '@/types/clerking';
 const ON_CALL_LIST_COLLECTION = 'on_call_list';
 
 /**
- * Subscribe to active on-call list entries
+ * Subscribe to active on-call list entries for a specific user
  */
 export function subscribeToOnCallList(
+  userId: string,
   callback: (entries: OnCallListEntry[]) => void
 ): Unsubscribe {
   const q = query(
     collection(db, ON_CALL_LIST_COLLECTION),
+    where('addedBy', '==', userId),
     where('isActive', '==', true),
     orderBy('createdAt', 'desc')
   );
