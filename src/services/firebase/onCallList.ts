@@ -20,6 +20,15 @@ import type { OnCallListEntry } from '@/types/clerking';
 
 const ON_CALL_LIST_COLLECTION = 'on_call_list';
 
+export interface AddToOnCallListOptions {
+  notes?: string;
+  isTemporary?: boolean;
+  temporaryPatientName?: string;
+  temporaryWard?: string;
+  temporaryBed?: string;
+  temporaryCaseRef?: string;
+}
+
 /**
  * Subscribe to active on-call list entries for a specific user
  */
@@ -37,7 +46,27 @@ export function subscribeToOnCallList(
   return onSnapshot(
     q,
     (snapshot) => {
-      const entries = snapshot.docs.map((doc) => doc.data() as OnCallListEntry);
+      const entries = snapshot.docs.map((snap) => {
+        const data = snap.data() as Partial<OnCallListEntry>;
+        return {
+          id: data.id || snap.id,
+          patientId: data.patientId || '',
+          priority: data.priority || 'medium',
+          addedAt: data.addedAt || data.createdAt || new Date(),
+          addedBy: data.addedBy || '',
+          notes: data.notes,
+          isTemporary: data.isTemporary,
+          temporaryPatientName: data.temporaryPatientName,
+          temporaryWard: data.temporaryWard,
+          temporaryBed: data.temporaryBed,
+          temporaryCaseRef: data.temporaryCaseRef,
+          escalationFlags: data.escalationFlags || [],
+          lastReviewedAt: data.lastReviewedAt,
+          isActive: data.isActive ?? true,
+          createdAt: data.createdAt || data.addedAt || new Date(),
+          updatedAt: data.updatedAt || data.createdAt || data.addedAt || new Date(),
+        } as OnCallListEntry;
+      });
       callback(entries);
     },
     (error) => {
@@ -54,8 +83,14 @@ export async function addToOnCallList(
   userId: string,
   patientId: string,
   priority: 'low' | 'medium' | 'high' | 'critical',
-  notes?: string,
+  options?: AddToOnCallListOptions,
 ): Promise<void> {
+  const notes = options?.notes?.trim();
+  const temporaryPatientName = options?.temporaryPatientName?.trim();
+  const temporaryWard = options?.temporaryWard?.trim();
+  const temporaryBed = options?.temporaryBed?.trim();
+  const temporaryCaseRef = options?.temporaryCaseRef?.trim();
+
   await addDoc(collection(db, ON_CALL_LIST_COLLECTION), {
     patientId,
     priority,
@@ -63,8 +98,14 @@ export async function addToOnCallList(
     addedBy: userId,
     addedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
     escalationFlags: [],
     ...(notes ? { notes } : {}),
+    ...(options?.isTemporary ? { isTemporary: true } : {}),
+    ...(temporaryPatientName ? { temporaryPatientName } : {}),
+    ...(temporaryWard ? { temporaryWard } : {}),
+    ...(temporaryBed ? { temporaryBed } : {}),
+    ...(temporaryCaseRef ? { temporaryCaseRef } : {}),
   });
 }
 

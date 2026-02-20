@@ -333,6 +333,12 @@ export interface OnCallListEntry {
   addedAt: Date | Timestamp; // When added to on-call list
   addedBy: string; // User ID who added
   notes?: string; // Clinician notes about this on-call patient
+  // Optional metadata for non-permanent on-call cases (patients outside local unit list)
+  isTemporary?: boolean;
+  temporaryPatientName?: string;
+  temporaryWard?: string;
+  temporaryBed?: string;
+  temporaryCaseRef?: string;
   escalationFlags: string[]; // Active concerns/escalations
   lastReviewedAt?: Date | Timestamp; // Last time reviewed
   isActive: boolean;

@@ -35,12 +35,14 @@ import {
 import { completeTask } from '@/services/firebase/tasks';
 import { getPatientHistory } from '@/services/firebase/history';
 import { getLabPanels } from '@/services/firebase/labs';
+import { getClerkingNotesByPatient } from '@/services/firebase/clerkingNotes';
 import { analyzeTrend } from '@/utils/deltaEngine';
 import { ACUITY_LEVELS } from '@/config/constants';
 import { STATE_METADATA } from '@/types/patientState';
 import type { Patient, PatientFormData } from '@/types/patient';
 import type { PatientHistory } from '@/types/history';
 import type { LabPanel, LabFlag, LabTrend } from '@/types/lab';
+import type { ClerkingNote } from '@/types/clerking';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -77,11 +79,18 @@ export default function PatientDetailPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [labs, setLabs] = useState<LabPanel[]>([]);
   const [labsLoading, setLabsLoading] = useState(false);
+  const [clerkingNotes, setClerkingNotes] = useState<ClerkingNote[]>([]);
+  const [clerkingLoading, setClerkingLoading] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editForm, setEditForm] = useState<Partial<PatientFormData>>({});
   const [editSaving, setEditSaving] = useState(false);
   const [completingTask, setCompletingTask] = useState<string | null>(null);
+
+  useEffect(() => {
+    setClerkingNotes([]);
+    setClerkingLoading(false);
+  }, [id]);
 
   // Load history when tab switches
   useEffect(() => {
@@ -104,6 +113,17 @@ export default function PatientDetailPage() {
         .finally(() => setLabsLoading(false));
     }
   }, [activeTab, id, labs.length]);
+
+  // Load clerking notes when tab switches
+  useEffect(() => {
+    if (activeTab === 'clerking' && id && clerkingNotes.length === 0) {
+      setClerkingLoading(true);
+      getClerkingNotesByPatient(id, 20)
+        .then((data) => setClerkingNotes(data))
+        .catch(console.error)
+        .finally(() => setClerkingLoading(false));
+    }
+  }, [activeTab, id, clerkingNotes.length]);
 
   // Compute lab trends from panels filtered by labTrendDays setting
   const labTrends = useMemo(() => {
@@ -263,6 +283,17 @@ export default function PatientDetailPage() {
     return '';
   }
 
+  function formatNoteTimestamp(ts: unknown): string {
+    if (!ts) return 'Unknown time';
+    if (typeof ts === 'object' && ts !== null && 'toDate' in ts) {
+      return format((ts as { toDate: () => Date }).toDate(), 'MMM d, HH:mm');
+    }
+    if (ts instanceof Date) {
+      return format(ts, 'MMM d, HH:mm');
+    }
+    return 'Unknown time';
+  }
+
   async function handleEditPatient(e: FormEvent) {
     e.preventDefault();
     if (!id) return;
@@ -324,6 +355,7 @@ export default function PatientDetailPage() {
     { id: 'overview', label: 'Overview', icon: <User size={16} /> },
     { id: 'history', label: 'History', icon: <Activity size={16} /> },
     { id: 'labs', label: 'Labs', icon: <Beaker size={16} /> },
+    { id: 'clerking', label: 'Clerking', icon: <FileText size={16} /> },
     {
       id: 'tasks',
       label: `Tasks${activeTasks.length > 0 ? ` (${activeTasks.length})` : ''}`,
@@ -463,6 +495,15 @@ export default function PatientDetailPage() {
         </Button>
         <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/labs')} iconLeft={<Beaker size={13} />}>
           Labs
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="shrink-0"
+          onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
+          iconLeft={<FileText size={13} />}
+        >
+          Clerk
         </Button>
         <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/ai')} iconLeft={<Activity size={13} />}>
           AI
@@ -947,6 +988,90 @@ export default function PatientDetailPage() {
                   );
                 })}
               </>
+            )}
+          </div>
+        )}
+
+        {/* Clerking Tab */}
+        {activeTab === 'clerking' && (
+          <div className="space-y-3">
+            {clerkingLoading ? (
+              <div className="py-16">
+                <Spinner size="lg" label="Loading clerking notes..." />
+              </div>
+            ) : clerkingNotes.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon={<FileText size={24} />}
+                  title="No clerking notes yet"
+                  description="Completed clerking notes for this patient will appear here."
+                  action={
+                    <Button size="sm" onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}>
+                      Start Clerking
+                    </Button>
+                  }
+                />
+              </Card>
+            ) : (
+              clerkingNotes.map((note) => {
+                const problems = Array.isArray(note.problemList) ? note.problemList : [];
+                return (
+                <Card key={note.id} padding="md">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {note.presentingComplaint || 'Clerking note'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {formatNoteTimestamp(note.signedAt || note.updatedAt || note.createdAt)} · {note.authorName}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={note.status === 'signed' ? 'success' : note.status === 'amended' ? 'warning' : 'default'}
+                      size="sm"
+                    >
+                      {note.status}
+                    </Badge>
+                  </div>
+
+                  {note.workingDiagnosis && (
+                    <p className="text-sm text-slate-700">
+                      <span className="font-medium">Working Dx:</span> {note.workingDiagnosis}
+                    </p>
+                  )}
+
+                  {note.assessmentSummary && (
+                    <p className="text-sm text-slate-700 mt-1">
+                      <span className="font-medium">Assessment:</span> {note.assessmentSummary}
+                    </p>
+                  )}
+
+                  {problems.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {problems.slice(0, 5).map((problem) => (
+                        <Badge
+                          key={problem.id}
+                          variant={
+                            problem.severity === 'critical'
+                              ? 'critical'
+                              : problem.severity === 'high'
+                                ? 'warning'
+                                : 'default'
+                          }
+                          size="sm"
+                        >
+                          {problem.title}
+                        </Badge>
+                      ))}
+                      {problems.length > 5 && (
+                        <Badge variant="muted" size="sm">
+                          +{problems.length - 5} more
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              )})
             )}
           </div>
         )}

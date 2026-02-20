@@ -91,6 +91,34 @@ const JOB_PRIORITY_STYLES: Record<JobPriority, { border: string; badge: 'critica
 
 const PRIORITY_ORDER_MAP: Record<Priority, number> = { critical: 0, high: 1, medium: 2, low: 3 }
 
+function isTemporaryOnCallEntry(entry: OnCallListEntry): boolean {
+  if (entry.isTemporary) return true
+  return entry.patientId.startsWith('temp:') || entry.patientId.startsWith('temp-')
+}
+
+function getOnCallEntryDisplay(entry: OnCallListEntry, patient?: Patient) {
+  if (patient) {
+    return {
+      name: `${patient.firstName} ${patient.lastName}`,
+      subtitle: `MRN ${patient.mrn} · Bed ${patient.bedNumber} · ${patient.primaryDiagnosis}`,
+      isTemporary: false,
+    }
+  }
+
+  const isTemporary = isTemporaryOnCallEntry(entry)
+  const fallbackName = isTemporary ? 'Temporary on-call patient' : `Patient #${entry.patientId}`
+  const locationParts = [
+    entry.temporaryWard?.trim(),
+    entry.temporaryBed?.trim() ? `Bed ${entry.temporaryBed.trim()}` : '',
+  ].filter(Boolean)
+
+  return {
+    name: entry.temporaryPatientName?.trim() || fallbackName,
+    subtitle: locationParts.join(' · ') || (isTemporary ? 'External / non-unit case' : ''),
+    isTemporary,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Minute tick hook (for live job age timers)
 // ---------------------------------------------------------------------------
@@ -490,7 +518,11 @@ function PatientsTab({ userId }: { userId: string }) {
   const [onCallEntries, setOnCallEntries] = useState<OnCallListEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [addMode, setAddMode] = useState<'existing' | 'temporary'>('existing')
   const [addPatientId, setAddPatientId] = useState('')
+  const [addTemporaryName, setAddTemporaryName] = useState('')
+  const [addTemporaryWard, setAddTemporaryWard] = useState('')
+  const [addTemporaryBed, setAddTemporaryBed] = useState('')
   const [addPriority, setAddPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium')
   const [addNotes, setAddNotes] = useState('')
   const [addSaving, setAddSaving] = useState(false)
@@ -520,6 +552,77 @@ function PatientsTab({ userId }: { userId: string }) {
 
   function getPriorityVariant(p: Priority) {
     return p === 'critical' ? 'critical' : p === 'high' ? 'warning' : 'default'
+  }
+
+  function resetAddForm() {
+    setAddMode('existing')
+    setAddPatientId('')
+    setAddTemporaryName('')
+    setAddTemporaryWard('')
+    setAddTemporaryBed('')
+    setAddPriority('medium')
+    setAddNotes('')
+    setShowAddForm(false)
+  }
+
+  function goToClerking(entry: OnCallListEntry, patient?: Patient) {
+    if (patient) {
+      navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)
+      return
+    }
+
+    const params = new URLSearchParams()
+    const display = getOnCallEntryDisplay(entry)
+    params.set('tempName', display.name)
+    if (entry.temporaryWard) params.set('tempWard', entry.temporaryWard)
+    if (entry.temporaryBed) params.set('tempBed', entry.temporaryBed)
+    if (entry.notes) params.set('reason', entry.notes)
+    navigate(`/clerking?${params.toString()}`)
+  }
+
+  async function handleAddToOnCall(andOpenClerking: boolean) {
+    const isExisting = addMode === 'existing'
+    const hasExistingPatient = isExisting && Boolean(addPatientId)
+    const hasTemporaryPatient = !isExisting && Boolean(addTemporaryName.trim())
+    if (!hasExistingPatient && !hasTemporaryPatient) return
+
+    setAddSaving(true)
+    try {
+      const temporarySlug = addTemporaryName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
+      const patientId = isExisting
+        ? addPatientId
+        : `temp:${Date.now()}:${temporarySlug || 'external'}`
+
+      await addToOnCallList(userId, patientId, addPriority, {
+        notes: addNotes || undefined,
+        isTemporary: !isExisting,
+        temporaryPatientName: !isExisting ? addTemporaryName : undefined,
+        temporaryWard: !isExisting ? addTemporaryWard : undefined,
+        temporaryBed: !isExisting ? addTemporaryBed : undefined,
+      })
+
+      if (andOpenClerking) {
+        if (isExisting) {
+          navigate(`/clerking?patientId=${encodeURIComponent(patientId)}`)
+        } else {
+          const params = new URLSearchParams()
+          params.set('tempName', addTemporaryName.trim())
+          if (addTemporaryWard.trim()) params.set('tempWard', addTemporaryWard.trim())
+          if (addTemporaryBed.trim()) params.set('tempBed', addTemporaryBed.trim())
+          if (addNotes.trim()) params.set('reason', addNotes.trim())
+          navigate(`/clerking?${params.toString()}`)
+        }
+      }
+
+      resetAddForm()
+    } finally {
+      setAddSaving(false)
+    }
   }
 
   return (
@@ -581,22 +684,78 @@ function PatientsTab({ userId }: { userId: string }) {
         {/* Quick add form */}
         {showAddForm && (
           <Card padding="sm" className="mb-3 border-blue-100 bg-blue-50/30">
-            <p className="text-xs font-semibold text-blue-800 mb-2">Add patient to on-call list</p>
+            <p className="text-xs font-semibold text-blue-800 mb-2">Add case to on-call list</p>
             <div className="space-y-2">
-              <select
-                value={addPatientId}
-                onChange={(e) => setAddPatientId(e.target.value)}
-                className="w-full h-9 px-3 rounded-lg text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-              >
-                <option value="">Select patient...</option>
-                {patients
-                  .filter((p) => !onCallEntries.some((e) => e.patientId === p.id))
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.firstName} {p.lastName} — Bed {p.bedNumber}
-                    </option>
-                  ))}
-              </select>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddMode('existing')}
+                  className={clsx(
+                    'h-8 rounded-lg text-xs font-medium border transition-colors',
+                    addMode === 'existing'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400',
+                  )}
+                >
+                  Existing patient
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddMode('temporary')}
+                  className={clsx(
+                    'h-8 rounded-lg text-xs font-medium border transition-colors',
+                    addMode === 'temporary'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400',
+                  )}
+                >
+                  Temporary case
+                </button>
+              </div>
+
+              {addMode === 'existing' ? (
+                <select
+                  value={addPatientId}
+                  onChange={(e) => setAddPatientId(e.target.value)}
+                  className="w-full h-9 px-3 rounded-lg text-sm text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                >
+                  <option value="">Select patient...</option>
+                  {patients
+                    .filter((p) => !onCallEntries.some((e) => e.patientId === p.id))
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.firstName} {p.lastName} — Bed {p.bedNumber}
+                      </option>
+                    ))}
+                </select>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={addTemporaryName}
+                    onChange={(e) => setAddTemporaryName(e.target.value)}
+                    placeholder="Patient name (required)"
+                    className="w-full h-9 px-3 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={addTemporaryWard}
+                      onChange={(e) => setAddTemporaryWard(e.target.value)}
+                      placeholder="Ward / location"
+                      className="h-9 px-3 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    />
+                    <input
+                      type="text"
+                      value={addTemporaryBed}
+                      onChange={(e) => setAddTemporaryBed(e.target.value)}
+                      placeholder="Bed (optional)"
+                      className="h-9 px-3 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <select
                   value={addPriority}
@@ -619,23 +778,26 @@ function PatientsTab({ userId }: { userId: string }) {
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
-                  onClick={() => { setShowAddForm(false); setAddPatientId(''); setAddNotes('') }}
+                  onClick={resetAddForm}
                   className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  disabled={!addPatientId || addSaving}
-                  onClick={async () => {
-                    if (!addPatientId) return
-                    setAddSaving(true)
-                    await addToOnCallList(userId, addPatientId, addPriority, addNotes || undefined)
-                    setAddPatientId(''); setAddNotes(''); setShowAddForm(false); setAddSaving(false)
-                  }}
+                  disabled={addSaving || (addMode === 'existing' ? !addPatientId : !addTemporaryName.trim())}
+                  onClick={() => void handleAddToOnCall(false)}
                   className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 transition-colors"
                 >
                   {addSaving ? 'Adding...' : 'Add to list'}
+                </button>
+                <button
+                  type="button"
+                  disabled={addSaving || (addMode === 'existing' ? !addPatientId : !addTemporaryName.trim())}
+                  onClick={() => void handleAddToOnCall(true)}
+                  className="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg disabled:opacity-50 hover:bg-emerald-700 transition-colors"
+                >
+                  {addSaving ? 'Please wait...' : 'Add & clerk'}
                 </button>
               </div>
             </div>
@@ -649,18 +811,20 @@ function PatientsTab({ userId }: { userId: string }) {
             <EmptyState
               icon={<Phone size={24} />}
               title="No patients on on-call list"
-              description="Patients escalated during clerking will appear here."
+              description="Escalated ward patients and temporary on-call cases appear here."
             />
           </Card>
         ) : (
           <div className="space-y-3">
             {sortedEntries.map((entry) => {
               const patient = patientMap.get(entry.patientId)
-              const isStale = !patient
+              const display = getOnCallEntryDisplay(entry, patient)
+              const isStale = !patient && !display.isTemporary
               return (
                 <Card key={entry.id} padding="sm" className={clsx(
                   'border-l-4',
                   isStale ? 'border-l-slate-300 bg-slate-50/60' :
+                  display.isTemporary ? 'border-l-violet-500 bg-violet-50/30' :
                   entry.priority === 'critical' ? 'border-l-red-500 bg-red-50/30' :
                   entry.priority === 'high' ? 'border-l-amber-500' :
                   entry.priority === 'medium' ? 'border-l-blue-400' :
@@ -674,24 +838,28 @@ function PatientsTab({ userId }: { userId: string }) {
                             {entry.priority}
                           </Badge>
                         )}
+                        {display.isTemporary && (
+                          <Badge variant="info" size="sm">
+                            Temporary
+                          </Badge>
+                        )}
                         {patient ? (
                           <button
                             type="button"
                             onClick={() => navigate(`/patients/${patient.id}`)}
                             className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-0.5"
                           >
-                            {patient.firstName} {patient.lastName}
+                            {display.name}
                             <ChevronRight size={13} />
                           </button>
+                        ) : display.isTemporary ? (
+                          <span className="text-sm font-semibold text-slate-800">{display.name}</span>
                         ) : (
                           <span className="text-sm text-slate-400 italic">Patient no longer exists</span>
                         )}
                       </div>
-                      {patient && (
-                        <p className="text-xs text-slate-500">
-                          MRN {patient.mrn} · Bed {patient.bedNumber} · {patient.primaryDiagnosis}
-                        </p>
-                      )}
+                      {display.subtitle && <p className="text-xs text-slate-500">{display.subtitle}</p>}
+                      {entry.notes && <p className="text-xs text-slate-500 mt-1">Reason: {entry.notes}</p>}
                       {entry.escalationFlags?.length > 0 && !isStale && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {entry.escalationFlags.map((f, i) => (
@@ -705,6 +873,16 @@ function PatientsTab({ userId }: { userId: string }) {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {!isStale && <span className="text-xs text-slate-400">{timeAgo(entry.addedAt)}</span>}
+                      {!isStale && (
+                        <button
+                          type="button"
+                          onClick={() => goToClerking(entry, patient)}
+                          title="Start clerking"
+                          className="h-7 px-2 rounded-md text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                        >
+                          Clerk
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => removeFromOnCallList(entry.id)}
@@ -1885,9 +2063,9 @@ function HandoverTab({ userId }: { userId: string }) {
       const sorted = [...entries].sort((a, b) => PRIORITY_ORDER_MAP[a.priority] - PRIORITY_ORDER_MAP[b.priority])
       sorted.forEach((entry) => {
         const patient = patientMap.get(entry.patientId)
-        const name = patient ? `${patient.firstName} ${patient.lastName}` : `Patient #${entry.patientId}`
-        const bed = patient ? ` Bed ${patient.bedNumber}` : ''
-        lines.push(`• [${entry.priority.toUpperCase()}] ${name}${bed}`)
+        const display = getOnCallEntryDisplay(entry, patient)
+        const locationSuffix = display.subtitle ? ` — ${display.subtitle}` : ''
+        lines.push(`• [${entry.priority.toUpperCase()}] ${display.name}${locationSuffix}`)
         if (entry.escalationFlags?.length) lines.push(`  Flags: ${entry.escalationFlags.join(', ')}`)
         if (entry.notes) lines.push(`  Notes: ${entry.notes}`)
       })

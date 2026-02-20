@@ -19,6 +19,7 @@ import {
   updateClerkingNote,
   finalizeClerkingWorkflow,
 } from '@/services/firebase/clerkingNotes';
+import { useSearchParams } from 'react-router-dom';
 import type {
   HistoryData,
   SectionStatus,
@@ -137,11 +138,26 @@ function parseProblemListInput(input: string): Array<{ id: string; title: string
   });
 }
 
+function createTemporaryPatientId(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `temp:${Date.now()}:${slug || 'external-case'}`;
+}
+
 export default function ClerkingPage() {
   const user = useAuthStore((s) => s.user);
   const patients = usePatientStore((s) => s.patients);
+  const [searchParams] = useSearchParams();
+  const prefillAppliedRef = useRef(false);
 
+  const [patientMode, setPatientMode] = useState<'existing' | 'temporary'>('existing');
   const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [temporaryPatientId, setTemporaryPatientId] = useState('');
+  const [temporaryPatientName, setTemporaryPatientName] = useState('');
+  const [temporaryLocation, setTemporaryLocation] = useState('');
   const [noteId, setNoteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -207,6 +223,27 @@ export default function ClerkingPage() {
     () => patients.find((patient) => patient.id === selectedPatientId) ?? null,
     [patients, selectedPatientId]
   );
+  const isTemporaryCase = patientMode === 'temporary';
+
+  const currentPatientIdentity = useMemo(() => {
+    if (isTemporaryCase) {
+      const name = temporaryPatientName.trim() || 'Temporary';
+      return {
+        id: temporaryPatientId,
+        firstName: name,
+        lastName: '',
+        bedNumber: temporaryLocation.trim() || 'On-call',
+      };
+    }
+
+    if (!selectedPatient) return null;
+    return {
+      id: selectedPatient.id,
+      firstName: selectedPatient.firstName,
+      lastName: selectedPatient.lastName,
+      bedNumber: selectedPatient.bedNumber,
+    };
+  }, [isTemporaryCase, temporaryPatientId, temporaryPatientName, temporaryLocation, selectedPatient]);
 
   // Compute section statuses
   const sectionStatus = useMemo((): Record<StepKey, SectionStatus> => {
@@ -228,10 +265,15 @@ export default function ClerkingPage() {
 
   // Create note on patient selection
   async function handlePatientSelect(patientId: string) {
+    setPatientMode('existing');
     setSelectedPatientId(patientId);
+    setTemporaryPatientId('');
+    setTemporaryPatientName('');
+    setTemporaryLocation('');
     setError(null);
     setWorkflowNotice(null);
     if (!patientId || !user) return;
+    prefillAppliedRef.current = true;
 
     try {
       const id = await createClerkingNote(user.id, user.displayName, patientId, {
@@ -245,6 +287,101 @@ export default function ClerkingPage() {
       setError('Failed to create clerking note.');
     }
   }
+
+  async function handleTemporaryStart() {
+    if (!user) return;
+
+    const name = temporaryPatientName.trim();
+    if (!name) {
+      setError('Enter a temporary patient name before starting clerking.');
+      return;
+    }
+    prefillAppliedRef.current = true;
+
+    const generatedId = createTemporaryPatientId(name);
+    setPatientMode('temporary');
+    setSelectedPatientId('');
+    setTemporaryPatientId(generatedId);
+    setError(null);
+    setWorkflowNotice(null);
+
+    try {
+      const id = await createClerkingNote(user.id, user.displayName, generatedId, {
+        location: temporaryLocation || location,
+        workingDiagnosis,
+        presentingComplaint,
+      });
+      if (!location && temporaryLocation) setLocation(temporaryLocation);
+      setNoteId(id);
+    } catch (err) {
+      console.error('Error creating temporary clerking note:', err);
+      setError('Failed to start temporary clerking note.');
+    }
+  }
+
+  useEffect(() => {
+    if (prefillAppliedRef.current || !user || noteId) return;
+
+    const patientIdParam = searchParams.get('patientId')?.trim();
+    if (patientIdParam) {
+      const matchedPatient = patients.find((patient) => patient.id === patientIdParam);
+      if (matchedPatient) {
+        prefillAppliedRef.current = true;
+        setPatientMode('existing');
+        setSelectedPatientId(patientIdParam);
+        setTemporaryPatientId('');
+        setTemporaryPatientName('');
+        setTemporaryLocation('');
+        setError(null);
+        setWorkflowNotice(null);
+
+        void createClerkingNote(user.id, user.displayName, patientIdParam, {
+          location,
+          workingDiagnosis,
+          presentingComplaint,
+        })
+          .then((createdId) => setNoteId(createdId))
+          .catch((err) => {
+            console.error('Error creating prefilled clerking note:', err);
+            setError('Failed to create clerking note.');
+          });
+        return;
+      }
+    }
+
+    const tempNameParam = searchParams.get('tempName')?.trim();
+    if (!tempNameParam) return;
+
+    prefillAppliedRef.current = true;
+    const tempWardParam = searchParams.get('tempWard')?.trim() || '';
+    const tempBedParam = searchParams.get('tempBed')?.trim() || '';
+    const tempReason = searchParams.get('reason')?.trim() || '';
+    const builtLocation = [tempWardParam, tempBedParam ? `Bed ${tempBedParam}` : '']
+      .filter(Boolean)
+      .join(' · ');
+    const generatedId = createTemporaryPatientId(tempNameParam);
+
+    setPatientMode('temporary');
+    setSelectedPatientId('');
+    setTemporaryPatientId(generatedId);
+    setTemporaryPatientName(tempNameParam);
+    setTemporaryLocation(builtLocation);
+    if (builtLocation) setLocation((prev) => prev || builtLocation);
+    if (tempReason) setPresentingComplaint((prev) => prev || tempReason);
+    setError(null);
+    setWorkflowNotice(null);
+
+    void createClerkingNote(user.id, user.displayName, generatedId, {
+      location: builtLocation || location,
+      workingDiagnosis,
+      presentingComplaint: tempReason || presentingComplaint,
+    })
+      .then((createdId) => setNoteId(createdId))
+      .catch((err) => {
+        console.error('Error creating prefilled temporary clerking note:', err);
+        setError('Failed to create temporary clerking note.');
+      });
+  }, [searchParams, patients, user, noteId, location, workingDiagnosis, presentingComplaint]);
 
   // Debounced auto-save — calls via ref to avoid stale closure over form state
   const triggerAutoSave = useCallback(() => {
@@ -391,6 +528,7 @@ export default function ClerkingPage() {
   }
 
   function resetForm() {
+    setPatientMode('existing');
     setPresentingComplaint('');
     setWorkingDiagnosis('');
     setLocation('');
@@ -427,10 +565,13 @@ export default function ClerkingPage() {
     setSafetyNotes('');
     setNoteId(null);
     setSelectedPatientId('');
+    setTemporaryPatientId('');
+    setTemporaryPatientName('');
+    setTemporaryLocation('');
   }
 
   async function handleSignAndSubmit() {
-    if (!noteId || !user || !selectedPatient) return;
+    if (!noteId || !user || !currentPatientIdentity) return;
 
     // Save first
     await performSave();
@@ -438,7 +579,7 @@ export default function ClerkingPage() {
     setSigning(true);
     try {
       const parsedProblems = parseProblemListInput(problemList);
-      const shouldEscalateToOnCall = parsedProblems.some(
+      const shouldEscalateToOnCall = !isTemporaryCase && parsedProblems.some(
         (problem) => problem.severity === 'critical' || problem.severity === 'high'
       );
 
@@ -446,12 +587,7 @@ export default function ClerkingPage() {
         noteId,
         userId: user.id,
         userName: user.displayName,
-        patient: {
-          id: selectedPatient.id,
-          firstName: selectedPatient.firstName,
-          lastName: selectedPatient.lastName,
-          bedNumber: selectedPatient.bedNumber,
-        },
+        patient: currentPatientIdentity,
         escalateToOnCall: shouldEscalateToOnCall,
         saveSbar: true,
       });
@@ -469,6 +605,8 @@ export default function ClerkingPage() {
         notices.push('Patient escalated to on-call list.');
       } else if (shouldEscalateToOnCall) {
         notices.push('High-risk case detected but on-call escalation did not complete.');
+      } else if (isTemporaryCase) {
+        notices.push('Temporary on-call case signed (not added to permanent unit list).');
       }
 
       setWorkflowNotice({
@@ -539,18 +677,80 @@ export default function ClerkingPage() {
           </div>
 
           {/* Patient selector */}
-          <Select
-            label="Patient"
-            value={selectedPatientId}
-            onChange={(e) => handlePatientSelect(e.target.value)}
-          >
-            <option value="">Select a patient to clerk...</option>
-            {patients.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.firstName} {p.lastName} - MRN: {p.mrn} - Bed {p.bedNumber}
-              </option>
-            ))}
-          </Select>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setPatientMode('existing')}
+                disabled={Boolean(noteId)}
+                className={clsx(
+                  'h-9 rounded-lg text-sm font-medium border transition-colors disabled:opacity-60 disabled:cursor-not-allowed',
+                  patientMode === 'existing'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                )}
+              >
+                Unit patient
+              </button>
+              <button
+                type="button"
+                onClick={() => setPatientMode('temporary')}
+                disabled={Boolean(noteId)}
+                className={clsx(
+                  'h-9 rounded-lg text-sm font-medium border transition-colors disabled:opacity-60 disabled:cursor-not-allowed',
+                  patientMode === 'temporary'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                )}
+              >
+                Temporary on-call
+              </button>
+            </div>
+
+            {patientMode === 'existing' ? (
+              <Select
+                label="Patient"
+                value={selectedPatientId}
+                onChange={(e) => handlePatientSelect(e.target.value)}
+                disabled={Boolean(noteId)}
+              >
+                <option value="">Select a patient to clerk...</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.firstName} {p.lastName} - MRN: {p.mrn} - Bed {p.bedNumber}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <div className="space-y-2">
+                <Input
+                  label="Temporary patient name"
+                  value={temporaryPatientName}
+                  onChange={(e) => setTemporaryPatientName(e.target.value)}
+                  placeholder="e.g. Unknown male from ED"
+                  disabled={Boolean(noteId)}
+                />
+                <Input
+                  label="Location / ward"
+                  value={temporaryLocation}
+                  onChange={(e) => setTemporaryLocation(e.target.value)}
+                  placeholder="e.g. ED Resus Bay 3"
+                  disabled={Boolean(noteId)}
+                />
+                {!noteId && (
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      onClick={handleTemporaryStart}
+                      disabled={!temporaryPatientName.trim()}
+                    >
+                      Start temporary clerking
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Progress bar */}
           {noteId && (
@@ -622,10 +822,14 @@ export default function ClerkingPage() {
             <div className="text-center py-12">
               <FileText size={40} className="mx-auto text-slate-300 mb-3" />
               <h2 className="text-lg font-semibold text-slate-900">
-                Select a patient to begin clerking
+                {patientMode === 'temporary'
+                  ? 'Start a temporary on-call clerking note'
+                  : 'Select a patient to begin clerking'}
               </h2>
               <p className="text-sm text-slate-500 mt-1">
-                Choose a patient from the dropdown above to start a new clerking note.
+                {patientMode === 'temporary'
+                  ? 'Use the temporary fields above for external/non-unit cases.'
+                  : 'Choose a patient from the dropdown above to start a new clerking note.'}
               </p>
             </div>
           </Card>
