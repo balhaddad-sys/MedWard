@@ -26,16 +26,18 @@ interface BaseFieldProps {
 
 function fieldBaseClasses(variant: InputVariant, hasError: boolean) {
   return clsx(
-    'block w-full rounded-lg text-sm text-gray-900 placeholder:text-gray-400',
+    'block w-full rounded-lg text-sm text-slate-900 placeholder:text-slate-400',
+    'dark:text-slate-100 dark:placeholder:text-slate-500',
     'transition-colors duration-150 ease-in-out',
     'focus:outline-none focus:ring-2 focus:ring-offset-0',
     variant === 'filled'
-      ? 'bg-gray-100 border-transparent focus:bg-white'
-      : 'bg-white border border-gray-300',
+      ? 'bg-slate-100 border-transparent focus:bg-white dark:bg-slate-800 dark:focus:bg-slate-700'
+      : 'bg-white border border-slate-300 dark:bg-slate-900 dark:border-slate-600',
     hasError
       ? 'border-red-400 focus:ring-red-500/30 focus:border-red-500'
       : 'focus:ring-blue-500/30 focus:border-blue-500',
-    'disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed',
+    'disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed',
+    'dark:disabled:bg-slate-800/50 dark:disabled:text-slate-500',
   );
 }
 
@@ -72,7 +74,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={fieldId}
-            className="block text-sm font-medium text-gray-700"
+            className="block text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {label}
           </label>
@@ -80,7 +82,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
         <div className="relative">
           {iconLeft && (
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400 pointer-events-none">
               {iconLeft}
             </span>
           )}
@@ -102,7 +104,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           />
 
           {iconRight && (
-            <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 pointer-events-none">
+            <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 pointer-events-none">
               {iconRight}
             </span>
           )}
@@ -114,7 +116,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           </p>
         )}
         {!error && helperText && (
-          <p id={`${fieldId}-helper`} className="text-xs text-gray-500">
+          <p id={`${fieldId}-helper`} className="text-xs text-slate-500 dark:text-slate-400">
             {helperText}
           </p>
         )}
@@ -142,7 +144,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         {label && (
           <label
             htmlFor={fieldId}
-            className="block text-sm font-medium text-gray-700"
+            className="block text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {label}
           </label>
@@ -168,7 +170,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           </p>
         )}
         {!error && helperText && (
-          <p id={`${fieldId}-helper`} className="text-xs text-gray-500">
+          <p id={`${fieldId}-helper`} className="text-xs text-slate-500 dark:text-slate-400">
             {helperText}
           </p>
         )}
@@ -198,7 +200,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         {label && (
           <label
             htmlFor={fieldId}
-            className="block text-sm font-medium text-gray-700"
+            className="block text-sm font-medium text-slate-700 dark:text-slate-300"
           >
             {label}
           </label>
@@ -228,7 +230,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           </p>
         )}
         {!error && helperText && (
-          <p id={`${fieldId}-helper`} className="text-xs text-gray-500">
+          <p id={`${fieldId}-helper`} className="text-xs text-slate-500 dark:text-slate-400">
             {helperText}
           </p>
         )}

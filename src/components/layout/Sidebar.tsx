@@ -65,9 +65,9 @@ const NAV_ITEMS: Record<ClinicalMode, NavItem[]> = {
 // ---------------------------------------------------------------------------
 
 const MODE_STYLES: Record<ClinicalMode, { dot: string; bg: string; text: string }> = {
-  ward: { dot: 'bg-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
-  acute: { dot: 'bg-red-500 animate-pulse', bg: 'bg-red-50', text: 'text-red-700' },
-  clerking: { dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700' },
+  ward: { dot: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400' },
+  acute: { dot: 'bg-red-500 animate-pulse', bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400' },
+  clerking: { dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400' },
 }
 
 // ---------------------------------------------------------------------------
@@ -106,17 +106,17 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-ward-border bg-white">
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-ward-border bg-ward-card">
       {/* ---- Brand / logo ---- */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-ward-border">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600 text-white shrink-0">
           <Stethoscope size={20} />
         </div>
         <div>
-          <span className="text-base font-bold tracking-tight text-slate-900">
+          <span className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
             MedWard Pro
           </span>
-          <p className="text-[10px] text-slate-400 leading-none mt-0.5">Clinical Ward System</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-none mt-0.5">Clinical Ward System</p>
         </div>
       </div>
 
@@ -127,7 +127,7 @@ export default function Sidebar() {
           <p className={['text-xs font-semibold', modeStyle.text].join(' ')}>
             {modeConfig.label} Mode
           </p>
-          <p className="text-[10px] text-slate-400 truncate">{modeConfig.description}</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{modeConfig.description}</p>
         </div>
         <button
           type="button"
@@ -141,10 +141,10 @@ export default function Sidebar() {
 
       {/* ---- Patient summary strip ---- */}
       {patients.length > 0 && (
-        <div className="mx-4 mb-2 flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+        <div className="mx-4 mb-2 flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
           <Users size={13} className="text-slate-400 shrink-0" />
-          <span className="text-xs text-slate-600">
-            <span className="font-semibold text-slate-800">{patients.length}</span> patient{patients.length !== 1 ? 's' : ''}
+          <span className="text-xs text-slate-600 dark:text-slate-300">
+            <span className="font-semibold text-slate-800 dark:text-slate-100">{patients.length}</span> patient{patients.length !== 1 ? 's' : ''}
           </span>
           {overdueTaskCount > 0 && (
             <span className="ml-auto text-[10px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
@@ -174,8 +174,8 @@ export default function Sidebar() {
                 [
                   'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
                   isActive
-                    ? 'bg-primary-50 text-primary-700'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100',
                 ].join(' ')
               }
             >
@@ -185,8 +185,8 @@ export default function Sidebar() {
                     size={18}
                     className={
                       isActive
-                        ? 'text-primary-600 shrink-0'
-                        : 'text-slate-400 group-hover:text-slate-600 transition-colors duration-150 shrink-0'
+                        ? 'text-primary-600 dark:text-primary-400 shrink-0'
+                        : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors duration-150 shrink-0'
                     }
                   />
                   <span className="flex-1">{label}</span>
@@ -194,10 +194,10 @@ export default function Sidebar() {
                     <span className={[
                       'text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
                       isOverdueBadge
-                        ? 'bg-red-100 text-red-700'
+                        ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
                         : isActive
-                        ? 'bg-primary-100 text-primary-700'
-                        : 'bg-slate-100 text-slate-500',
+                        ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-400'
+                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400',
                     ].join(' ')}>
                       {badgeCount}
                     </span>
@@ -217,8 +217,8 @@ export default function Sidebar() {
             [
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150',
               isActive
-                ? 'bg-primary-50 text-primary-700'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100',
             ].join(' ')
           }
         >
@@ -226,7 +226,7 @@ export default function Sidebar() {
             <>
               <Settings
                 size={18}
-                className={isActive ? 'text-primary-600 shrink-0' : 'text-slate-400 shrink-0 transition-colors duration-150'}
+                className={isActive ? 'text-primary-600 dark:text-primary-400 shrink-0' : 'text-slate-400 shrink-0 transition-colors duration-150'}
               />
               Settings
             </>
@@ -236,7 +236,7 @@ export default function Sidebar() {
         {/* User info + sign out */}
         {user && (
           <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 dark:bg-primary-900 dark:text-primary-400">
               {user.displayName
                 .split(' ')
                 .map((n) => n[0])
@@ -245,15 +245,15 @@ export default function Sidebar() {
                 .toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-slate-900">
+              <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
                 {user.displayName}
               </p>
-              <p className="truncate text-xs text-slate-400 capitalize">{user.role}</p>
+              <p className="truncate text-xs text-slate-400 dark:text-slate-500 capitalize">{user.role}</p>
             </div>
             <button
               type="button"
               onClick={handleSignOut}
-              className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:text-slate-500 dark:hover:text-red-400 dark:hover:bg-red-900/30 transition-colors"
               title="Sign out"
             >
               <LogOut size={15} />

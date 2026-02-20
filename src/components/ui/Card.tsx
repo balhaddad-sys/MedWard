@@ -35,11 +35,11 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
             : undefined
         }
         className={clsx(
-          'bg-white rounded-xl border border-gray-200 shadow-sm',
+          'bg-ward-card rounded-xl border border-ward-border shadow-sm',
           'transition-all duration-150 ease-in-out',
           paddingStyles[padding],
-          hover && 'hover:shadow-md hover:border-gray-300',
-          onClick && 'cursor-pointer hover:shadow-md hover:border-gray-300 active:scale-[0.99]',
+          hover && 'hover:shadow-md',
+          onClick && 'cursor-pointer hover:shadow-md active:scale-[0.99]',
           className,
         )}
         {...rest}
@@ -59,7 +59,7 @@ export interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
 function CardHeader({ className, children, ...rest }: CardHeaderProps) {
   return (
     <div
-      className={clsx('pb-4 border-b border-gray-100', className)}
+      className={clsx('pb-4 border-b border-ward-border', className)}
       {...rest}
     >
       {children}
@@ -86,7 +86,7 @@ export interface CardFooterProps extends HTMLAttributes<HTMLDivElement> {
 function CardFooter({ className, children, ...rest }: CardFooterProps) {
   return (
     <div
-      className={clsx('pt-4 border-t border-gray-100', className)}
+      className={clsx('pt-4 border-t border-ward-border', className)}
       {...rest}
     >
       {children}

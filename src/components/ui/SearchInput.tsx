@@ -56,10 +56,11 @@ export function SearchInput({
         autoFocus={autoFocus}
         className={clsx(
           'w-full h-10 pl-10 pr-10 rounded-lg border border-slate-200 bg-white',
+          'dark:bg-slate-900 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500',
           'text-sm text-slate-900 placeholder:text-slate-400',
           'transition-all duration-200',
           'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400',
-          'hover:border-slate-300'
+          'hover:border-slate-300 dark:hover:border-slate-500'
         )}
       />
       {currentValue && (

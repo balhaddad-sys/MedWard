@@ -111,14 +111,14 @@ export default function MobileNav() {
           onClick={() => setShowMore(false)}
         >
           <div
-            className="absolute bottom-[60px] left-0 right-0 rounded-t-2xl bg-white p-4 pb-[env(safe-area-inset-bottom)] border-t border-ward-border animate-in slide-in-from-bottom duration-200"
+            className="absolute bottom-[60px] left-0 right-0 rounded-t-2xl bg-ward-card p-4 pb-[env(safe-area-inset-bottom)] border-t border-ward-border animate-in slide-in-from-bottom duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-slate-900">More</span>
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">More</span>
               <button
                 onClick={() => setShowMore(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 <X size={16} />
               </button>
@@ -136,8 +136,8 @@ export default function MobileNav() {
                     className={[
                       'flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl transition-colors',
                       isActive
-                        ? 'bg-primary-50 text-primary-600'
-                        : 'text-slate-500 hover:bg-slate-50',
+                        ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400'
+                        : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800',
                     ].join(' ')}
                   >
                     <Icon size={22} strokeWidth={isActive ? 2.25 : 1.75} />
@@ -153,8 +153,8 @@ export default function MobileNav() {
       )}
 
       {/* Bottom nav bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ward-border bg-white pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center justify-around px-1 py-1.5">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-ward-border bg-ward-card pb-[env(safe-area-inset-bottom)]">
+        <div className="flex items-center justify-around px-2 py-1">
           {items.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -162,10 +162,10 @@ export default function MobileNav() {
               end={to === '/'}
               className={({ isActive }) =>
                 [
-                  'flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium transition-colors duration-150',
+                  'flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium transition-all duration-150',
                   isActive
-                    ? 'text-primary-600'
-                    : 'text-slate-400 active:text-slate-600',
+                    ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/30 dark:text-primary-400'
+                    : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300',
                 ].join(' ')
               }
             >
@@ -175,7 +175,6 @@ export default function MobileNav() {
                     <Icon
                       size={22}
                       strokeWidth={isActive ? 2.25 : 1.75}
-                      className={isActive ? 'text-primary-600' : 'text-slate-400'}
                     />
                     {/* Overdue task badge */}
                     {to === '/tasks' && overdueTaskCount > 0 && (
@@ -194,16 +193,15 @@ export default function MobileNav() {
           <button
             onClick={() => setShowMore(!showMore)}
             className={[
-              'flex flex-1 flex-col items-center gap-0.5 rounded-lg py-1.5 text-[11px] font-medium transition-colors duration-150',
+              'flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium transition-all duration-150',
               isMoreActive || showMore
-                ? 'text-primary-600'
-                : 'text-slate-400 active:text-slate-600',
+                ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/30 dark:text-primary-400'
+                : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300',
             ].join(' ')}
           >
             <MoreHorizontal
               size={22}
               strokeWidth={isMoreActive || showMore ? 2.25 : 1.75}
-              className={isMoreActive || showMore ? 'text-primary-600' : 'text-slate-400'}
             />
             <span>More</span>
           </button>

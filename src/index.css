@@ -88,6 +88,56 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
   }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ward-bg: #0f172a;
+      --ward-card: #1e293b;
+      --ward-border: #334155;
+      --ward-text: #f1f5f9;
+      --ward-muted: #94a3b8;
+      --ward-subtle: #1e293b;
+      --ward-hover: #334155;
+
+      --critical-bg: #450a0a;
+      --warning-bg: #451a03;
+      --success-bg: #052e16;
+      --info-bg: #172554;
+
+      --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  }
+
+  /* Manual dark class override (for future toggle support) */
+  html.dark {
+    --ward-bg: #0f172a;
+    --ward-card: #1e293b;
+    --ward-border: #334155;
+    --ward-text: #f1f5f9;
+    --ward-muted: #94a3b8;
+    --ward-subtle: #1e293b;
+    --ward-hover: #334155;
+
+    --critical-bg: #450a0a;
+    --warning-bg: #451a03;
+    --success-bg: #052e16;
+    --info-bg: #172554;
+
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.2);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  }
 }
 
 @layer components {
@@ -128,10 +178,10 @@
     @apply mb-6;
   }
   .page-title {
-    @apply text-2xl font-bold tracking-tight text-slate-900;
+    @apply text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100;
   }
   .page-subtitle {
-    @apply text-sm text-slate-500 mt-1;
+    @apply text-sm text-slate-500 dark:text-slate-400 mt-1;
   }
 }
 

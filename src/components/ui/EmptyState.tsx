@@ -18,15 +18,15 @@ function EmptyState({ icon, title, description, action, className }: EmptyStateP
       )}
     >
       {icon && (
-        <div className="mb-4 flex items-center justify-center w-14 h-14 rounded-full bg-gray-100 text-gray-400">
+        <div className="mb-4 flex items-center justify-center w-14 h-14 rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
           {icon}
         </div>
       )}
 
-      <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+      <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
 
       {description && (
-        <p className="mt-1.5 text-sm text-gray-500 max-w-sm">{description}</p>
+        <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400 max-w-sm">{description}</p>
       )}
 
       {action && <div className="mt-5">{action}</div>}

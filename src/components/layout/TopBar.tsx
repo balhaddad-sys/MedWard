@@ -20,9 +20,9 @@ interface TopBarProps {
 // ---------------------------------------------------------------------------
 
 const MODE_COLORS: Record<ClinicalMode, string> = {
-  ward: 'bg-blue-100 text-blue-700 border-blue-200',
-  acute: 'bg-red-100 text-red-700 border-red-200',
-  clerking: 'bg-amber-100 text-amber-700 border-amber-200',
+  ward: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
+  acute: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
+  clerking: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
 }
 
 const MODE_DOT: Record<ClinicalMode, string> = {
@@ -94,14 +94,14 @@ export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: T
     : null
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-ward-border bg-white px-4 gap-3">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-ward-border bg-ward-card px-4 gap-3">
       {/* Left: hamburger + title */}
       <div className="flex items-center gap-3 min-w-0">
         {onMenuToggle && (
           <button
             type="button"
             onClick={onMenuToggle}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-700"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
             aria-label="Toggle menu"
           >
             <Menu size={22} />
@@ -109,7 +109,7 @@ export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: T
         )}
 
         <div className="flex items-center gap-2 min-w-0">
-          <h1 className="text-base font-semibold text-slate-900 truncate">
+          <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
             {displayTitle}
           </h1>
 
@@ -143,21 +143,21 @@ export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: T
         )}
 
         {/* Live clock */}
-        <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
-          <Clock size={13} className="text-slate-400 shrink-0" />
+        <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+          <Clock size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />
           <div className="text-right">
-            <div className="text-sm font-mono font-semibold text-slate-800 leading-none tabular-nums">
+            <div className="text-sm font-mono font-semibold text-slate-800 dark:text-slate-100 leading-none tabular-nums">
               {timeStr}
             </div>
-            <div className="text-[10px] text-slate-400 leading-none mt-0.5">
+            <div className="text-[10px] text-slate-400 dark:text-slate-500 leading-none mt-0.5">
               {dateStr}
             </div>
           </div>
         </div>
 
         {/* Mobile clock (time only) */}
-        <div className="flex md:hidden items-center gap-1 px-2 py-1 rounded-lg bg-slate-50">
-          <span className="text-xs font-mono font-semibold text-slate-700 tabular-nums">
+        <div className="flex md:hidden items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800">
+          <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
             {now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
           </span>
         </div>
@@ -166,14 +166,14 @@ export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: T
         {roleLabel && (
           <button
             type="button"
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-colors dark:bg-slate-800 dark:border-slate-700 dark:hover:bg-slate-700"
             title={user?.displayName}
           >
-            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-700">
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-700 dark:bg-primary-900 dark:text-primary-400">
               {user?.displayName?.charAt(0)?.toUpperCase() || '?'}
             </div>
-            <span className="text-xs font-medium text-slate-600">{roleLabel}</span>
-            <ChevronDown size={11} className="text-slate-400" />
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{roleLabel}</span>
+            <ChevronDown size={11} className="text-slate-400 dark:text-slate-500" />
           </button>
         )}
 
@@ -181,7 +181,7 @@ export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: T
         <button
           type="button"
           onClick={onNotificationsToggle}
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-700"
+          className="relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         >
           <Bell size={20} />
