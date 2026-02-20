@@ -464,7 +464,7 @@ export default function Dashboard() {
                   onClick={() => navigate(`/patients/${patient.id}`)}
                   className={clsx(
                     'flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl',
-                    'bg-white border border-slate-200 cursor-pointer',
+                    'bg-ward-card border border-ward-border cursor-pointer',
                     'hover:shadow-sm transition-all duration-150',
                     ACUITY_BORDER[patient.acuity],
                     ACUITY_BG[patient.acuity],

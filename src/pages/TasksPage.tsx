@@ -289,7 +289,7 @@ export default function TasksPage() {
       <div
         className={clsx(
           'flex items-start justify-between gap-3 px-4 py-3',
-          'bg-white border rounded-xl transition-all duration-150 hover:shadow-sm',
+          'bg-ward-card border border-ward-border rounded-xl transition-all duration-150 hover:shadow-sm',
           overdue
             ? 'border-red-200 bg-red-50/40 border-l-4 border-l-red-500'
             : task.status === 'completed'
@@ -423,7 +423,7 @@ export default function TasksPage() {
                 'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
                 filterStatus === filter.value
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50',
+                  : 'bg-ward-card dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700',
               )}
             >
               {filter.label}
@@ -437,7 +437,7 @@ export default function TasksPage() {
           onChange={(e) => setFilterPriority(e.target.value as TaskPriority | 'all')}
           className={clsx(
             'h-8 px-2.5 pr-7 rounded-lg text-xs font-medium',
-            'bg-white border border-slate-300 text-slate-600',
+            'bg-ward-card border border-ward-border text-slate-600',
             'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
             'appearance-none',
           )}
@@ -455,7 +455,7 @@ export default function TasksPage() {
             'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ml-auto',
             groupByPatient
               ? 'bg-blue-50 text-blue-700 border-blue-200'
-              : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50',
+              : 'bg-ward-card dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700',
           )}
         >
           Group by Patient

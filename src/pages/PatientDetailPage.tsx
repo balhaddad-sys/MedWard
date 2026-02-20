@@ -350,7 +350,7 @@ export default function PatientDetailPage() {
       </Button>
 
       {/* ---- Patient header card ---- */}
-      <div className={clsx('bg-white rounded-xl border border-slate-200 border-l-4 p-3 sm:p-4', acuityBorderColor)}>
+      <div className={clsx('bg-ward-card rounded-xl border border-ward-border border-l-4 p-3 sm:p-4', acuityBorderColor)}>
         <div className="flex items-start gap-3">
           {/* Acuity circle */}
           <div className={clsx(
@@ -470,7 +470,7 @@ export default function PatientDetailPage() {
       </div>
 
       {/* ---- Primary diagnosis summary ---- */}
-      <div className="px-4 py-3 bg-white rounded-xl border border-slate-200">
+      <div className="px-4 py-3 bg-ward-card rounded-xl border border-ward-border">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Primary Diagnosis</p>
         <p className="text-sm font-semibold text-slate-900">{patient.primaryDiagnosis}</p>
         {patient.diagnoses.length > 0 && (

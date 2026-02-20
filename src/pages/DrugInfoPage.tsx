@@ -200,9 +200,9 @@ export default function DrugInfoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-ward-bg">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-ward-card border-b border-ward-border">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-3 mb-4">
             <Pill size={24} className="text-slate-400" />

@@ -87,9 +87,9 @@ export default function ModeSelectionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-ward-bg">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-ward-card border-b border-ward-border">
         <div className="max-w-5xl mx-auto px-4 py-8 text-center">
           <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
             <Activity size={24} className="text-white" />

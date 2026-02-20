@@ -103,9 +103,9 @@ export default function ShiftViewPage() {
   const isEmpty = overdueTasks.length === 0 && criticalLabPatients.length === 0 && unstablePatients.length === 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-ward-bg">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-ward-card border-b border-ward-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-red-100 rounded-xl">

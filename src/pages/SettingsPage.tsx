@@ -138,9 +138,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-ward-bg">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-ward-card border-b border-ward-border">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-3">
             <Settings size={24} className="text-slate-400" />
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                 onChange={(e) => handleDefaultModeChange(e.target.value as ClinicalMode)}
                 className={clsx(
                   'block w-full h-10 px-3 pr-8 rounded-lg text-sm text-slate-900',
-                  'bg-white border border-slate-300',
+                  'bg-ward-card border border-ward-border',
                   'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
                   'appearance-none bg-no-repeat bg-[length:16px_16px] bg-[right_0.5rem_center]',
                   'bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
@@ -416,7 +416,7 @@ export default function SettingsPage() {
                 onChange={(e) => handleLabPriorityProfileChange(e.target.value as LabPriorityProfile)}
                 className={clsx(
                   'block w-full h-10 px-3 pr-8 rounded-lg text-sm text-slate-900',
-                  'bg-white border border-slate-300',
+                  'bg-ward-card border border-ward-border',
                   'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
                   'appearance-none bg-no-repeat bg-[length:16px_16px] bg-[right_0.5rem_center]',
                   'bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',

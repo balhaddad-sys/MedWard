@@ -229,8 +229,8 @@ export default function HandoverPage() {
 
   if (patients.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="bg-white border-b border-slate-200">
+      <div className="min-h-screen bg-ward-bg">
+        <div className="bg-ward-card border-b border-ward-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center gap-3">
               <FileText size={24} className="text-slate-400" />
@@ -252,9 +252,9 @@ export default function HandoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-ward-bg">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-ward-card border-b border-ward-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -306,7 +306,7 @@ export default function HandoverPage() {
               <button
                 type="button"
                 onClick={() => toggleGroup(acuity)}
-                className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors mb-2"
+                className="w-full flex items-center justify-between p-3 bg-ward-card rounded-lg border border-ward-border hover:bg-slate-50 transition-colors mb-2"
               >
                 <div className="flex items-center gap-3">
                   <Badge variant={getAcuityVariant(acuity)} dot>
@@ -362,7 +362,7 @@ export default function HandoverPage() {
                                 'absolute top-2 right-2 p-1.5 rounded-lg transition-colors',
                                 copiedId === patient.id
                                   ? 'bg-green-100 text-green-600'
-                                  : 'bg-white text-slate-400 hover:text-slate-600 hover:bg-slate-100',
+                                  : 'bg-ward-card dark:bg-slate-800 text-slate-400 dark:text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700',
                               )}
                               title="Copy to clipboard"
                             >
