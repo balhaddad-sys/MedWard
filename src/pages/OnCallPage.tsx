@@ -3,7 +3,7 @@
  * 4 tabs: Jobs Queue · Patients · Reference (calculators/protocols/drugs) · Handover
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
@@ -28,7 +28,6 @@ import {
   Zap,
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
-import { Tabs } from '@/components/ui/Tabs'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -1851,18 +1850,19 @@ function HandoverTab({ userId }: { userId: string }) {
 // MAIN PAGE
 // ===========================================================================
 
-const TABS = [
-  { id: 'jobs', label: 'Jobs', icon: <ListTodo size={15} /> },
-  { id: 'patients', label: 'Patients', icon: <Users size={15} /> },
-  { id: 'reference', label: 'Reference', icon: <BookOpen size={15} /> },
-  { id: 'handover', label: 'Handover', icon: <ClipboardList size={15} /> },
+type OnCallTab = 'jobs' | 'patients' | 'reference' | 'handover'
+
+const ONCALL_TABS: { id: OnCallTab; label: string; icon: React.ReactNode }[] = [
+  { id: 'jobs',      label: 'Jobs',      icon: <ListTodo size={16} /> },
+  { id: 'patients',  label: 'Patients',  icon: <Users size={16} /> },
+  { id: 'reference', label: 'Reference', icon: <BookOpen size={16} /> },
+  { id: 'handover',  label: 'Handover',  icon: <ClipboardList size={16} /> },
 ]
 
 export default function OnCallPage() {
-  const [activeTab, setActiveTab] = useState('jobs')
+  const [activeTab, setActiveTab] = useState<OnCallTab>('jobs')
   const userId = useAuthStore((s) => s.user?.id ?? '')
 
-  // Live job count badge in header
   const [pendingCount, setPendingCount] = useState(0)
   useEffect(() => {
     if (!userId) return
@@ -1873,14 +1873,13 @@ export default function OnCallPage() {
 
   return (
     <div className="space-y-4">
-      {/* Page header */}
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-red-100 rounded-xl">
+        <div className="p-2 bg-red-100 rounded-xl shrink-0">
           <Phone size={18} className="text-red-600" />
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-gray-900">On-Call Hub</h1>
-          <p className="text-xs text-gray-500">Jobs · Patients · Reference · Handover</p>
         </div>
         {pendingCount > 0 && (
           <Badge variant="critical">
@@ -1890,15 +1889,35 @@ export default function OnCallPage() {
         )}
       </div>
 
-      {/* Tabs */}
-      <Tabs items={TABS} activeId={activeTab} onChange={setActiveTab} />
+      {/* Section selector — pill grid, not a nav bar */}
+      <div className="grid grid-cols-4 gap-1.5 bg-gray-100 rounded-2xl p-1.5">
+        {ONCALL_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={clsx(
+              'relative flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-medium transition-all',
+              activeTab === tab.id
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700',
+            )}
+          >
+            {tab.icon}
+            {tab.label}
+            {tab.id === 'jobs' && pendingCount > 0 && activeTab !== 'jobs' && (
+              <span className="absolute top-1.5 right-2.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+            )}
+          </button>
+        ))}
+      </div>
 
-      {/* Tab content */}
+      {/* Content */}
       <div>
-        {activeTab === 'jobs' && <JobsTab userId={userId} />}
-        {activeTab === 'patients' && <PatientsTab userId={userId} />}
+        {activeTab === 'jobs'      && <JobsTab userId={userId} />}
+        {activeTab === 'patients'  && <PatientsTab userId={userId} />}
         {activeTab === 'reference' && <ReferenceTab />}
-        {activeTab === 'handover' && <HandoverTab userId={userId} />}
+        {activeTab === 'handover'  && <HandoverTab userId={userId} />}
       </div>
     </div>
   )
