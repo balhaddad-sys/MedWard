@@ -65,6 +65,7 @@ const LAB_FLAG_RANK: Record<LabFlag, number> = {
 const VALID_LAB_FLAGS: LabFlag[] = ['normal', 'low', 'high', 'critical_low', 'critical_high'];
 
 type TrendDirection = 'up' | 'down' | 'stable';
+type UploadMode = 'archive' | 'ai';
 
 interface TrendInsight {
   name: string;
@@ -82,6 +83,27 @@ interface PatientLabImage {
   url: string;
   panelName: string;
   collectedAtMs: number;
+}
+
+interface UploadMetrics {
+  mode: UploadMode;
+  filesProcessed: number;
+  panelsSaved: number;
+  acceptedValues: number;
+  droppedValues: number;
+}
+
+const QUALITATIVE_RESULT_PATTERN = /^(positive|negative|reactive|non-reactive|detected|not detected|trace|present|absent)$/i;
+const MIN_PANEL_VALUES_FOR_RESULT = 2;
+
+function isLikelyTestName(raw: string): boolean {
+  const name = raw.trim();
+  if (!name) return false;
+  if (name.length > 80) return false;
+  if (!/[a-z]/i.test(name)) return false;
+  if (/^\d+([./-]\d+)*$/.test(name)) return false;
+  if (/^(patient|name|mrn|file|civil|visit|doctor|ward|room|bed|date|time|page|sample)$/i.test(name)) return false;
+  return true;
 }
 
 /**
@@ -221,6 +243,8 @@ export default function LabAnalysisPage() {
   const [compressionInfo, setCompressionInfo] = useState<string | null>(null);
   const [extractedResults, setExtractedResults] = useState<LabPanel | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [uploadMode, setUploadMode] = useState<UploadMode>('archive');
+  const [uploadMetrics, setUploadMetrics] = useState<UploadMetrics | null>(null);
   const [patientLabs, setPatientLabs] = useState<LabPanel[]>([]);
   const [labsLoading, setLabsLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -230,6 +254,13 @@ export default function LabAnalysisPage() {
   // All-patients lab overview
   const [allPatientsLabs, setAllPatientsLabs] = useState<Map<string, LabPanel[]>>(new Map());
   const [allLabsLoading, setAllLabsLoading] = useState(false);
+
+  useEffect(() => {
+    setExtractedResults(null);
+    setAiAnalysis(null);
+    setValidationWarnings([]);
+    setUploadMetrics(null);
+  }, [uploadMode]);
 
   // Load all patients' labs on mount for overview
   useEffect(() => {
@@ -430,6 +461,7 @@ export default function LabAnalysisPage() {
     setUploadError(null);
     setExtractedResults(null);
     setAiAnalysis(null);
+    setUploadMetrics(null);
     setCompressionInfo(null);
 
     for (const f of validFiles) {
@@ -462,6 +494,7 @@ export default function LabAnalysisPage() {
     setPreviews([]);
     setExtractedResults(null);
     setAiAnalysis(null);
+    setUploadMetrics(null);
     setUploadError(null);
     setCompressionInfo(null);
     setValidationWarnings([]);
@@ -476,27 +509,33 @@ export default function LabAnalysisPage() {
   async function handleUpload() {
     if (files.length === 0 || !user || !selectedPatientId) return;
     const orderedBy = user.id || user.email || 'unknown-user';
+    const parsingEnabled = uploadMode === 'ai';
 
     setUploading(true);
     setUploadProgress(0);
     setUploadError(null);
     setCompressionInfo(null);
     setValidationWarnings([]);
+    setUploadMetrics(null);
 
     const totalFiles = files.length;
     const allLabValues: LabValue[] = [];
     const allPanelNames: string[] = [];
     const allWarnings: ValidationWarning[] = [];
     let savedPanelCount = 0;
+    let acceptedRowCount = 0;
+    let droppedRowCount = 0;
 
     try {
       const { Timestamp } = await import('firebase/firestore');
       const now = Timestamp.fromDate(new Date());
 
-      const analyzeLabImageFn = httpsCallable<
-        { imageBase64: string; mediaType: string },
-        { content?: string; structured?: ExtractionResponse }
-      >(functions, 'analyzeLabImage');
+      const analyzeLabImageFn = parsingEnabled
+        ? httpsCallable<
+            { imageBase64: string; mediaType: string },
+            { content?: string; structured?: ExtractionResponse }
+          >(functions, 'analyzeLabImage')
+        : null;
       const displayNameCache = new Map<string, string>();
       const refRangeCache = new Map<string, { min: number; max: number } | null>();
 
@@ -517,20 +556,49 @@ export default function LabAnalysisPage() {
           setCompressionInfo(savings);
         }
 
-        // Step 2+3: Upload to storage AND call AI in parallel
-        setUploadStep(`Uploading & analyzing${fileLabel}...`);
-        setUploadProgress(Math.round(baseProgress + stepSize * 0.35));
+        let imageUrl = '';
+        let structured: ExtractionResponse | undefined;
 
-        const [imageUrl, aiResult] = await Promise.all([
-          uploadLabImage(user.id, compressedBlob, currentFile.name),
-          analyzeLabImageFn({ imageBase64: base64, mediaType: 'image/jpeg' }),
-        ]);
+        if (parsingEnabled && analyzeLabImageFn) {
+          // Upload to storage and run AI in parallel.
+          setUploadStep(`Uploading & parsing${fileLabel}...`);
+          setUploadProgress(Math.round(baseProgress + stepSize * 0.35));
+          const [uploadedImageUrl, aiResult] = await Promise.all([
+            uploadLabImage(user.id, compressedBlob, currentFile.name),
+            analyzeLabImageFn({ imageBase64: base64, mediaType: 'image/jpeg' }),
+          ]);
+          imageUrl = uploadedImageUrl;
+          structured = aiResult.data.structured;
+        } else {
+          setUploadStep(`Uploading image${fileLabel}...`);
+          setUploadProgress(Math.round(baseProgress + stepSize * 0.5));
+          imageUrl = await uploadLabImage(user.id, compressedBlob, currentFile.name);
+        }
 
-        // Step 4: Parse structured response — save each extracted panel separately
+        // Save output
         setUploadStep(`Saving${fileLabel}...`);
         setUploadProgress(Math.round(baseProgress + stepSize * 0.8));
 
-        const structured = aiResult.data.structured;
+        if (!parsingEnabled) {
+          const archivePanelName = `Lab Image - ${currentFile.name}`;
+          const archivePanel: Omit<LabPanel, 'id' | 'createdAt'> = {
+            patientId: selectedPatientId,
+            category: 'MISC',
+            panelName: archivePanelName,
+            values: [],
+            collectedAt: now,
+            resultedAt: now,
+            orderedBy,
+            status: 'pending',
+            source: 'image',
+            imageUrl,
+          };
+          await addLabPanel(selectedPatientId, archivePanel);
+          savedPanelCount++;
+          allPanelNames.push(archivePanelName);
+          continue;
+        }
+
         const extractedPanels = structured?.panels ?? [];
 
         if (extractedPanels.length === 0) {
@@ -558,20 +626,44 @@ export default function LabAnalysisPage() {
           continue;
         }
 
-        // Save each AI-extracted panel as a separate Firestore document
+        // Save each extracted panel as a separate Firestore document
         for (const panel of extractedPanels) {
           const dedupedValues = new Map<string, LabValue>();
           const analyteKeys: string[] = [];
+          let panelDroppedRows = 0;
 
           for (const r of panel.results ?? []) {
             if (!r) continue;
-            // Clean the value: strip embedded flags, extract number
-            const parsed = parseCell(r.value_raw || r.value);
-            if (parsed.value === null && parsed.display === '--') continue;
-
-            // Canonical display name from analyteKey
             const safeAnalyteKey = typeof r.analyte_key === 'string' ? r.analyte_key.trim() : '';
             const safeTestName = typeof r.test_name === 'string' ? r.test_name.trim() : '';
+            if (!safeAnalyteKey && !isLikelyTestName(safeTestName)) {
+              panelDroppedRows++;
+              continue;
+            }
+
+            // Prefer server numeric value, fall back to robust client-side parser.
+            const parsed = parseCell(typeof r.value === 'number' ? r.value : (r.value_raw || r.value));
+            const normalizedRaw = normalizeLabValue(r.value_raw ?? r.value ?? '');
+            const hasQualitativeValue = QUALITATIVE_RESULT_PATTERN.test(normalizedRaw);
+            const looksLikeDate = /\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/.test(normalizedRaw);
+            const numericValue = typeof r.value === 'number' && Number.isFinite(r.value) ? r.value : parsed.value;
+
+            if (numericValue == null && !hasQualitativeValue) {
+              panelDroppedRows++;
+              continue;
+            }
+
+            if (numericValue != null) {
+              if (!Number.isFinite(numericValue) || Math.abs(numericValue) > 1_000_000) {
+                panelDroppedRows++;
+                continue;
+              }
+              if (looksLikeDate && !safeAnalyteKey && !(typeof r.unit === 'string' && r.unit.trim())) {
+                panelDroppedRows++;
+                continue;
+              }
+            }
+
             const displayCacheKey = `${safeAnalyteKey}|${safeTestName}`;
             let displayName = displayNameCache.get(displayCacheKey);
             if (!displayName) {
@@ -597,8 +689,8 @@ export default function LabAnalysisPage() {
 
             const labValue: LabValue = {
               name: displayName || `Unnamed Test ${dedupedValues.size + 1}`,
-              value: parsed.value ?? parsed.display,
-              unit: r.unit || '',
+              value: numericValue ?? normalizedRaw,
+              unit: typeof r.unit === 'string' ? r.unit.trim() : '',
               flag,
             };
 
@@ -629,6 +721,16 @@ export default function LabAnalysisPage() {
           }
 
           const labValues = Array.from(dedupedValues.values());
+          droppedRowCount += panelDroppedRows;
+          acceptedRowCount += labValues.length;
+
+          if (panelDroppedRows > 0) {
+            allWarnings.push({
+              type: 'misaligned',
+              message: `${panel.panel_name || 'Panel'}: filtered ${panelDroppedRows} low-confidence row(s).`,
+              severity: 'warning',
+            });
+          }
 
           // Validate
           const warnings = validateExtractedValues(labValues);
@@ -648,6 +750,30 @@ export default function LabAnalysisPage() {
             typeof panel.panel_name === 'string' && panel.panel_name.trim().length > 0
               ? panel.panel_name.trim()
               : `Lab Panel ${savedPanelCount + 1}`;
+
+          if (labValues.length < MIN_PANEL_VALUES_FOR_RESULT) {
+            const reviewPanel: Omit<LabPanel, 'id' | 'createdAt'> = {
+              patientId: selectedPatientId,
+              category: 'MISC',
+              panelName: `${safePanelName} (manual review needed)`,
+              values: [],
+              collectedAt,
+              resultedAt: now,
+              orderedBy,
+              status: 'pending',
+              source: 'image',
+              imageUrl,
+            };
+            await addLabPanel(selectedPatientId, reviewPanel);
+            savedPanelCount++;
+            allPanelNames.push(reviewPanel.panelName);
+            allWarnings.push({
+              type: 'empty_panel',
+              message: `${safePanelName}: insufficient reliable values. Saved image for manual review.`,
+              severity: 'warning',
+            });
+            continue;
+          }
 
           const labPanel: Omit<LabPanel, 'id' | 'createdAt'> = {
             patientId: selectedPatientId,
@@ -672,6 +798,13 @@ export default function LabAnalysisPage() {
       setUploadProgress(100);
       setUploadStep('Done');
       setValidationWarnings(allWarnings);
+      setUploadMetrics({
+        mode: uploadMode,
+        filesProcessed: totalFiles,
+        panelsSaved: savedPanelCount,
+        acceptedValues: acceptedRowCount,
+        droppedValues: droppedRowCount,
+      });
 
       // Show combined preview of all extracted values
       if (allLabValues.length > 0) {
@@ -689,28 +822,31 @@ export default function LabAnalysisPage() {
           createdAt: now,
         } as LabPanel;
         setExtractedResults(combined);
+      } else {
+        setExtractedResults(null);
       }
 
-      const meaningfulValues = allLabValues.filter((v) => {
-        const p = parseCell(v.value);
-        return p.value !== null;
-      });
-      const criticalCount = meaningfulValues.filter(
+      const criticalCount = allLabValues.filter(
         (v) => v.flag === 'critical_high' || v.flag === 'critical_low'
       ).length;
-      const abnormalCount = meaningfulValues.filter(
+      const abnormalCount = allLabValues.filter(
         (v) => v.flag !== 'normal'
       ).length;
 
-      if (meaningfulValues.length > 0) {
+      if (!parsingEnabled) {
         setAiAnalysis(
-          `Saved ${savedPanelCount} panel${savedPanelCount !== 1 ? 's' : ''} with ${meaningfulValues.length} values from ${totalFiles} image(s).` +
+          `Saved ${savedPanelCount} image panel${savedPanelCount !== 1 ? 's' : ''} for this patient. AI parsing was disabled by design.`
+        );
+      } else if (allLabValues.length > 0) {
+        setAiAnalysis(
+          `Saved ${savedPanelCount} panel${savedPanelCount !== 1 ? 's' : ''} with ${allLabValues.length} accepted value(s) from ${totalFiles} image(s).` +
+          (droppedRowCount > 0 ? ` Filtered ${droppedRowCount} low-confidence value(s).` : '') +
           (criticalCount > 0 ? ` ${criticalCount} critical value(s) detected!` : '') +
           (abnormalCount > 0 ? ` ${abnormalCount} abnormal value(s) flagged.` : ' All values within normal range.')
         );
       } else {
         setAiAnalysis(
-          'Images uploaded, but extracted values were mostly empty. Try a sharper image with visible numeric results and reference ranges.'
+          'Images were saved, but parsed values were low-confidence. Use manual review mode for this upload.'
         );
       }
 
@@ -723,7 +859,7 @@ export default function LabAnalysisPage() {
       setUploadError(
         message.includes('rate') || message.includes('Rate')
           ? 'Rate limit reached. Please wait a moment and try again.'
-          : `Failed to analyze lab image: ${message}`
+          : `Failed to ${parsingEnabled ? 'analyze' : 'upload'} lab image: ${message}`
       );
     } finally {
       setUploading(false);
@@ -762,7 +898,7 @@ export default function LabAnalysisPage() {
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 leading-none">Lab Analysis</h1>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                Upload lab images for AI-powered extraction
+                Professional lab image archive with optional OCR-assisted parsing
               </p>
             </div>
           </div>
@@ -1025,7 +1161,42 @@ export default function LabAnalysisPage() {
 
         {/* Upload zone */}
         <Card padding="md">
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Upload Lab Image</h2>
+          <div className="mb-4 space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Upload Lab Image</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Choose a mode before uploading. Archive mode is safest when OCR quality is inconsistent.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setUploadMode('archive')}
+                className={clsx(
+                  'rounded-lg border px-3 py-2 text-left transition-colors',
+                  uploadMode === 'archive'
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                    : 'border-ward-border bg-ward-card hover:border-slate-300'
+                )}
+              >
+                <p className="text-xs font-semibold">Image Archive Only (Recommended)</p>
+                <p className="text-[11px] mt-0.5">Saves source images to patient record without parser output.</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMode('ai')}
+                className={clsx(
+                  'rounded-lg border px-3 py-2 text-left transition-colors',
+                  uploadMode === 'ai'
+                    ? 'border-blue-300 bg-blue-50 text-blue-700'
+                    : 'border-ward-border bg-ward-card hover:border-slate-300'
+                )}
+              >
+                <p className="text-xs font-semibold">AI Parse (Beta)</p>
+                <p className="text-[11px] mt-0.5">Extracts values with strict quality filtering, then saves accepted rows.</p>
+              </button>
+            </div>
+          </div>
 
           {/* Drop zone — always visible so user can add more images */}
           <div
@@ -1048,7 +1219,7 @@ export default function LabAnalysisPage() {
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {files.length > 0
                 ? 'Click or drag to add additional lab images'
-                : 'or click to browse. Supports JPG, PNG (max 20MB each, auto-compressed)'}
+                : `or click to browse. Supports JPG, PNG (max 20MB each, auto-compressed)${uploadMode === 'ai' ? ' with OCR parsing' : ''}`}
             </p>
             <input
               ref={fileInputRef}
@@ -1120,7 +1291,13 @@ export default function LabAnalysisPage() {
                   iconLeft={!uploading ? <Upload size={16} /> : undefined}
                   className="w-full"
                 >
-                  {uploading ? 'Analyzing...' : `Upload & Analyze${files.length > 1 ? ` (${files.length})` : ''}`}
+                  {uploading
+                    ? uploadMode === 'ai'
+                      ? 'Uploading & Parsing...'
+                      : 'Saving Images...'
+                    : uploadMode === 'ai'
+                      ? `Upload & Parse${files.length > 1 ? ` (${files.length})` : ''}`
+                      : `Save Images${files.length > 1 ? ` (${files.length})` : ''}`}
                 </Button>
               </div>
 
@@ -1156,17 +1333,43 @@ export default function LabAnalysisPage() {
           )}
         </Card>
 
-        {/* AI Analysis */}
+        {/* Upload summary */}
         {aiAnalysis && (
-          <Card padding="md" className="border-blue-200 bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30">
+          <Card
+            padding="md"
+            className={clsx(
+              uploadMetrics?.mode === 'archive'
+                ? 'border-emerald-200 bg-gradient-to-br from-emerald-50/70 via-white to-emerald-50/40'
+                : 'border-blue-200 bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30'
+            )}
+          >
             <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg shrink-0">
-                <CheckCircle2 size={18} className="text-blue-600" />
+              <div
+                className={clsx(
+                  'p-2 rounded-lg shrink-0',
+                  uploadMetrics?.mode === 'archive' ? 'bg-emerald-100' : 'bg-blue-100'
+                )}
+              >
+                <CheckCircle2 size={18} className={uploadMetrics?.mode === 'archive' ? 'text-emerald-600' : 'text-blue-600'} />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">AI Analysis</h3>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Upload Summary</h3>
                 <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{aiAnalysis}</p>
-                {extractedSummary.total > 0 && (
+                {uploadMetrics && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <Badge variant="default" size="sm">{uploadMetrics.filesProcessed} file{uploadMetrics.filesProcessed !== 1 ? 's' : ''}</Badge>
+                    <Badge variant="info" size="sm">{uploadMetrics.panelsSaved} panel{uploadMetrics.panelsSaved !== 1 ? 's' : ''}</Badge>
+                    {uploadMetrics.mode === 'ai' && (
+                      <>
+                        <Badge variant="success" size="sm">{uploadMetrics.acceptedValues} accepted</Badge>
+                        {uploadMetrics.droppedValues > 0 && (
+                          <Badge variant="warning" size="sm">{uploadMetrics.droppedValues} filtered</Badge>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                {uploadMetrics?.mode === 'ai' && extractedSummary.total > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <Badge variant="default" size="sm">{extractedSummary.total} values</Badge>
                     <Badge variant="critical" size="sm">{extractedSummary.critical} critical</Badge>
@@ -1202,7 +1405,7 @@ export default function LabAnalysisPage() {
         {extractedResults && (
           <Card padding="md">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Extracted Lab Results</h2>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Parsed Lab Draft (Review Required)</h2>
               <div className="flex items-center gap-1.5">
                 <Badge variant="default" size="sm">{extractedSummary.total} shown</Badge>
                 {extractedSummary.critical > 0 && (
@@ -1210,6 +1413,9 @@ export default function LabAnalysisPage() {
                 )}
               </div>
             </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+              These values are OCR-assisted and should be clinically verified against the source image before decisions.
+            </p>
 
             {extractedDisplayRows.length === 0 ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
