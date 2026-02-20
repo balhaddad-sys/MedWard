@@ -737,7 +737,7 @@ export default function LabAnalysisPage() {
       case 'high': return 'text-amber-600';
       case 'critical_low': return 'text-red-600 font-bold';
       case 'critical_high': return 'text-red-600 font-bold';
-      default: return 'text-gray-600';
+      default: return 'text-slate-600 dark:text-slate-400';
     }
   }
 
@@ -751,17 +751,21 @@ export default function LabAnalysisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 sm:pb-6">
+    <div className="min-h-screen bg-ward-bg pb-20 sm:pb-6">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-ward-card border-b border-ward-border">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <div className="flex items-center gap-2">
-            <Beaker size={20} className="text-gray-400" />
-            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Lab Analysis</h1>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/40">
+              <Beaker size={18} className="text-primary-600 dark:text-primary-400" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 leading-none">Lab Analysis</h1>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Upload lab images for AI-powered extraction
+              </p>
+            </div>
           </div>
-          <p className="mt-0.5 text-xs sm:text-sm text-gray-500">
-            Upload lab images for AI-powered extraction
-          </p>
         </div>
       </div>
 
@@ -787,10 +791,10 @@ export default function LabAnalysisPage() {
           <Card padding="md">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-sm font-semibold text-gray-900">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                   {cleanPanelName(latestPatientPanel.panelName)}
                 </h2>
-                <p className="text-[10px] text-gray-400 mt-0.5">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                   {getTimestampMs(latestPatientPanel.collectedAt) > 0
                     ? format(new Date(getTimestampMs(latestPatientPanel.collectedAt)), 'MMM d, yyyy HH:mm')
                     : 'Unknown date'}
@@ -827,7 +831,7 @@ export default function LabAnalysisPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-xs sm:text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200 text-gray-500">
+                  <tr className="border-b border-ward-border text-slate-500 dark:text-slate-400">
                     <th className="text-left py-1.5 pr-2 font-medium">Test</th>
                     <th className="text-right py-1.5 px-2 font-medium">Result</th>
                     <th className="text-center py-1.5 px-1 font-medium w-10">Flag</th>
@@ -843,11 +847,11 @@ export default function LabAnalysisPage() {
                       return (
                         <tr
                           key={`${val.name}-${vi}`}
-                          className={clsx('border-b border-gray-50', isCritical && 'bg-red-50')}
+                          className={clsx('border-b border-ward-border', isCritical && 'bg-red-50 dark:bg-red-950/20')}
                         >
-                          <td className="py-1.5 pr-2 text-gray-800 font-medium">{val.name}</td>
+                          <td className="py-1.5 pr-2 text-slate-800 dark:text-slate-200 font-medium">{val.name}</td>
                           <td className={clsx('py-1.5 px-2 text-right tabular-nums font-semibold', getLabFlagColor(val.flag))}>
-                            {cleanLabValue(val.value)} <span className="font-normal text-gray-400">{val.unit}</span>
+                            {cleanLabValue(val.value)} <span className="font-normal text-slate-400 dark:text-slate-500">{val.unit}</span>
                           </td>
                           <td className="py-1.5 px-1 text-center">
                             {val.flag !== 'normal' && (
@@ -856,7 +860,7 @@ export default function LabAnalysisPage() {
                               </Badge>
                             )}
                           </td>
-                          <td className="py-1.5 pl-2 text-right text-gray-400 tabular-nums">
+                          <td className="py-1.5 pl-2 text-right text-slate-400 dark:text-slate-500 tabular-nums">
                             {val.referenceMin != null && val.referenceMax != null
                               ? `${val.referenceMin}–${val.referenceMax}`
                               : ''}
@@ -879,8 +883,8 @@ export default function LabAnalysisPage() {
                   <ImageIcon size={14} className="text-slate-600" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-900">Lab Image Archive</h2>
-                  <p className="text-[11px] text-slate-500">Saved to patient record</p>
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Lab Image Archive</h2>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Saved to patient record</p>
                 </div>
               </div>
               <Badge variant="default" size="sm">
@@ -895,7 +899,7 @@ export default function LabAnalysisPage() {
                   href={image.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="group rounded-lg border border-slate-200 overflow-hidden bg-white hover:border-primary-300 transition-colors"
+                  className="group rounded-lg border border-ward-border overflow-hidden bg-ward-card hover:border-primary-300 transition-colors"
                 >
                   <img
                     src={image.url}
@@ -920,9 +924,15 @@ export default function LabAnalysisPage() {
         {/* All-patients lab overview — shown when no patient selected */}
         {!selectedPatientId && (
           <div>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              All Patients — Recent Labs
-            </h2>
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                <Beaker size={12} className="text-slate-500 dark:text-slate-400" />
+              </div>
+              <h2 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                All Patients — Recent Labs
+              </h2>
+              <div className="flex-1 h-px bg-ward-border" />
+            </div>
             {allLabsLoading ? (
               <div className="py-8">
                 <Spinner size="md" label="Loading labs for all patients..." />
@@ -948,54 +958,63 @@ export default function LabAnalysisPage() {
                       key={patient.id}
                       type="button"
                       onClick={() => setSelectedPatientId(patient.id)}
-                      className="w-full text-left bg-white rounded-xl border border-gray-200 p-3 hover:border-primary-300 hover:bg-primary-50/30 transition-colors"
+                      className="group w-full text-left bg-ward-card rounded-xl border border-ward-border p-4 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-150"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100">
-                            <User size={14} className="text-gray-500" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {patient.lastName}, {patient.firstName}
-                            </p>
-                            <p className="text-[10px] text-gray-400">
-                              Bed {patient.bedNumber} &middot; {panelName} &middot;{' '}
-                              {latestDate > 0 ? format(new Date(latestDate), 'MMM d HH:mm') : 'Unknown'}
-                            </p>
-                          </div>
+                      <div className="flex items-start gap-3">
+                        {/* Patient avatar */}
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                          <User size={16} className="text-slate-500 dark:text-slate-400" />
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {criticalCount > 0 && (
-                            <Badge variant="critical" size="sm">{criticalCount} crit</Badge>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                                {patient.lastName}, {patient.firstName}
+                              </p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                Bed {patient.bedNumber} &middot; {panelName}
+                              </p>
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                                {latestDate > 0 ? format(new Date(latestDate), 'MMM d, HH:mm') : 'Unknown date'}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {criticalCount > 0 && (
+                                <Badge variant="critical" size="sm">{criticalCount} crit</Badge>
+                              )}
+                              {abnormalCount > 0 && criticalCount === 0 && (
+                                <Badge variant="warning" size="sm">{abnormalCount} abn</Badge>
+                              )}
+                              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
+                                {labs.length}
+                              </span>
+                              <ChevronRight size={14} className="text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors" />
+                            </div>
+                          </div>
+                          {topAbnormal.length > 0 && (
+                            <div className="flex gap-1.5 mt-2.5 overflow-x-auto scrollbar-none">
+                              {topAbnormal.map((v, i) => (
+                                <span
+                                  key={i}
+                                  className={clsx(
+                                    'text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0',
+                                    v.flag === 'critical_high' || v.flag === 'critical_low'
+                                      ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400'
+                                      : v.flag === 'high'
+                                      ? 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400'
+                                      : 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400',
+                                  )}
+                                >
+                                  {v.name}: {cleanLabValue(v.value)}{cleanLabValue(v.value) !== '--' && v.unit ? ` ${v.unit}` : ''}
+                                  {v.flag === 'high' || v.flag === 'critical_high' ? ' ↑' : ' ↓'}
+                                </span>
+                              ))}
+                            </div>
                           )}
-                          {abnormalCount > 0 && criticalCount === 0 && (
-                            <Badge variant="warning" size="sm">{abnormalCount} abn</Badge>
-                          )}
-                          <span className="text-xs text-gray-300">{labs.length} panel{labs.length !== 1 ? 's' : ''}</span>
-                          <ChevronRight size={14} className="text-gray-300" />
                         </div>
                       </div>
-                      {topAbnormal.length > 0 && (
-                        <div className="flex gap-1.5 mt-2 overflow-x-auto scrollbar-none">
-                          {topAbnormal.map((v, i) => (
-                            <span
-                              key={i}
-                              className={clsx(
-                                'text-[10px] font-medium px-1.5 py-0.5 rounded-full border whitespace-nowrap shrink-0',
-                                v.flag === 'critical_high' || v.flag === 'critical_low'
-                                  ? 'bg-red-50 border-red-200 text-red-700'
-                                  : v.flag === 'high'
-                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
-                                  : 'bg-blue-50 border-blue-200 text-blue-700',
-                              )}
-                            >
-                              {v.name}: {cleanLabValue(v.value)}{cleanLabValue(v.value) !== '--' && v.unit ? ` ${v.unit}` : ''}
-                              {v.flag === 'high' || v.flag === 'critical_high' ? ' ↑' : ' ↓'}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </button>
                   );
                 })}
@@ -1006,7 +1025,7 @@ export default function LabAnalysisPage() {
 
         {/* Upload zone */}
         <Card padding="md">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Upload Lab Image</h2>
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Upload Lab Image</h2>
 
           {/* Drop zone — always visible so user can add more images */}
           <div
@@ -1018,15 +1037,15 @@ export default function LabAnalysisPage() {
               'border-2 border-dashed rounded-xl text-center cursor-pointer transition-colors',
               files.length > 0 ? 'p-4' : 'p-8 sm:p-12',
               dragOver
-                ? 'border-blue-400 bg-blue-50'
-                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50',
+                ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/20'
+                : 'border-ward-border hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50',
             )}
           >
-            <Upload size={files.length > 0 ? 20 : 40} className="mx-auto text-gray-400 mb-2" />
-            <p className="text-sm font-medium text-gray-700">
+            <Upload size={files.length > 0 ? 20 : 40} className="mx-auto text-slate-400 dark:text-slate-500 mb-2" />
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {files.length > 0 ? 'Add more images' : 'Drag and drop lab images here'}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {files.length > 0
                 ? 'Click or drag to add additional lab images'
                 : 'or click to browse. Supports JPG, PNG (max 20MB each, auto-compressed)'}
@@ -1054,7 +1073,7 @@ export default function LabAnalysisPage() {
                     <img
                       src={src}
                       alt={`Lab image ${i + 1}`}
-                      className="h-28 w-auto rounded-lg border border-gray-200 object-cover"
+                      className="h-28 w-auto rounded-lg border border-ward-border object-cover"
                     />
                     <button
                       type="button"
@@ -1063,7 +1082,7 @@ export default function LabAnalysisPage() {
                     >
                       <X size={12} />
                     </button>
-                    <p className="text-[10px] text-gray-500 mt-1 text-center truncate max-w-[100px]">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 text-center truncate max-w-[100px]">
                       {files[i]?.name}
                     </p>
                   </div>
@@ -1073,10 +1092,10 @@ export default function LabAnalysisPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
                       {files.length} image{files.length > 1 ? 's' : ''} selected
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {(files.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB total
                     </p>
                     {compressionInfo && (
@@ -1089,7 +1108,7 @@ export default function LabAnalysisPage() {
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); clearFiles(); }}
-                    className="text-xs text-gray-400 hover:text-gray-600"
+                    className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                   >
                     Clear all
                   </button>
@@ -1114,9 +1133,9 @@ export default function LabAnalysisPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <Loader2 size={12} className="animate-spin text-blue-500" />
-                    <p className="text-xs text-gray-600">{uploadStep}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">{uploadStep}</p>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
                     <div
                       className="bg-blue-600 h-2 rounded-full transition-all duration-500"
                       style={{ width: `${uploadProgress}%` }}
@@ -1128,10 +1147,10 @@ export default function LabAnalysisPage() {
           )}
 
           {uploadError && (
-            <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
+            <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
               <div className="flex items-start gap-2">
                 <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />
-                <p className="text-sm text-red-700">{uploadError}</p>
+                <p className="text-sm text-red-700 dark:text-red-400">{uploadError}</p>
               </div>
             </div>
           )}
@@ -1145,8 +1164,8 @@ export default function LabAnalysisPage() {
                 <CheckCircle2 size={18} className="text-blue-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-gray-900">AI Analysis</h3>
-                <p className="text-sm text-gray-700 mt-1">{aiAnalysis}</p>
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">AI Analysis</h3>
+                <p className="text-sm text-slate-700 dark:text-slate-300 mt-1">{aiAnalysis}</p>
                 {extractedSummary.total > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <Badge variant="default" size="sm">{extractedSummary.total} values</Badge>
@@ -1183,7 +1202,7 @@ export default function LabAnalysisPage() {
         {extractedResults && (
           <Card padding="md">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <h2 className="text-sm font-semibold text-gray-900">Extracted Lab Results</h2>
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Extracted Lab Results</h2>
               <div className="flex items-center gap-1.5">
                 <Badge variant="default" size="sm">{extractedSummary.total} shown</Badge>
                 {extractedSummary.critical > 0 && (
@@ -1202,12 +1221,12 @@ export default function LabAnalysisPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 pr-4 text-xs font-medium text-gray-500">Test</th>
-                      <th className="text-right py-2 px-4 text-xs font-medium text-gray-500">Value</th>
-                      <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Unit</th>
-                      <th className="text-left py-2 px-4 text-xs font-medium text-gray-500">Reference</th>
-                      <th className="text-left py-2 pl-4 text-xs font-medium text-gray-500">Flag</th>
+                    <tr className="border-b border-ward-border">
+                      <th className="text-left py-2 pr-4 text-xs font-medium text-slate-500 dark:text-slate-400">Test</th>
+                      <th className="text-right py-2 px-4 text-xs font-medium text-slate-500 dark:text-slate-400">Value</th>
+                      <th className="text-left py-2 px-4 text-xs font-medium text-slate-500 dark:text-slate-400">Unit</th>
+                      <th className="text-left py-2 px-4 text-xs font-medium text-slate-500 dark:text-slate-400">Reference</th>
+                      <th className="text-left py-2 pl-4 text-xs font-medium text-slate-500 dark:text-slate-400">Flag</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1215,16 +1234,16 @@ export default function LabAnalysisPage() {
                       <tr
                         key={`${val.name}-${val.unit}-${vi}`}
                         className={clsx(
-                          'border-b border-gray-50',
-                          (val.flag === 'critical_low' || val.flag === 'critical_high') && 'bg-red-50',
+                          'border-b border-ward-border',
+                          (val.flag === 'critical_low' || val.flag === 'critical_high') && 'bg-red-50 dark:bg-red-950/20',
                         )}
                       >
-                        <td className="py-2 pr-4 font-medium text-gray-900">{val.name}</td>
+                        <td className="py-2 pr-4 font-medium text-slate-900 dark:text-slate-100">{val.name}</td>
                         <td className={clsx('py-2 px-4 text-right tabular-nums', getLabFlagColor(val.flag))}>
                           {val.displayValue}
                         </td>
-                        <td className="py-2 px-4 text-gray-500">{val.unit || '--'}</td>
-                        <td className="py-2 px-4 text-gray-500 text-xs">
+                        <td className="py-2 px-4 text-slate-500 dark:text-slate-400">{val.unit || '--'}</td>
+                        <td className="py-2 px-4 text-slate-500 dark:text-slate-400 text-xs">
                           {val.referenceMin !== undefined && val.referenceMax !== undefined
                             ? `${val.referenceMin} - ${val.referenceMax}`
                             : 'N/A'}
@@ -1246,9 +1265,12 @@ export default function LabAnalysisPage() {
         {/* Historical lab panels */}
         {selectedPatientId && (
           <div>
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              Historical Lab Panels
-            </h2>
+            <div className="flex items-center gap-2.5 mb-3">
+              <h2 className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">
+                Historical Lab Panels
+              </h2>
+              <div className="flex-1 h-px bg-ward-border" />
+            </div>
             {labsLoading ? (
               <div className="py-8">
                 <Spinner size="md" label="Loading lab history..." />
@@ -1275,7 +1297,7 @@ export default function LabAnalysisPage() {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-sm font-semibold text-gray-900">{cleanPanelName(panel.panelName)}</h3>
+                          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{cleanPanelName(panel.panelName)}</h3>
                           <Badge variant="default" size="sm">{panel.category}</Badge>
                           {hasCritical && (
                             <Badge variant="critical" size="sm">
@@ -1291,7 +1313,7 @@ export default function LabAnalysisPage() {
                           {panel.status}
                         </Badge>
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         Collected:{' '}
                         {panel.collectedAt && typeof panel.collectedAt === 'object' && 'toDate' in panel.collectedAt
                           ? format(panel.collectedAt.toDate(), 'MMM d, yyyy HH:mm')
@@ -1319,19 +1341,19 @@ export default function LabAnalysisPage() {
                               className={clsx(
                                 'text-xs px-2 py-1 rounded-md border',
                                 val.flag === 'normal'
-                                  ? 'bg-gray-50 border-gray-200 text-gray-600'
+                                  ? 'bg-slate-50 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
                                   : val.flag.startsWith('critical')
-                                  ? 'bg-red-50 border-red-200 text-red-700'
+                                  ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400'
                                   : val.flag === 'high'
-                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
-                                  : 'bg-blue-50 border-blue-200 text-blue-700',
+                                  ? 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400'
+                                  : 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400',
                               )}
                             >
                               {val.name}: {cleanLabValue(val.value)}{cleanLabValue(val.value) !== '--' && val.unit ? ` ${val.unit}` : ''}
                             </span>
                           ))}
                           {panel.values.length > 6 && (
-                            <span className="text-xs text-gray-400 self-center">
+                            <span className="text-xs text-slate-400 dark:text-slate-500 self-center">
                               +{panel.values.length - 6} more
                             </span>
                           )}

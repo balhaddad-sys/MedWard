@@ -52,19 +52,27 @@ const sortOptions = [
 type SortKey = typeof sortOptions[number]['value'];
 
 const ACUITY_BORDER: Record<1 | 2 | 3 | 4 | 5, string> = {
-  1: 'border-l-4 border-l-red-500',
-  2: 'border-l-4 border-l-orange-400',
-  3: 'border-l-4 border-l-yellow-400',
-  4: 'border-l-4 border-l-emerald-400',
-  5: 'border-l-4 border-l-blue-400',
+  1: 'border-l-[3px] border-l-red-500',
+  2: 'border-l-[3px] border-l-orange-400',
+  3: 'border-l-[3px] border-l-yellow-400',
+  4: 'border-l-[3px] border-l-emerald-400',
+  5: 'border-l-[3px] border-l-blue-400',
 };
 
 const ACUITY_BG: Record<1 | 2 | 3 | 4 | 5, string> = {
-  1: 'bg-red-50/60',
-  2: 'bg-orange-50/60',
+  1: 'bg-red-50/50 dark:bg-red-950/20',
+  2: 'bg-orange-50/50 dark:bg-orange-950/20',
   3: '',
   4: '',
   5: '',
+};
+
+const ACUITY_CIRCLE: Record<1 | 2 | 3 | 4 | 5, string> = {
+  1: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400',
+  2: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400',
+  3: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-500',
+  4: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400',
+  5: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400',
 };
 
 const initialFormData: PatientFormData = {
@@ -173,7 +181,6 @@ export default function PatientListPage() {
       list.push(p);
       groups.set(ward, list);
     }
-    // Sort: named wards alphabetically first, "Unassigned" last
     const entries = [...groups.entries()].sort((a, b) => {
       if (a[0] === 'Unassigned') return 1;
       if (b[0] === 'Unassigned') return -1;
@@ -182,7 +189,6 @@ export default function PatientListPage() {
     return entries;
   }, [sortedPatients]);
 
-  // All unique ward names for filter
   const allWards = useMemo(() => {
     const set = new Set<string>();
     for (const p of patients) {
@@ -193,13 +199,11 @@ export default function PatientListPage() {
 
   const [filterWard, setFilterWard] = useState<string | null>(null);
 
-  // Apply ward filter on top of sorted patients
   const displayGroups = useMemo(() => {
     if (!filterWard) return wardGroups;
     return wardGroups.filter(([ward]) => ward === filterWard);
   }, [wardGroups, filterWard]);
 
-  // Derived stats
   const criticalCount = patients.filter((p) => p.acuity === 1).length;
   const acuteCount = patients.filter((p) => p.acuity === 2).length;
 
@@ -281,14 +285,15 @@ export default function PatientListPage() {
     return (
       <div className="space-y-2">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse">
+          <div key={i} className="bg-ward-card rounded-xl border border-ward-border p-4 animate-pulse">
             <div className="flex items-center gap-4">
-              <div className="w-8 h-8 bg-gray-200 rounded-full shrink-0" />
+              <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full shrink-0" />
               <div className="flex-1 space-y-2">
-                <div className="w-48 h-4 bg-gray-200 rounded" />
-                <div className="w-64 h-3 bg-gray-200 rounded" />
+                <div className="w-40 h-4 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+                <div className="w-56 h-3 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+                <div className="w-64 h-3 bg-slate-200 dark:bg-slate-700 rounded-lg" />
               </div>
-              <div className="w-16 h-5 bg-gray-200 rounded-full" />
+              <div className="w-16 h-6 bg-slate-200 dark:bg-slate-700 rounded-full" />
             </div>
           </div>
         ))}
@@ -303,44 +308,55 @@ export default function PatientListPage() {
         <button
           type="button"
           onClick={() => navigate('/tasks')}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors"
+          className="w-full flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-400 text-sm font-medium hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
         >
-          <AlertTriangle size={15} className="text-amber-500 shrink-0" />
+          <AlertTriangle size={16} className="text-amber-500 shrink-0" />
           <span>{overdueTaskCount} overdue task{overdueTaskCount !== 1 ? 's' : ''} need attention</span>
           <ArrowRight size={14} className="ml-auto text-amber-400 shrink-0" />
         </button>
       )}
 
       {/* ---- Header ---- */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Users size={20} className="text-gray-400" />
-            <h1 className="text-xl font-bold text-gray-900">Patients</h1>
-            <Badge variant="default" size="sm">{patients.length}</Badge>
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-100 dark:bg-primary-900/40">
+              <Users size={18} className="text-primary-600 dark:text-primary-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-none">
+                Patients
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {patients.length} total
+                {(criticalCount + acuteCount) > 0 && (
+                  <>
+                    {' · '}
+                    <span className="text-red-600 dark:text-red-400 font-medium">{criticalCount} critical</span>
+                    {acuteCount > 0 && (
+                      <> · <span className="text-orange-500 dark:text-orange-400 font-medium">{acuteCount} acute</span></>
+                    )}
+                  </>
+                )}
+              </p>
+            </div>
           </div>
-          {(criticalCount + acuteCount) > 0 && (
-            <p className="text-sm text-gray-500">
-              <span className="text-red-600 font-medium">{criticalCount} critical</span>
-              {acuteCount > 0 && <> · <span className="text-orange-500 font-medium">{acuteCount} acute</span></>}
-              {' '}requiring close monitoring
-            </p>
-          )}
         </div>
         <Button
           size="sm"
           onClick={() => setShowAddModal(true)}
           iconLeft={<Plus size={14} />}
+          className="shrink-0"
         >
           Add Patient
         </Button>
       </div>
 
       {/* ---- Search + filters row ---- */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-2.5">
         {/* Search */}
         <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
             placeholder="Search by name, MRN, or bed..."
@@ -348,16 +364,16 @@ export default function PatientListPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className={clsx(
               'w-full h-10 pl-9 pr-9 rounded-xl text-sm',
-              'bg-white border border-gray-300',
+              'bg-ward-card border border-ward-border',
+              'text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500',
               'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
-              'placeholder:text-gray-400',
             )}
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
             >
               <X size={15} />
             </button>
@@ -365,8 +381,8 @@ export default function PatientListPage() {
         </div>
 
         {/* Sort */}
-        <div className="flex items-center gap-1.5">
-          <SortAsc size={14} className="text-gray-400 shrink-0" />
+        <div className="flex items-center gap-1.5 shrink-0">
+          <SortAsc size={14} className="text-slate-400 dark:text-slate-500 shrink-0" />
           <div className="flex gap-1">
             {sortOptions.map((opt) => (
               <button
@@ -374,10 +390,10 @@ export default function PatientListPage() {
                 type="button"
                 onClick={() => setSortKey(opt.value)}
                 className={clsx(
-                  'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
                   sortKey === opt.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'bg-ward-card text-slate-600 dark:text-slate-400 border border-ward-border hover:bg-slate-50 dark:hover:bg-slate-800',
                 )}
               >
                 {opt.label}
@@ -389,21 +405,21 @@ export default function PatientListPage() {
 
       {/* ---- Acuity filter chips ---- */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Filter size={13} className="text-gray-400 shrink-0" />
+        <Filter size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />
         {acuityFilters.map((filter) => (
           <button
             key={filter.label}
             type="button"
             onClick={() => setFilterAcuity(filter.value)}
             className={clsx(
-              'px-3 py-1 rounded-full text-xs font-medium transition-colors',
+              'px-3 py-1.5 rounded-full text-xs font-medium transition-colors',
               filterAcuity === filter.value
                 ? filter.value === 1
-                  ? 'bg-red-600 text-white'
+                  ? 'bg-red-600 text-white shadow-sm'
                   : filter.value === 2
-                  ? 'bg-orange-500 text-white'
-                  : 'bg-blue-600 text-white'
-                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'bg-primary-600 text-white shadow-sm'
+                : 'bg-ward-card text-slate-600 dark:text-slate-400 border border-ward-border hover:bg-slate-50 dark:hover:bg-slate-800',
             )}
           >
             {filter.label}
@@ -419,15 +435,15 @@ export default function PatientListPage() {
       {/* ---- Ward filter chips ---- */}
       {allWards.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <Building2 size={13} className="text-gray-400 shrink-0" />
+          <Building2 size={13} className="text-slate-400 dark:text-slate-500 shrink-0" />
           <button
             type="button"
             onClick={() => setFilterWard(null)}
             className={clsx(
-              'px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
+              'px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
               filterWard === null
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+                ? 'bg-primary-600 text-white shadow-sm'
+                : 'bg-ward-card text-slate-600 dark:text-slate-400 border border-ward-border hover:bg-slate-50 dark:hover:bg-slate-800',
             )}
           >
             All Wards
@@ -438,10 +454,10 @@ export default function PatientListPage() {
               type="button"
               onClick={() => setFilterWard(filterWard === ward ? null : ward)}
               className={clsx(
-                'px-2.5 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
+                'px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap shrink-0',
                 filterWard === ward
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'bg-ward-card text-slate-600 dark:text-slate-400 border border-ward-border hover:bg-slate-50 dark:hover:bg-slate-800',
               )}
             >
               {ward}
@@ -473,126 +489,119 @@ export default function PatientListPage() {
           />
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {displayGroups.map(([wardName, wardPatients]) => (
             <div key={wardName}>
               {/* Ward section header */}
               {(displayGroups.length > 1 || wardName !== 'Unassigned') && (
-                <div className="flex items-center gap-2 mb-1.5 px-1">
-                  <Building2 size={13} className="text-gray-400 shrink-0" />
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <div className="flex items-center gap-2.5 mb-2 px-1">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                    <Building2 size={12} className="text-slate-500 dark:text-slate-400" />
+                  </div>
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest">
                     {wardName}
                   </span>
-                  <span className="text-[10px] text-gray-400">({wardPatients.length})</span>
-                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-full">
+                    {wardPatients.length}
+                  </span>
+                  <div className="flex-1 h-px bg-ward-border" />
                 </div>
               )}
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {wardPatients.map((patient) => (
                   <div
                     key={patient.id}
                     onClick={() => navigate(`/patients/${patient.id}`)}
                     className={clsx(
-                      'flex items-center gap-2 sm:gap-3 px-3 sm:px-4 rounded-xl',
-                      'bg-white border border-gray-200 cursor-pointer',
-                      'hover:shadow-sm transition-all duration-150',
+                      'group rounded-xl border cursor-pointer',
+                      'bg-ward-card border-ward-border',
+                      'hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600',
+                      'transition-all duration-150',
                       ACUITY_BORDER[patient.acuity],
                       ACUITY_BG[patient.acuity],
-                      compactView ? 'py-1.5' : 'py-3',
+                      compactView ? 'px-3 py-2.5' : 'px-4 py-3.5',
                     )}
                   >
-                    {/* Acuity number circle */}
-                    <div className={clsx(
-                      'shrink-0 items-center justify-center rounded-full font-bold flex',
-                      compactView ? 'h-6 w-6 text-[10px]' : 'h-8 w-8 sm:h-9 sm:w-9 text-xs sm:text-sm',
-                      patient.acuity === 1 ? 'bg-red-100 text-red-700' :
-                      patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
-                      patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
-                      patient.acuity === 4 ? 'bg-emerald-100 text-emerald-700' :
-                      'bg-blue-100 text-blue-700',
-                    )}>
-                      {patient.acuity}
-                    </div>
-
-                    {/* Bed badge */}
-                    <div className={clsx(
-                      'shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200 flex',
-                      compactView ? 'h-6 w-9' : 'h-8 w-11 sm:h-9 sm:w-14',
-                    )}>
-                      <div className="text-center">
-                        {!compactView && <BedDouble size={11} className="mx-auto text-slate-400 hidden sm:block" />}
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-700 leading-none">{patient.bedNumber}</p>
-                      </div>
-                    </div>
-
-                    {/* Patient info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-                        <p className={clsx(
-                          'font-semibold text-gray-900 truncate max-w-[120px] sm:max-w-none',
-                          compactView ? 'text-xs' : 'text-xs sm:text-sm',
+                    <div className="flex items-center gap-3">
+                      {/* Acuity + Bed column */}
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <div className={clsx(
+                          'flex items-center justify-center rounded-full font-bold tabular-nums',
+                          compactView ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm',
+                          ACUITY_CIRCLE[patient.acuity],
                         )}>
-                          {patient.lastName}, {patient.firstName}
-                        </p>
-                        {patient.dateOfBirth && (
-                          <span className="text-[10px] sm:text-xs text-gray-400 shrink-0">{calculateAge(patient.dateOfBirth)}</span>
-                        )}
-                        {patient.gender && (
-                          <span className="text-[10px] sm:text-xs text-gray-400">{patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}</span>
-                        )}
-                        {patient.allergies && patient.allergies.length > 0 && (
-                          <div title={`Allergies: ${patient.allergies.join(', ')}`} className="sm:hidden">
-                            <ShieldAlert size={12} className="text-red-500" />
+                          {patient.acuity}
+                        </div>
+                        <div className={clsx(
+                          'rounded-md text-center font-bold leading-none',
+                          'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+                          compactView ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-1 text-[10px]',
+                        )}>
+                          <BedDouble size={compactView ? 8 : 10} className="mx-auto mb-0.5 opacity-60" />
+                          {patient.bedNumber}
+                        </div>
+                      </div>
+
+                      {/* Main content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          {/* Left: name + meta + diagnosis */}
+                          <div className="min-w-0 flex-1">
+                            <p className={clsx(
+                              'font-bold text-slate-900 dark:text-slate-100 truncate',
+                              compactView ? 'text-sm' : 'text-[15px] leading-snug',
+                            )}>
+                              {patient.lastName}, {patient.firstName}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              {[
+                                patient.dateOfBirth ? calculateAge(patient.dateOfBirth) : null,
+                                patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O',
+                                patient.mrn ? `MR${patient.mrn}` : null,
+                              ].filter(Boolean).join(' · ')}
+                            </p>
+                            {!compactView && patient.primaryDiagnosis && (
+                              <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 truncate italic">
+                                {patient.primaryDiagnosis}
+                              </p>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      {!compactView && (
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <p className="text-[10px] sm:text-xs text-gray-500 truncate">
-                            MR{patient.mrn}
-                            {' · '}
-                            {patient.primaryDiagnosis}
-                          </p>
-                        </div>
-                      )}
-                      {!compactView && patient.state && (
-                        <div className="mt-1 sm:hidden">
-                          <Badge variant={getStateVariant(patient.state)} size="sm">
-                            {STATE_METADATA[patient.state]?.label || patient.state}
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Right side */}
-                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                      {patient.allergies && patient.allergies.length > 0 && (
-                        <div title={`Allergies: ${patient.allergies.join(', ')}`} className="hidden sm:block">
-                          <ShieldAlert size={14} className="text-red-500" />
+                          {/* Right: badges + arrow */}
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <div className="flex items-center gap-1.5">
+                              {patient.allergies && patient.allergies.length > 0 && (
+                                <div title={`Allergies: ${patient.allergies.join(', ')}`}>
+                                  <ShieldAlert size={13} className="text-red-500" />
+                                </div>
+                              )}
+                              {patient.codeStatus && patient.codeStatus !== 'full' && (
+                                <span className={clsx(
+                                  'text-[10px] font-bold px-1.5 py-0.5 rounded border',
+                                  patient.codeStatus === 'comfort'
+                                    ? 'text-purple-700 bg-purple-50 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800'
+                                    : 'text-red-700 bg-red-50 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
+                                )}>
+                                  {patient.codeStatus === 'comfort' ? 'CMF' : patient.codeStatus.toUpperCase()}
+                                </span>
+                              )}
+                              <Badge variant={getAcuityVariant(patient.acuity)} size="sm">
+                                {ACUITY_LEVELS[patient.acuity].label}
+                              </Badge>
+                              <ArrowRight
+                                size={15}
+                                className="text-slate-300 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors"
+                              />
+                            </div>
+                            {!compactView && patient.state && (
+                              <Badge variant={getStateVariant(patient.state)} size="sm">
+                                {STATE_METADATA[patient.state]?.label || patient.state}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      )}
-                      {patient.codeStatus && patient.codeStatus !== 'full' && (
-                        <span className={clsx(
-                          'text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded border',
-                          patient.codeStatus === 'comfort'
-                            ? 'text-purple-700 bg-purple-50 border-purple-200'
-                            : 'text-red-700 bg-red-50 border-red-200',
-                        )}>
-                          {patient.codeStatus === 'comfort' ? 'CMF' : patient.codeStatus.toUpperCase()}
-                        </span>
-                      )}
-                      {!compactView && patient.state && (
-                        <span className="hidden sm:inline-flex">
-                          <Badge variant={getStateVariant(patient.state)} size="sm">
-                            {STATE_METADATA[patient.state]?.label || patient.state}
-                          </Badge>
-                        </span>
-                      )}
-                      <Badge variant={getAcuityVariant(patient.acuity)} size="sm">
-                        {ACUITY_LEVELS[patient.acuity].label}
-                      </Badge>
-                      <ArrowRight size={14} className="text-gray-400 hidden sm:block" />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -608,10 +617,10 @@ export default function PatientListPage() {
         onClick={() => setShowAddModal(true)}
         className={clsx(
           'fixed bottom-20 right-6 w-14 h-14 rounded-full shadow-lg',
-          'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
+          'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
           'flex items-center justify-center',
           'transition-all duration-200 active:scale-95',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
           'z-40 sm:hidden',
         )}
         aria-label="Add patient"
@@ -632,8 +641,8 @@ export default function PatientListPage() {
       >
         <form onSubmit={handleAddPatient} className="space-y-5">
           {formErrors.general && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200">
-              <p className="text-sm text-red-700">{formErrors.general}</p>
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-700 dark:text-red-400">{formErrors.general}</p>
             </div>
           )}
 
@@ -727,7 +736,7 @@ export default function PatientListPage() {
 
           {/* Additional diagnoses */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-gray-700">Additional Diagnoses</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Additional Diagnoses</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -735,16 +744,16 @@ export default function PatientListPage() {
                 onChange={(e) => setDiagnosisInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDiagnosis(); } }}
                 placeholder="Type and press Enter"
-                className="flex-1 h-10 px-3 rounded-lg text-sm bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                className="flex-1 h-10 px-3 rounded-lg text-sm bg-ward-card border border-ward-border text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               />
               <Button type="button" variant="secondary" size="sm" onClick={addDiagnosis}>Add</Button>
             </div>
             {formData.diagnoses.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {formData.diagnoses.map((d, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                  <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-full">
                     {d}
-                    <button type="button" onClick={() => removeDiagnosis(i)} className="hover:text-red-600">
+                    <button type="button" onClick={() => removeDiagnosis(i)} className="hover:text-red-600 dark:hover:text-red-400">
                       <X size={12} />
                     </button>
                   </span>
@@ -757,8 +766,8 @@ export default function PatientListPage() {
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5">
               <ShieldAlert size={14} className="text-red-500" />
-              <label className="block text-sm font-medium text-red-700">Allergies</label>
-              <span className="text-xs text-gray-400">(important for patient safety)</span>
+              <label className="block text-sm font-medium text-red-700 dark:text-red-400">Allergies</label>
+              <span className="text-xs text-slate-400 dark:text-slate-500">(important for patient safety)</span>
             </div>
             <div className="flex gap-2">
               <input
@@ -767,17 +776,17 @@ export default function PatientListPage() {
                 onChange={(e) => setAllergyInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAllergy(); } }}
                 placeholder="Drug / substance allergy"
-                className="flex-1 h-10 px-3 rounded-lg text-sm bg-white border border-red-200 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400"
+                className="flex-1 h-10 px-3 rounded-lg text-sm bg-ward-card border border-red-200 dark:border-red-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400"
               />
               <Button type="button" variant="secondary" size="sm" onClick={addAllergy}>Add</Button>
             </div>
             {formData.allergies.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {formData.allergies.map((a, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 border border-red-200 text-xs rounded-full font-medium">
+                  <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 text-xs rounded-full font-medium">
                     <ShieldAlert size={10} />
                     {a}
-                    <button type="button" onClick={() => removeAllergy(i)} className="hover:text-red-900 ml-0.5">
+                    <button type="button" onClick={() => removeAllergy(i)} className="hover:text-red-900 dark:hover:text-red-300 ml-0.5">
                       <X size={10} />
                     </button>
                   </span>
@@ -785,7 +794,7 @@ export default function PatientListPage() {
               </div>
             )}
             {formData.allergies.length === 0 && (
-              <p className="text-xs text-emerald-600 font-medium">NKDA — No known drug allergies</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">NKDA — No known drug allergies</p>
             )}
           </div>
 
@@ -803,7 +812,7 @@ export default function PatientListPage() {
                 <option value="comfort">Comfort Care Only</option>
               </Select>
               {formData.codeStatus !== 'full' && (
-                <div className="mt-1 flex items-center gap-1 text-xs text-red-600">
+                <div className="mt-1 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
                   <Heart size={11} />
                   <span className="font-medium">Non-standard code status — verify with patient/NOK</span>
                 </div>
@@ -831,7 +840,7 @@ export default function PatientListPage() {
             placeholder="Admission notes, important background..."
           />
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+          <div className="flex justify-end gap-3 pt-2 border-t border-ward-border">
             <Button
               type="button"
               variant="secondary"
