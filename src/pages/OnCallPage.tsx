@@ -3,7 +3,7 @@
  * 4 tabs: Jobs Queue · Patients · Reference (calculators/protocols/drugs) · Handover
  */
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
@@ -18,7 +18,6 @@ import {
   ChevronUp,
   Clock,
   Check,
-  Loader2,
   Copy,
   CheckCheck,
   Search,
@@ -35,7 +34,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Spinner } from '@/components/ui/Spinner'
-import { Input, Textarea, Select } from '@/components/ui/Input'
+import { Input, Textarea } from '@/components/ui/Input'
 import { useAuthStore } from '@/stores/authStore'
 import { usePatientStore } from '@/stores/patientStore'
 import { subscribeToOnCallList } from '@/services/firebase/onCallList'
