@@ -27,7 +27,8 @@ interface SBARResult {
 }
 
 export default function HandoverPage() {
-  const patients = usePatientStore((s) => s.patients);
+  const allPatients = usePatientStore((s) => s.patients);
+  const patients = allPatients.filter((p) => p.state !== 'discharged');
 
   const [sbarResults, setSbarResults] = useState<Record<string, SBARResult>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
@@ -36,7 +37,7 @@ export default function HandoverPage() {
   const [fullHandover, setFullHandover] = useState<string | null>(null);
   const [fullHandoverCopied, setFullHandoverCopied] = useState(false);
 
-  // Group patients by acuity
+  // Group patients by acuity (discharged already excluded above)
   const patientsByAcuity = useMemo(() => {
     const groups: Record<number, Patient[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
     patients.forEach((p) => {
