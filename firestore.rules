@@ -265,6 +265,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // On-Call Jobs collection (per-user job queue for on-call doctors)
+    match /on_call_jobs/{jobId} {
+      allow read: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+      allow create: if isAuthenticated()
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.resource.data.keys().hasAll(['patientName', 'ward', 'reason', 'priority', 'status', 'createdBy'])
+                    && isValidString(request.resource.data.patientName, 200)
+                    && isValidString(request.resource.data.ward, 100)
+                    && isValidString(request.resource.data.reason, 2000)
+                    && request.resource.data.priority in ['critical', 'urgent', 'routine']
+                    && request.resource.data.status in ['pending', 'in_progress', 'done', 'handed_over'];
+      allow update: if isAuthenticated()
+                    && resource.data.createdBy == request.auth.uid
+                    && request.resource.data.status in ['pending', 'in_progress', 'done', 'handed_over'];
+      allow delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
     // Deny access to any other collections
     match /{document=**} {
       allow read, write: if false;

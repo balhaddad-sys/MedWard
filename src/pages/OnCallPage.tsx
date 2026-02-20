@@ -420,6 +420,7 @@ function JobsTab({ userId }: { userId: string }) {
   const [showDone, setShowDone] = useState(false)
 
   useEffect(() => {
+    if (!userId) { setLoading(false); return }
     const unsub = subscribeToOnCallJobs(userId, (data) => {
       setJobs(data)
       setLoading(false)
@@ -509,7 +510,8 @@ function PatientsTab() {
     [onCallEntries],
   )
 
-  const unstablePatients = usePatientStore((s) => s.getUnstablePatients())
+  // Use useMemo instead of store selector to avoid new array ref on every Zustand update (causes render loop)
+  const unstablePatients = useMemo(() => patients.filter((p) => p.state === 'unstable'), [patients])
 
   function getPriorityVariant(p: Priority) {
     return p === 'critical' ? 'critical' : p === 'high' ? 'warning' : 'default'
@@ -1397,6 +1399,7 @@ function HandoverTab({ userId }: { userId: string }) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
+    if (!userId) return
     const unsubJobs = subscribeToOnCallJobs(userId, setJobs)
     const unsubList = subscribeToOnCallList(setEntries)
     return () => { unsubJobs(); unsubList() }
