@@ -44,7 +44,7 @@ function Tabs({ items, activeId, onChange, className }: TabsProps) {
       ref={containerRef}
       role="tablist"
       className={clsx(
-        'relative flex items-center gap-1 border-b border-gray-200 overflow-x-auto',
+        'relative flex items-center gap-1 border-b border-slate-200 overflow-x-auto',
         className,
       )}
     >
@@ -65,7 +65,7 @@ function Tabs({ items, activeId, onChange, className }: TabsProps) {
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:rounded',
               isActive
                 ? 'text-blue-600'
-                : 'text-gray-500 hover:text-gray-700',
+                : 'text-slate-500 hover:text-slate-700',
             )}
           >
             {item.icon && <span className="shrink-0">{item.icon}</span>}

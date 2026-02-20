@@ -165,7 +165,7 @@ export default function MobileNav() {
                   'flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium transition-all duration-150',
                   isActive
                     ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/30 dark:text-primary-400'
-                    : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300',
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300',
                 ].join(' ')
               }
             >

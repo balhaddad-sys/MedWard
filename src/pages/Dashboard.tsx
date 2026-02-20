@@ -102,10 +102,10 @@ export default function Dashboard() {
   const quickActions = useMemo(() => {
     const baseActions = [
       { label: 'Add Patient', icon: Plus, path: '/patients', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
-      { label: 'Lab Analysis', icon: Beaker, path: '/labs', color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300' },
-      { label: 'Drug Info', icon: Pill, path: '/drugs', color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300' },
-      { label: 'AI Assistant', icon: Stethoscope, path: '/ai', color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300' },
-      { label: 'Handover', icon: FileText, path: '/handover', color: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300' },
+      { label: 'Lab Analysis', icon: Beaker, path: '/labs', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300' },
+      { label: 'Drug Info', icon: Pill, path: '/drugs', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300' },
+      { label: 'AI Assistant', icon: Stethoscope, path: '/ai', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300' },
+      { label: 'Handover', icon: FileText, path: '/handover', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300' },
     ];
 
     if (mode === 'acute') {
@@ -181,12 +181,12 @@ export default function Dashboard() {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <LayoutDashboard size={20} className="text-gray-400" />
-            <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+            <LayoutDashboard size={20} className="text-slate-400" />
+            <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-slate-500">
             {greeting}{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.&ensp;
-            <span className="font-medium text-gray-700">{modeConfig.label} Mode</span>
+            <span className="font-medium text-slate-700">{modeConfig.label} Mode</span>
             &ensp;&mdash;&ensp;{modeConfig.description}
           </p>
         </div>
@@ -250,15 +250,15 @@ export default function Dashboard() {
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500">Total Patients</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">{stats.totalPatients}</p>
+              <p className="text-xs font-medium text-slate-500">Total Patients</p>
+              <p className="mt-1 text-3xl font-bold text-slate-900">{stats.totalPatients}</p>
             </div>
             <div className="p-2.5 rounded-xl bg-blue-50">
               <Users size={20} className="text-blue-600" />
             </div>
           </div>
           {stats.totalPatients > 0 && (
-            <div className="mt-3 flex items-center gap-1 text-xs text-gray-500">
+            <div className="mt-3 flex items-center gap-1 text-xs text-slate-500">
               <span className="text-red-600 font-medium">{stats.criticalPatients} critical</span>
               <span>·</span>
               <span className="text-orange-500 font-medium">{stats.acutePatients} acute</span>
@@ -277,10 +277,10 @@ export default function Dashboard() {
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500">Critical / Acute</p>
+              <p className="text-xs font-medium text-slate-500">Critical / Acute</p>
               <p className={clsx(
                 'mt-1 text-3xl font-bold',
-                stats.criticalPatients > 0 ? 'text-red-600' : 'text-gray-900',
+                stats.criticalPatients > 0 ? 'text-red-600' : 'text-slate-900',
               )}>
                 {stats.criticalPatients + stats.acutePatients}
               </p>
@@ -314,8 +314,8 @@ export default function Dashboard() {
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500">Active Tasks</p>
-              <p className="mt-1 text-3xl font-bold text-gray-900">{stats.pendingTasks}</p>
+              <p className="text-xs font-medium text-slate-500">Active Tasks</p>
+              <p className="mt-1 text-3xl font-bold text-slate-900">{stats.pendingTasks}</p>
             </div>
             <div className="p-2.5 rounded-xl bg-amber-50">
               <ClipboardList size={20} className="text-amber-600" />
@@ -328,7 +328,7 @@ export default function Dashboard() {
             </div>
           )}
           {stats.criticalTasks === 0 && stats.pendingTasks > 0 && (
-            <div className="mt-3 text-xs text-gray-400">No critical tasks</div>
+            <div className="mt-3 text-xs text-slate-400">No critical tasks</div>
           )}
         </Card>
 
@@ -341,16 +341,16 @@ export default function Dashboard() {
         >
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-500">Overdue Tasks</p>
+              <p className="text-xs font-medium text-slate-500">Overdue Tasks</p>
               <p className={clsx(
                 'mt-1 text-3xl font-bold',
-                stats.overdueTasks > 0 ? 'text-orange-600' : 'text-gray-900',
+                stats.overdueTasks > 0 ? 'text-orange-600' : 'text-slate-900',
               )}>
                 {stats.overdueTasks}
               </p>
             </div>
-            <div className={clsx('p-2.5 rounded-xl', stats.overdueTasks > 0 ? 'bg-orange-50' : 'bg-gray-50')}>
-              <Clock size={20} className={stats.overdueTasks > 0 ? 'text-orange-600' : 'text-gray-400'} />
+            <div className={clsx('p-2.5 rounded-xl', stats.overdueTasks > 0 ? 'bg-orange-50' : 'bg-slate-50')}>
+              <Clock size={20} className={stats.overdueTasks > 0 ? 'text-orange-600' : 'text-slate-400'} />
             </div>
           </div>
           {stats.overdueTasks === 0 ? (
@@ -375,8 +375,8 @@ export default function Dashboard() {
                 <Activity size={20} className="text-red-600" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">On-Call Shift View</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-semibold text-slate-900">On-Call Shift View</p>
+                <p className="text-sm text-slate-500">
                   Unstable patients, overdue tasks, and critical labs at a glance
                 </p>
               </div>
@@ -395,7 +395,7 @@ export default function Dashboard() {
 
       {/* ---- Quick actions ---- */}
       <div>
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
           Quick Actions
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -425,7 +425,7 @@ export default function Dashboard() {
         {/* Patient list */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               {mode === 'ward' ? 'Your Patients' : 'Patients by Acuity'}
             </h2>
             <Button
@@ -464,7 +464,7 @@ export default function Dashboard() {
                   onClick={() => navigate(`/patients/${patient.id}`)}
                   className={clsx(
                     'flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl',
-                    'bg-white border border-gray-200 cursor-pointer',
+                    'bg-white border border-slate-200 cursor-pointer',
                     'hover:shadow-sm transition-all duration-150',
                     ACUITY_BORDER[patient.acuity],
                     ACUITY_BG[patient.acuity],
@@ -485,16 +485,16 @@ export default function Dashboard() {
 
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
                           {patient.lastName}, {patient.firstName}
                         </p>
                         {patient.dateOfBirth && (
-                          <span className="text-xs text-gray-400 shrink-0">
+                          <span className="text-xs text-slate-400 shrink-0">
                             {calculateAge(patient.dateOfBirth)}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-slate-500">
                         Bed <span className="font-medium">{patient.bedNumber}</span>
                         {' '}·{' '}
                         <span className="truncate">{patient.primaryDiagnosis}</span>
@@ -521,7 +521,7 @@ export default function Dashboard() {
         {/* Active tasks */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Active Tasks
             </h2>
             <Button
@@ -570,25 +570,25 @@ export default function Dashboard() {
                         ? 'border-red-200 border-l-4 border-l-red-500'
                         : task.priority === 'high'
                         ? 'border-amber-200 border-l-4 border-l-amber-400'
-                        : 'border-gray-200',
+                        : 'border-slate-200',
                     )}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium text-gray-900 truncate">
+                        <p className="text-sm font-medium text-slate-900 truncate">
                           {task.title}
                         </p>
                         {overdue && (
                           <Badge variant="critical" size="sm">Overdue</Badge>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-slate-500 mt-0.5">
                         {task.patientName} · Bed {task.bedNumber}
                       </p>
                       {task.dueAt && (
                         <p className={clsx(
                           'text-xs mt-0.5 flex items-center gap-1',
-                          overdue ? 'text-red-600 font-medium' : 'text-gray-400',
+                          overdue ? 'text-red-600 font-medium' : 'text-slate-400',
                         )}>
                           <Clock size={10} />
                           {typeof task.dueAt === 'object' && 'toDate' in task.dueAt

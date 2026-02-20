@@ -19,7 +19,7 @@ const sizeStyles: Record<AvatarSize, string> = {
 
 const statusColors: Record<AvatarStatus, string> = {
   online: 'bg-emerald-500',
-  offline: 'bg-gray-400',
+  offline: 'bg-slate-400',
   busy: 'bg-red-500',
   away: 'bg-amber-500',
 };

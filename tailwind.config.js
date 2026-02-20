@@ -37,6 +37,12 @@ export default {
           subtle: 'var(--ward-subtle, #f1f5f9)',
           hover: 'var(--ward-hover, #f8fafc)',
         },
+        mode: {
+          'accent-light': 'var(--mode-accent-light)',
+          'accent-text': 'var(--mode-accent-text)',
+          'accent-dot': 'var(--mode-accent-dot)',
+          'accent-border': 'var(--mode-accent-border)',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

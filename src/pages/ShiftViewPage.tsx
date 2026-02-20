@@ -103,17 +103,17 @@ export default function ShiftViewPage() {
   const isEmpty = overdueTasks.length === 0 && criticalLabPatients.length === 0 && unstablePatients.length === 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-red-100 rounded-xl">
               <Zap size={20} className="text-red-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Shift View</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-slate-900">Shift View</h1>
+              <p className="text-sm text-slate-500">
                 Action-focused overview of items requiring immediate attention
               </p>
             </div>
@@ -136,13 +136,13 @@ export default function ShiftViewPage() {
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Clock size={18} className="text-red-500" />
-                <h2 className="text-lg font-semibold text-gray-900">Overdue Tasks</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Overdue Tasks</h2>
                 <Badge variant="critical" size="sm">{overdueTasks.length}</Badge>
               </div>
 
               {overdueTasks.length === 0 ? (
                 <Card padding="md">
-                  <p className="text-sm text-gray-500 text-center py-4">
+                  <p className="text-sm text-slate-500 text-center py-4">
                     No overdue tasks. All tasks are on track.
                   </p>
                 </Card>
@@ -157,7 +157,7 @@ export default function ShiftViewPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-semibold text-gray-900">{task.title}</p>
+                            <p className="text-sm font-semibold text-slate-900">{task.title}</p>
                             <Badge
                               variant={
                                 task.priority === 'critical' ? 'critical' :
@@ -172,7 +172,7 @@ export default function ShiftViewPage() {
                               Overdue {getTimeOverdue(task)}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                          <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                             <span>{task.patientName}</span>
                             <span>Bed {task.bedNumber}</span>
                             <span className="capitalize">{task.category}</span>
@@ -198,13 +198,13 @@ export default function ShiftViewPage() {
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Beaker size={18} className="text-amber-500" />
-                <h2 className="text-lg font-semibold text-gray-900">Critical Labs</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Critical Labs</h2>
                 <Badge variant="warning" size="sm">{criticalLabPatients.length}</Badge>
               </div>
 
               {criticalLabPatients.length === 0 ? (
                 <Card padding="md">
-                  <p className="text-sm text-gray-500 text-center py-4">
+                  <p className="text-sm text-slate-500 text-center py-4">
                     No critical lab values detected.
                   </p>
                 </Card>
@@ -224,10 +224,10 @@ export default function ShiftViewPage() {
                             <AlertTriangle size={16} className="text-amber-600" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-sm font-semibold text-slate-900">
                               {patient.firstName} {patient.lastName}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-slate-500">
                               MRN: {patient.mrn} &middot; Bed {patient.bedNumber} &middot;{' '}
                               {patient.primaryDiagnosis}
                             </p>
@@ -237,7 +237,7 @@ export default function ShiftViewPage() {
                           <Badge variant="critical" size="sm">
                             {criticalCount} critical value{criticalCount !== 1 ? 's' : ''}
                           </Badge>
-                          <ArrowRight size={14} className="text-gray-400" />
+                          <ArrowRight size={14} className="text-slate-400" />
                         </div>
                       </div>
                     </Card>
@@ -250,13 +250,13 @@ export default function ShiftViewPage() {
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <Activity size={18} className="text-red-500" />
-                <h2 className="text-lg font-semibold text-gray-900">Unstable Patients</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Unstable Patients</h2>
                 <Badge variant="critical" size="sm">{unstablePatients.length}</Badge>
               </div>
 
               {unstablePatients.length === 0 ? (
                 <Card padding="md">
-                  <p className="text-sm text-gray-500 text-center py-4">
+                  <p className="text-sm text-slate-500 text-center py-4">
                     No unstable patients at this time.
                   </p>
                 </Card>
@@ -277,7 +277,7 @@ export default function ShiftViewPage() {
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-gray-900">
+                              <p className="text-sm font-semibold text-slate-900">
                                 {patient.firstName} {patient.lastName}
                               </p>
                               <Badge
@@ -288,7 +288,7 @@ export default function ShiftViewPage() {
                                 {ACUITY_LEVELS[patient.acuity].label}
                               </Badge>
                             </div>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-slate-500">
                               MRN: {patient.mrn} &middot; Bed {patient.bedNumber} &middot;{' '}
                               {patient.primaryDiagnosis}
                             </p>
@@ -296,7 +296,7 @@ export default function ShiftViewPage() {
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <Badge variant="critical" size="sm">Unstable</Badge>
-                          <ArrowRight size={14} className="text-gray-400" />
+                          <ArrowRight size={14} className="text-slate-400" />
                         </div>
                       </div>
                     </Card>

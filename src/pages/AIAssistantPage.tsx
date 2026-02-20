@@ -121,9 +121,9 @@ export default function AIAssistantPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shrink-0">
+      <div className="bg-white border-b border-slate-200 shrink-0">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -131,8 +131,8 @@ export default function AIAssistantPage() {
                 <Bot size={20} className="text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">Clinical AI Assistant</h1>
-                <p className="text-xs text-gray-500">
+                <h1 className="text-lg font-bold text-slate-900">Clinical AI Assistant</h1>
+                <p className="text-xs text-slate-500">
                   Powered by AI &mdash; For clinical decision support only
                 </p>
               </div>
@@ -146,7 +146,7 @@ export default function AIAssistantPage() {
               onChange={(e) => setSelectedPatientId(e.target.value)}
               className={clsx(
                 'w-full h-9 px-3 pr-8 rounded-lg text-sm',
-                'bg-gray-50 border border-gray-200',
+                'bg-slate-50 border border-slate-200',
                 'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
                 'appearance-none bg-no-repeat bg-[length:14px_14px] bg-[right_0.5rem_center]',
                 'bg-[url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2214%22%20height%3D%2214%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E")]',
@@ -186,10 +186,10 @@ export default function AIAssistantPage() {
               <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center mb-4">
                 <Sparkles size={28} className="text-blue-600" />
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-slate-900">
                 How can I help you today?
               </h2>
-              <p className="text-sm text-gray-500 mt-1 max-w-md mx-auto">
+              <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
                 Ask clinical questions, request differential diagnoses, or get help interpreting lab
                 results. Select a patient for context-aware responses.
               </p>
@@ -205,8 +205,8 @@ export default function AIAssistantPage() {
                       onClick={() => sendMessage(prompt.prompt)}
                       className={clsx(
                         'flex items-center gap-2 px-4 py-2.5 rounded-xl',
-                        'bg-white border border-gray-200 text-sm text-gray-700',
-                        'hover:bg-gray-50 hover:border-gray-300 transition-colors',
+                        'bg-white border border-slate-200 text-sm text-slate-700',
+                        'hover:bg-slate-50 hover:border-slate-300 transition-colors',
                       )}
                     >
                       <Icon size={16} className="text-blue-500" />
@@ -236,22 +236,22 @@ export default function AIAssistantPage() {
                       'max-w-[80%] rounded-2xl px-4 py-3',
                       msg.role === 'user'
                         ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-gray-200 text-gray-800',
+                        : 'bg-white border border-slate-200 text-slate-800',
                     )}
                   >
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                     <p
                       className={clsx(
                         'text-xs mt-1',
-                        msg.role === 'user' ? 'text-blue-200' : 'text-gray-400',
+                        msg.role === 'user' ? 'text-blue-200' : 'text-slate-400',
                       )}
                     >
                       {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                   {msg.role === 'user' && (
-                    <div className="shrink-0 w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
-                      <User size={16} className="text-gray-600" />
+                    <div className="shrink-0 w-8 h-8 bg-slate-200 rounded-lg flex items-center justify-center">
+                      <User size={16} className="text-slate-600" />
                     </div>
                   )}
                 </div>
@@ -263,10 +263,10 @@ export default function AIAssistantPage() {
                   <div className="shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
                     <Bot size={16} className="text-white" />
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+                  <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Loader2 size={16} className="animate-spin text-blue-500" />
-                      <span className="text-sm text-gray-500">Thinking...</span>
+                      <span className="text-sm text-slate-500">Thinking...</span>
                     </div>
                   </div>
                 </div>
@@ -288,7 +288,7 @@ export default function AIAssistantPage() {
       )}
 
       {/* Input bar */}
-      <div className="bg-white border-t border-gray-200 shrink-0">
+      <div className="bg-white border-t border-slate-200 shrink-0">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-end gap-3">
             <div className="flex-1 relative">
@@ -300,9 +300,9 @@ export default function AIAssistantPage() {
                 placeholder="Ask a clinical question..."
                 rows={1}
                 className={clsx(
-                  'w-full resize-none rounded-xl text-sm text-gray-900',
-                  'bg-gray-50 border border-gray-200 px-4 py-3',
-                  'placeholder:text-gray-400',
+                  'w-full resize-none rounded-xl text-sm text-slate-900',
+                  'bg-slate-50 border border-slate-200 px-4 py-3',
+                  'placeholder:text-slate-400',
                   'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white',
                 )}
                 style={{ maxHeight: '120px' }}
@@ -318,7 +318,7 @@ export default function AIAssistantPage() {
               Send
             </Button>
           </div>
-          <p className="text-xs text-gray-400 mt-2 text-center">
+          <p className="text-xs text-slate-400 mt-2 text-center">
             AI responses are for clinical decision support only. Always apply clinical judgment.
           </p>
         </div>

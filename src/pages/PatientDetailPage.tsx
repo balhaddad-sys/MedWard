@@ -177,11 +177,11 @@ export default function PatientDetailPage() {
 
   if (!patient) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <Card padding="lg" className="text-center max-w-sm">
-          <AlertCircle size={40} className="mx-auto text-gray-400 mb-3" />
-          <h2 className="text-lg font-semibold text-gray-900">Patient Not Found</h2>
-          <p className="text-sm text-gray-500 mt-1 mb-4">
+          <AlertCircle size={40} className="mx-auto text-slate-400 mb-3" />
+          <h2 className="text-lg font-semibold text-slate-900">Patient Not Found</h2>
+          <p className="text-sm text-slate-500 mt-1 mb-4">
             This patient may have been removed or you may not have access.
           </p>
           <Button variant="secondary" onClick={() => navigate('/patients')}>
@@ -220,7 +220,7 @@ export default function PatientDetailPage() {
       case 'high': return 'text-amber-600';
       case 'critical_low': return 'text-red-600 font-bold';
       case 'critical_high': return 'text-red-600 font-bold';
-      default: return 'text-gray-600';
+      default: return 'text-slate-600';
     }
   }
 
@@ -350,7 +350,7 @@ export default function PatientDetailPage() {
       </Button>
 
       {/* ---- Patient header card ---- */}
-      <div className={clsx('bg-white rounded-xl border border-gray-200 border-l-4 p-3 sm:p-4', acuityBorderColor)}>
+      <div className={clsx('bg-white rounded-xl border border-slate-200 border-l-4 p-3 sm:p-4', acuityBorderColor)}>
         <div className="flex items-start gap-3">
           {/* Acuity circle */}
           <div className={clsx(
@@ -367,14 +367,14 @@ export default function PatientDetailPage() {
           {/* Info block */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
+              <h1 className="text-base sm:text-xl font-bold text-slate-900 truncate">
                 {patient.lastName}, {patient.firstName}
               </h1>
               {patient.dateOfBirth && (
-                <span className="text-xs sm:text-sm text-gray-400">{calculateAge(patient.dateOfBirth)}</span>
+                <span className="text-xs sm:text-sm text-slate-400">{calculateAge(patient.dateOfBirth)}</span>
               )}
               {patient.gender && (
-                <span className="text-xs sm:text-sm text-gray-400">
+                <span className="text-xs sm:text-sm text-slate-400">
                   {patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}
                 </span>
               )}
@@ -392,7 +392,7 @@ export default function PatientDetailPage() {
                 <Badge variant="critical">{overdueTasks.length} overdue</Badge>
               )}
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 mt-1.5 text-[10px] sm:text-xs text-gray-500 flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-3 mt-1.5 text-[10px] sm:text-xs text-slate-500 flex-wrap">
               <span>MRN: <strong>{patient.mrn}</strong></span>
               <span className="flex items-center gap-1">
                 <BedDouble size={11} /> Bed <strong>{patient.bedNumber}</strong>
@@ -407,7 +407,7 @@ export default function PatientDetailPage() {
         </div>
 
         {/* Action buttons — full width row on mobile */}
-        <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
           <Button variant="secondary" size="sm" className="flex-1 sm:flex-initial" onClick={() => setShowEditModal(true)} iconLeft={<Edit3 size={13} />}>Edit</Button>
           <Button variant="danger" size="sm" className="flex-1 sm:flex-initial" onClick={() => setShowDeleteConfirm(true)} iconLeft={<Trash2 size={13} />}>Delete</Button>
         </div>
@@ -470,9 +470,9 @@ export default function PatientDetailPage() {
       </div>
 
       {/* ---- Primary diagnosis summary ---- */}
-      <div className="px-4 py-3 bg-white rounded-xl border border-gray-200">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Primary Diagnosis</p>
-        <p className="text-sm font-semibold text-gray-900">{patient.primaryDiagnosis}</p>
+      <div className="px-4 py-3 bg-white rounded-xl border border-slate-200">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Primary Diagnosis</p>
+        <p className="text-sm font-semibold text-slate-900">{patient.primaryDiagnosis}</p>
         {patient.diagnoses.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {patient.diagnoses.map((d, i) => (
@@ -491,7 +491,7 @@ export default function PatientDetailPage() {
           <div className="space-y-6">
             {/* Demographics */}
             <Card padding="md">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
                 Demographics
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -506,8 +506,8 @@ export default function PatientDetailPage() {
                   { label: 'Height', value: patient.height ? `${patient.height} cm` : 'N/A' },
                 ].map((item) => (
                   <div key={item.label}>
-                    <p className="text-xs text-gray-500">{item.label}</p>
-                    <p className="text-sm font-medium text-gray-900 capitalize">{item.value}</p>
+                    <p className="text-xs text-slate-500">{item.label}</p>
+                    <p className="text-sm font-medium text-slate-900 capitalize">{item.value}</p>
                   </div>
                 ))}
               </div>
@@ -515,10 +515,10 @@ export default function PatientDetailPage() {
 
             {/* Diagnoses */}
             <Card padding="md">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
                 Diagnoses
               </h3>
-              <p className="text-sm font-medium text-gray-900 mb-2">
+              <p className="text-sm font-medium text-slate-900 mb-2">
                 Primary: {patient.primaryDiagnosis}
               </p>
               {patient.diagnoses.length > 0 ? (
@@ -528,7 +528,7 @@ export default function PatientDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No additional diagnoses</p>
+                <p className="text-sm text-slate-400">No additional diagnoses</p>
               )}
             </Card>
 
@@ -536,7 +536,7 @@ export default function PatientDetailPage() {
             <Card padding="md">
               <div className="flex items-center gap-2 mb-3">
                 <ShieldAlert size={16} className="text-red-500" />
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
                   Allergies
                 </h3>
               </div>
@@ -555,7 +555,7 @@ export default function PatientDetailPage() {
             <Card padding="md">
               <div className="flex items-center gap-2 mb-3">
                 <Heart size={16} className="text-pink-500" />
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
                   Code Status
                 </h3>
               </div>
@@ -570,10 +570,10 @@ export default function PatientDetailPage() {
             {/* Notes */}
             {patient.notes && (
               <Card padding="md">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
                   Notes
                 </h3>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{patient.notes}</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{patient.notes}</p>
               </Card>
             )}
           </div>
@@ -598,60 +598,60 @@ export default function PatientDetailPage() {
               <>
                 {/* HPI */}
                 <Card padding="md">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
                     History of Presenting Illness
                   </h3>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">
                     {history.hpiText || 'Not documented'}
                   </p>
                 </Card>
 
                 {/* PMH */}
                 <Card padding="md">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
                     Past Medical History
                   </h3>
                   {history.pmh.length > 0 ? (
                     <ul className="space-y-2">
                       {history.pmh.map((entry, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm">
-                          <ChevronRight size={14} className="mt-0.5 text-gray-400 shrink-0" />
+                          <ChevronRight size={14} className="mt-0.5 text-slate-400 shrink-0" />
                           <div>
-                            <span className="font-medium text-gray-900">{entry.condition}</span>
+                            <span className="font-medium text-slate-900">{entry.condition}</span>
                             {entry.status && (
                               <Badge variant={entry.status === 'active' ? 'warning' : 'success'} size="sm" className="ml-2">
                                 {entry.status}
                               </Badge>
                             )}
-                            {entry.notes && <p className="text-gray-500 text-xs mt-0.5">{entry.notes}</p>}
+                            {entry.notes && <p className="text-slate-500 text-xs mt-0.5">{entry.notes}</p>}
                           </div>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-gray-400">No past medical history recorded</p>
+                    <p className="text-sm text-slate-400">No past medical history recorded</p>
                   )}
                 </Card>
 
                 {/* PSH */}
                 <Card padding="md">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
                     Past Surgical History
                   </h3>
                   {history.psh.length > 0 ? (
                     <ul className="space-y-2">
                       {history.psh.map((entry, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm">
-                          <ChevronRight size={14} className="mt-0.5 text-gray-400 shrink-0" />
-                          <span className="text-gray-900">
+                          <ChevronRight size={14} className="mt-0.5 text-slate-400 shrink-0" />
+                          <span className="text-slate-900">
                             {entry.procedure}
-                            {entry.year && <span className="text-gray-500 ml-1">({entry.year})</span>}
+                            {entry.year && <span className="text-slate-500 ml-1">({entry.year})</span>}
                           </span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-gray-400">No past surgical history recorded</p>
+                    <p className="text-sm text-slate-400">No past surgical history recorded</p>
                   )}
                 </Card>
 
@@ -659,19 +659,19 @@ export default function PatientDetailPage() {
                 <Card padding="md">
                   <div className="flex items-center gap-2 mb-3">
                     <Pill size={16} className="text-blue-500" />
-                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
                       Medications
                     </h3>
                   </div>
                   {history.medications.length > 0 ? (
                     <div className="space-y-2">
                       {history.medications.map((med, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm border-b border-gray-100 pb-2 last:border-0">
+                        <div key={i} className="flex items-center justify-between text-sm border-b border-slate-100 pb-2 last:border-0">
                           <div>
-                            <span className="font-medium text-gray-900">{med.name}</span>
-                            {med.dose && <span className="text-gray-500 ml-1">{med.dose}</span>}
-                            {med.frequency && <span className="text-gray-500 ml-1">{med.frequency}</span>}
-                            {med.route && <span className="text-gray-500 ml-1">({med.route})</span>}
+                            <span className="font-medium text-slate-900">{med.name}</span>
+                            {med.dose && <span className="text-slate-500 ml-1">{med.dose}</span>}
+                            {med.frequency && <span className="text-slate-500 ml-1">{med.frequency}</span>}
+                            {med.route && <span className="text-slate-500 ml-1">({med.route})</span>}
                           </div>
                           <Badge
                             variant={med.status === 'active' ? 'success' : med.status === 'prn' ? 'info' : 'muted'}
@@ -683,32 +683,32 @@ export default function PatientDetailPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-400">No medications recorded</p>
+                    <p className="text-sm text-slate-400">No medications recorded</p>
                   )}
                 </Card>
 
                 {/* Family History */}
                 <Card padding="md">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
                     Family History
                   </h3>
                   {history.familyHistory.length > 0 ? (
                     <ul className="space-y-2">
                       {history.familyHistory.map((entry, i) => (
-                        <li key={i} className="text-sm text-gray-700">
+                        <li key={i} className="text-sm text-slate-700">
                           <span className="font-medium">{entry.relation}:</span> {entry.condition}
-                          {entry.notes && <span className="text-gray-500 ml-1">- {entry.notes}</span>}
+                          {entry.notes && <span className="text-slate-500 ml-1">- {entry.notes}</span>}
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-gray-400">No family history recorded</p>
+                    <p className="text-sm text-slate-400">No family history recorded</p>
                   )}
                 </Card>
 
                 {/* Social History */}
                 <Card padding="md">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
                     Social History
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
@@ -722,8 +722,8 @@ export default function PatientDetailPage() {
                       .filter((item) => item.value)
                       .map((item) => (
                         <div key={item.label}>
-                          <p className="text-xs text-gray-500">{item.label}</p>
-                          <p className="text-sm text-gray-900">{item.value}</p>
+                          <p className="text-xs text-slate-500">{item.label}</p>
+                          <p className="text-sm text-slate-900">{item.value}</p>
                         </div>
                       ))}
                   </div>
@@ -799,18 +799,18 @@ export default function PatientDetailPage() {
                   return (
                     <Card key={groupName} padding="sm">
                       {/* Panel header */}
-                      <div className="flex items-center justify-between px-1 pb-2 mb-2 border-b border-gray-100">
+                      <div className="flex items-center justify-between px-1 pb-2 mb-2 border-b border-slate-100">
                         <div className="flex items-center gap-2 min-w-0">
-                          <Beaker size={14} className="text-gray-400 shrink-0" />
-                          <h3 className="text-sm font-bold text-gray-900 truncate">{groupName}</h3>
+                          <Beaker size={14} className="text-slate-400 shrink-0" />
+                          <h3 className="text-sm font-bold text-slate-900 truncate">{groupName}</h3>
                           {panels.length > 1 && (
-                            <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">
+                            <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">
                               {panels.length}x
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] text-gray-400">{formatTimestamp(latest.collectedAt)}</span>
+                          <span className="text-[10px] text-slate-400">{formatTimestamp(latest.collectedAt)}</span>
                           <Badge
                             variant={latest.status === 'reviewed' ? 'success' : latest.status === 'resulted' ? 'info' : 'muted'}
                             size="sm"
@@ -824,14 +824,14 @@ export default function PatientDetailPage() {
                       <div className="hidden sm:block overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="border-b border-gray-200">
-                              <th className="text-left py-1.5 pr-3 text-xs font-semibold text-gray-500 w-32">Test</th>
+                            <tr className="border-b border-slate-200">
+                              <th className="text-left py-1.5 pr-3 text-xs font-semibold text-slate-500 w-32">Test</th>
                               {displayPanels.map((p) => (
-                                <th key={p.id} className="text-right py-1.5 px-2 text-[10px] font-medium text-gray-400 min-w-[80px]">
+                                <th key={p.id} className="text-right py-1.5 px-2 text-[10px] font-medium text-slate-400 min-w-[80px]">
                                   {formatTimestamp(p.collectedAt)}
                                 </th>
                               ))}
-                              <th className="text-right py-1.5 pl-3 text-xs font-medium text-gray-400 w-24">Ref</th>
+                              <th className="text-right py-1.5 pl-3 text-xs font-medium text-slate-400 w-24">Ref</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -843,19 +843,19 @@ export default function PatientDetailPage() {
                                 <tr
                                   key={name}
                                   className={clsx(
-                                    'border-b border-gray-50 hover:bg-gray-50/50',
+                                    'border-b border-slate-50 hover:bg-slate-50/50',
                                     isCritical && 'bg-red-50/60',
                                   )}
                                 >
                                   <td className="py-1.5 pr-3">
-                                    <span className="text-xs font-medium text-gray-800">{name}</span>
+                                    <span className="text-xs font-medium text-slate-800">{name}</span>
                                     {latestVal?.unit && (
-                                      <span className="text-[10px] text-gray-400 ml-1">{latestVal.unit}</span>
+                                      <span className="text-[10px] text-slate-400 ml-1">{latestVal.unit}</span>
                                     )}
                                   </td>
                                   {displayPanels.map((p, pi) => {
                                     const val = p.values.find((v) => v.name === name);
-                                    if (!val) return <td key={p.id} className="py-1.5 px-2 text-right text-gray-300 text-xs">—</td>;
+                                    if (!val) return <td key={p.id} className="py-1.5 px-2 text-right text-slate-300 text-xs">—</td>;
                                     const flagText = getLabFlagText(val.flag);
 
                                     return (
@@ -872,7 +872,7 @@ export default function PatientDetailPage() {
                                       </td>
                                     );
                                   })}
-                                  <td className="py-1.5 pl-3 text-right text-[10px] text-gray-400">
+                                  <td className="py-1.5 pl-3 text-right text-[10px] text-slate-400">
                                     {latestVal?.referenceMin != null && latestVal?.referenceMax != null
                                       ? `${latestVal.referenceMin}–${latestVal.referenceMax}`
                                       : ''}
@@ -887,7 +887,7 @@ export default function PatientDetailPage() {
                       {/* Mobile: Simple lab report table */}
                       <table className="sm:hidden w-full text-xs">
                         <thead>
-                          <tr className="border-b border-gray-200 text-gray-500">
+                          <tr className="border-b border-slate-200 text-slate-500">
                             <th className="text-left py-1.5 font-medium">Test</th>
                             <th className="text-right py-1.5 font-medium">Result</th>
                             <th className="text-center py-1.5 font-medium w-8">Flag</th>
@@ -905,13 +905,13 @@ export default function PatientDetailPage() {
                               <tr
                                 key={name}
                                 className={clsx(
-                                  'border-b border-gray-50',
+                                  'border-b border-slate-50',
                                   isCritical && 'bg-red-50',
                                 )}
                               >
-                                <td className="py-1.5 pr-2 text-gray-800 font-medium">{name}</td>
+                                <td className="py-1.5 pr-2 text-slate-800 font-medium">{name}</td>
                                 <td className={clsx('py-1.5 text-right tabular-nums font-semibold', getLabFlagColor(latestVal.flag))}>
-                                  {cleanLabValue(latestVal.value)} <span className="font-normal text-gray-400">{latestVal.unit}</span>
+                                  {cleanLabValue(latestVal.value)} <span className="font-normal text-slate-400">{latestVal.unit}</span>
                                 </td>
                                 <td className="py-1.5 text-center">
                                   {flagText && (
@@ -925,7 +925,7 @@ export default function PatientDetailPage() {
                                     </span>
                                   )}
                                 </td>
-                                <td className="py-1.5 text-right text-gray-400 tabular-nums">
+                                <td className="py-1.5 text-right text-slate-400 tabular-nums">
                                   {latestVal.referenceMin != null && latestVal.referenceMax != null
                                     ? `${latestVal.referenceMin}–${latestVal.referenceMax}`
                                     : ''}
@@ -975,7 +975,7 @@ export default function PatientDetailPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className={clsx(
                           'text-sm font-medium',
-                          task.status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-900',
+                          task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-900',
                         )}>
                           {task.title}
                         </p>
@@ -1003,9 +1003,9 @@ export default function PatientDetailPage() {
                         </Badge>
                       </div>
                       {task.description && (
-                        <p className="text-xs text-gray-500 mt-1">{task.description}</p>
+                        <p className="text-xs text-slate-500 mt-1">{task.description}</p>
                       )}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
                         {task.dueAt && (
                           <span className="flex items-center gap-1">
                             <Clock size={12} />
@@ -1169,7 +1169,7 @@ export default function PatientDetailPage() {
               <Trash2 size={20} className="text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-slate-700">
                 Are you sure you want to delete{' '}
                 <span className="font-semibold">{patient.firstName} {patient.lastName}</span>?
                 This action cannot be undone.

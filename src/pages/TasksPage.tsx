@@ -84,8 +84,8 @@ function CategoryIcon({ category }: { category: TaskCategory }) {
     case 'consult': return <Stethoscope size={13} className="text-emerald-500" />;
     case 'procedure': return <Activity size={13} className="text-orange-500" />;
     case 'nursing': return <HeartPulse size={13} className="text-pink-500" />;
-    case 'discharge': return <LogOut size={13} className="text-gray-500" />;
-    default: return <HelpCircle size={13} className="text-gray-400" />;
+    case 'discharge': return <LogOut size={13} className="text-slate-500" />;
+    default: return <HelpCircle size={13} className="text-slate-400" />;
   }
 }
 
@@ -212,7 +212,7 @@ export default function TasksPage() {
       case 'critical': return 'border-l-red-500';
       case 'high': return 'border-l-orange-400';
       case 'medium': return 'border-l-blue-300';
-      default: return 'border-l-gray-200';
+      default: return 'border-l-slate-200';
     }
   }
 
@@ -293,8 +293,8 @@ export default function TasksPage() {
           overdue
             ? 'border-red-200 bg-red-50/40 border-l-4 border-l-red-500'
             : task.status === 'completed'
-            ? 'border-gray-100 opacity-70'
-            : `border-gray-200 border-l-4 ${getPriorityBorder(task.priority)}`,
+            ? 'border-slate-100 opacity-70'
+            : `border-slate-200 border-l-4 ${getPriorityBorder(task.priority)}`,
         )}
       >
         <div className="min-w-0 flex-1">
@@ -303,7 +303,7 @@ export default function TasksPage() {
             <CategoryIcon category={task.category} />
             <p className={clsx(
               'text-sm font-semibold',
-              task.status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-900',
+              task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-900',
             )}>
               {task.title}
             </p>
@@ -317,12 +317,12 @@ export default function TasksPage() {
           </div>
 
           {/* Patient + category */}
-          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
-            <span className="font-medium text-gray-700">
+          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 flex-wrap">
+            <span className="font-medium text-slate-700">
               {task.patientName}
             </span>
             <span>Bed {task.bedNumber}</span>
-            <span className="capitalize text-gray-400">{task.category}</span>
+            <span className="capitalize text-slate-400">{task.category}</span>
           </div>
 
           {/* Due time + assignee */}
@@ -330,23 +330,23 @@ export default function TasksPage() {
             {task.dueAt && (
               <span className={clsx(
                 'flex items-center gap-1',
-                overdue ? 'text-red-600 font-semibold' : 'text-gray-400',
+                overdue ? 'text-red-600 font-semibold' : 'text-slate-400',
               )}>
                 <Clock size={11} />
                 {overdue ? 'Was due ' : 'Due '}
                 {formatDue(task.dueAt)}
-                <span className="text-gray-300">({formatDueAbsolute(task.dueAt)})</span>
+                <span className="text-slate-300">({formatDueAbsolute(task.dueAt)})</span>
               </span>
             )}
             {task.assignedToName && (
-              <span className="text-gray-400">
+              <span className="text-slate-400">
                 → {task.assignedToName}
               </span>
             )}
           </div>
 
           {task.description && (
-            <p className="text-xs text-gray-500 mt-1 line-clamp-1">{task.description}</p>
+            <p className="text-xs text-slate-500 mt-1 line-clamp-1">{task.description}</p>
           )}
         </div>
 
@@ -372,8 +372,8 @@ export default function TasksPage() {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <ClipboardList size={20} className="text-gray-400" />
-            <h1 className="text-xl font-bold text-gray-900">Tasks</h1>
+            <ClipboardList size={20} className="text-slate-400" />
+            <h1 className="text-xl font-bold text-slate-900">Tasks</h1>
             {activeCount > 0 && <Badge variant="default" size="sm">{activeCount} active</Badge>}
           </div>
           <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -413,7 +413,7 @@ export default function TasksPage() {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         {/* Status filters */}
         <div className="flex flex-wrap gap-1.5">
-          <Filter size={13} className="text-gray-400 self-center shrink-0" />
+          <Filter size={13} className="text-slate-400 self-center shrink-0" />
           {statusFilters.map((filter) => (
             <button
               key={filter.value}
@@ -423,7 +423,7 @@ export default function TasksPage() {
                 'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors',
                 filterStatus === filter.value
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50',
+                  : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-50',
               )}
             >
               {filter.label}
@@ -437,7 +437,7 @@ export default function TasksPage() {
           onChange={(e) => setFilterPriority(e.target.value as TaskPriority | 'all')}
           className={clsx(
             'h-8 px-2.5 pr-7 rounded-lg text-xs font-medium',
-            'bg-white border border-gray-300 text-gray-600',
+            'bg-white border border-slate-300 text-slate-600',
             'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500',
             'appearance-none',
           )}
@@ -455,7 +455,7 @@ export default function TasksPage() {
             'px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ml-auto',
             groupByPatient
               ? 'bg-blue-50 text-blue-700 border-blue-200'
-              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+              : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50',
           )}
         >
           Group by Patient
@@ -492,16 +492,16 @@ export default function TasksPage() {
             return (
               <div key={patientId}>
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="h-px flex-1 bg-gray-200" />
+                  <div className="h-px flex-1 bg-slate-200" />
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-700">{group.patientName}</span>
-                    <span className="text-xs text-gray-400">Bed {group.bedNumber}</span>
+                    <span className="text-xs font-semibold text-slate-700">{group.patientName}</span>
+                    <span className="text-xs text-slate-400">Bed {group.bedNumber}</span>
                     <Badge variant="default" size="sm">{group.tasks.length}</Badge>
                     {groupOverdueCount > 0 && (
                       <Badge variant="critical" size="sm">{groupOverdueCount} overdue</Badge>
                     )}
                   </div>
-                  <div className="h-px flex-1 bg-gray-200" />
+                  <div className="h-px flex-1 bg-slate-200" />
                 </div>
                 <div className="space-y-1.5">
                   {group.tasks.map((task) => (
@@ -608,7 +608,7 @@ export default function TasksPage() {
             placeholder="Additional notes or instructions..."
           />
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+          <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
             <Button
               type="button"
               variant="secondary"

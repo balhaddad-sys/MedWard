@@ -61,16 +61,6 @@ const NAV_ITEMS: Record<ClinicalMode, NavItem[]> = {
 }
 
 // ---------------------------------------------------------------------------
-// Mode styling
-// ---------------------------------------------------------------------------
-
-const MODE_STYLES: Record<ClinicalMode, { dot: string; bg: string; text: string }> = {
-  ward: { dot: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400' },
-  acute: { dot: 'bg-red-500 animate-pulse', bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400' },
-  clerking: { dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400' },
-}
-
-// ---------------------------------------------------------------------------
 // Sidebar component
 // ---------------------------------------------------------------------------
 
@@ -82,7 +72,6 @@ export default function Sidebar() {
   const navigate = useNavigate()
 
   const navItems = NAV_ITEMS[mode]
-  const modeStyle = MODE_STYLES[mode]
 
   const activeTaskCount = tasks.filter(
     (t) => t.status === 'pending' || t.status === 'in_progress'
@@ -116,18 +105,18 @@ export default function Sidebar() {
           <span className="text-base font-bold tracking-tight text-slate-900 dark:text-slate-100">
             MedWard Pro
           </span>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-none mt-0.5">Clinical Ward System</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-none mt-0.5">Clinical Ward System</p>
         </div>
       </div>
 
       {/* ---- Mode indicator ---- */}
-      <div className={['mx-4 mt-3 mb-2 flex items-center gap-2.5 rounded-lg px-3 py-2', modeStyle.bg].join(' ')}>
-        <span className={['inline-block h-2 w-2 rounded-full shrink-0', modeStyle.dot].join(' ')} />
+      <div className="mx-4 mt-3 mb-2 flex items-center gap-2.5 rounded-lg px-3 py-2 bg-mode-accent-light">
+        <span className={['inline-block h-2 w-2 rounded-full shrink-0 bg-mode-accent-dot', mode === 'acute' ? 'animate-pulse' : ''].join(' ')} />
         <div className="flex-1 min-w-0">
-          <p className={['text-xs font-semibold', modeStyle.text].join(' ')}>
+          <p className="text-xs font-semibold text-mode-accent-text">
             {modeConfig.label} Mode
           </p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{modeConfig.description}</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{modeConfig.description}</p>
         </div>
         <button
           type="button"
@@ -135,7 +124,7 @@ export default function Sidebar() {
           className="shrink-0 p-1 rounded hover:bg-black/10 transition-colors"
           title="Switch mode"
         >
-          <Repeat size={12} className={modeStyle.text} />
+          <Repeat size={12} className="text-mode-accent-text" />
         </button>
       </div>
 
@@ -147,7 +136,7 @@ export default function Sidebar() {
             <span className="font-semibold text-slate-800 dark:text-slate-100">{patients.length}</span> patient{patients.length !== 1 ? 's' : ''}
           </span>
           {overdueTaskCount > 0 && (
-            <span className="ml-auto text-[10px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-100">
+            <span className="ml-auto text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800">
               {overdueTaskCount} overdue
             </span>
           )}
@@ -248,7 +237,7 @@ export default function Sidebar() {
               <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
                 {user.displayName}
               </p>
-              <p className="truncate text-xs text-slate-400 dark:text-slate-500 capitalize">{user.role}</p>
+              <p className="truncate text-xs text-slate-500 dark:text-slate-400 capitalize">{user.role}</p>
             </div>
             <button
               type="button"

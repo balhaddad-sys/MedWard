@@ -3,8 +3,6 @@ import { Bell, Menu, Clock, ChevronDown, Wifi, WifiOff } from 'lucide-react'
 import { useModeContext } from '@/context/useModeContext'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useAuthStore } from '@/stores/authStore'
-import type { ClinicalMode } from '@/config/modes'
-
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -13,22 +11,6 @@ interface TopBarProps {
   title?: string
   onMenuToggle?: () => void
   onNotificationsToggle?: () => void
-}
-
-// ---------------------------------------------------------------------------
-// Mode colour mapping
-// ---------------------------------------------------------------------------
-
-const MODE_COLORS: Record<ClinicalMode, string> = {
-  ward: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800',
-  acute: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800',
-  clerking: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800',
-}
-
-const MODE_DOT: Record<ClinicalMode, string> = {
-  ward: 'bg-blue-500',
-  acute: 'bg-red-500 animate-pulse',
-  clerking: 'bg-amber-500',
 }
 
 // ---------------------------------------------------------------------------
@@ -114,13 +96,8 @@ export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: T
           </h1>
 
           {/* Mode badge */}
-          <span
-            className={[
-              'hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border shrink-0',
-              MODE_COLORS[mode],
-            ].join(' ')}
-          >
-            <span className={['h-1.5 w-1.5 rounded-full', MODE_DOT[mode]].join(' ')} />
+          <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border shrink-0 bg-mode-accent-light text-mode-accent-text border-mode-accent-border">
+            <span className={['h-1.5 w-1.5 rounded-full bg-mode-accent-dot', mode === 'acute' ? 'animate-pulse' : ''].join(' ')} />
             {modeConfig.label}
           </span>
         </div>
@@ -149,7 +126,7 @@ export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: T
             <div className="text-sm font-mono font-semibold text-slate-800 dark:text-slate-100 leading-none tabular-nums">
               {timeStr}
             </div>
-            <div className="text-[10px] text-slate-400 dark:text-slate-500 leading-none mt-0.5">
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-none mt-0.5">
               {dateStr}
             </div>
           </div>

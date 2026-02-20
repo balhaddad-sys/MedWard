@@ -1,6 +1,7 @@
 import {
   useState,
   useCallback,
+  useLayoutEffect,
   useMemo,
 } from 'react'
 import type { ReactNode } from 'react'
@@ -38,6 +39,11 @@ interface ModeProviderProps {
 export function ModeProvider({ children }: ModeProviderProps) {
   const defaultMode = useSettingsStore((s) => s.defaultMode)
   const [mode, setModeState] = useState<ClinicalMode>(() => readPersistedMode(defaultMode))
+
+  // Sync data-mode attribute on <html> so CSS [data-mode] selectors apply
+  useLayoutEffect(() => {
+    document.documentElement.dataset.mode = mode
+  }, [mode])
 
   const setMode = useCallback((next: ClinicalMode) => {
     setModeState(next)

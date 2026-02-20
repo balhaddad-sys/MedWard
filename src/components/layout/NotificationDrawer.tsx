@@ -215,7 +215,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
               </div>
               <div>
                 <p className="text-sm font-medium text-slate-700">All caught up</p>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   No notifications at this time
                 </p>
               </div>
@@ -263,7 +263,7 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
-          <p className="text-xs text-slate-400 text-center">
+          <p className="text-xs text-slate-500 text-center">
             Notifications are synced with your account
           </p>
         </div>
@@ -316,11 +316,11 @@ function NotificationItem({
         </p>
         <p className={[
           'text-xs mt-0.5 leading-snug',
-          isRead ? 'text-slate-400' : 'text-slate-600',
+          isRead ? 'text-slate-500' : 'text-slate-600',
         ].join(' ')}>
           {n.message}
         </p>
-        <p className="text-[10px] text-slate-400 mt-1">
+        <p className="text-[10px] text-slate-500 mt-1">
           {formatTimestamp(n.createdAt)}
         </p>
       </div>

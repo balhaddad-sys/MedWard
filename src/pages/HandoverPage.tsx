@@ -229,12 +229,12 @@ export default function HandoverPage() {
 
   if (patients.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b border-gray-200">
+      <div className="min-h-screen bg-slate-50">
+        <div className="bg-white border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center gap-3">
-              <FileText size={24} className="text-gray-400" />
-              <h1 className="text-2xl font-bold text-gray-900">Handover</h1>
+              <FileText size={24} className="text-slate-400" />
+              <h1 className="text-2xl font-bold text-slate-900">Handover</h1>
             </div>
           </div>
         </div>
@@ -252,14 +252,14 @@ export default function HandoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <FileText size={24} className="text-gray-400" />
-              <h1 className="text-2xl font-bold text-gray-900">Handover</h1>
+              <FileText size={24} className="text-slate-400" />
+              <h1 className="text-2xl font-bold text-slate-900">Handover</h1>
               <Badge variant="default" size="sm">{patients.length} patients</Badge>
             </div>
             <Button
@@ -278,7 +278,7 @@ export default function HandoverPage() {
         {fullHandover && (
           <Card padding="md" className="border-blue-200 bg-blue-50/30">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-900">Full Handover Report</h2>
+              <h2 className="text-sm font-semibold text-slate-900">Full Handover Report</h2>
               <Button
                 variant="secondary"
                 size="sm"
@@ -288,7 +288,7 @@ export default function HandoverPage() {
                 {fullHandoverCopied ? 'Copied' : 'Copy All'}
               </Button>
             </div>
-            <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-white p-4 rounded-lg border border-gray-200 max-h-96 overflow-y-auto">
+            <pre className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-white p-4 rounded-lg border border-slate-200 max-h-96 overflow-y-auto">
               {fullHandover}
             </pre>
           </Card>
@@ -306,17 +306,17 @@ export default function HandoverPage() {
               <button
                 type="button"
                 onClick={() => toggleGroup(acuity)}
-                className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors mb-2"
+                className="w-full flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors mb-2"
               >
                 <div className="flex items-center gap-3">
                   <Badge variant={getAcuityVariant(acuity)} dot>
                     {ACUITY_LEVELS[acuity].label}
                   </Badge>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-slate-500">
                     {group.length} patient{group.length !== 1 ? 's' : ''}
                   </span>
                 </div>
-                {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
               </button>
 
               {isExpanded && (
@@ -328,10 +328,10 @@ export default function HandoverPage() {
                       <Card key={patient.id} padding="md">
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div>
-                            <p className="text-sm font-semibold text-gray-900">
+                            <p className="text-sm font-semibold text-slate-900">
                               {patient.firstName} {patient.lastName}
                             </p>
-                            <p className="text-xs text-gray-500 mt-0.5">
+                            <p className="text-xs text-slate-500 mt-0.5">
                               {getOneLiner(patient)}
                             </p>
                           </div>
@@ -352,7 +352,7 @@ export default function HandoverPage() {
 
                         {sbar?.text && (
                           <div className="relative mt-2">
-                            <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <pre className="text-sm text-slate-700 whitespace-pre-wrap font-mono bg-slate-50 p-4 rounded-lg border border-slate-200">
                               {sbar.text}
                             </pre>
                             <button
@@ -362,7 +362,7 @@ export default function HandoverPage() {
                                 'absolute top-2 right-2 p-1.5 rounded-lg transition-colors',
                                 copiedId === patient.id
                                   ? 'bg-green-100 text-green-600'
-                                  : 'bg-white text-gray-400 hover:text-gray-600 hover:bg-gray-100',
+                                  : 'bg-white text-slate-400 hover:text-slate-600 hover:bg-slate-100',
                               )}
                               title="Copy to clipboard"
                             >

@@ -87,15 +87,15 @@ export default function ModeSelectionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-4 py-8 text-center">
           <div className="mx-auto w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
             <Activity size={24} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Select Clinical Mode</h1>
-          <p className="mt-2 text-gray-500 max-w-lg mx-auto">
+          <h1 className="text-2xl font-bold text-slate-900">Select Clinical Mode</h1>
+          <p className="mt-2 text-slate-500 max-w-lg mx-auto">
             Choose how you want to use MedWard Pro. Each mode is optimized for a different
             clinical workflow. You can switch modes at any time.
           </p>
@@ -121,7 +121,7 @@ export default function ModeSelectionPage() {
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
                   isCurrentMode
                     ? clsx(card.borderColor, 'shadow-md ring-1 ring-offset-0', card.borderColor.split(' ')[0])
-                    : 'border-gray-200 hover:border-gray-300',
+                    : 'border-slate-200 hover:border-slate-300',
                 )}
               >
                 {/* Current mode indicator */}
@@ -146,17 +146,17 @@ export default function ModeSelectionPage() {
                 </div>
 
                 {/* Title & description */}
-                <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                <h2 className="text-lg font-semibold text-slate-900 mb-1">
                   {card.title}
                 </h2>
-                <p className="text-sm text-gray-500 mb-5">
+                <p className="text-sm text-slate-500 mb-5">
                   {card.description}
                 </p>
 
                 {/* Feature highlights */}
                 <ul className="space-y-2 mb-6">
                   {card.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-gray-600">
+                    <li key={feature} className="flex items-start gap-2 text-sm text-slate-600">
                       <CheckCircle2
                         size={14}
                         className={clsx('mt-0.5 shrink-0', card.themeColor)}

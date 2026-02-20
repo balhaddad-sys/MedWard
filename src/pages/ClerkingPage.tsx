@@ -53,8 +53,8 @@ function getStatusColor(status: SectionStatus): string {
   switch (status) {
     case 'complete': return 'bg-green-500';
     case 'warning': return 'bg-amber-500';
-    case 'incomplete': return 'bg-gray-300';
-    default: return 'bg-gray-300';
+    case 'incomplete': return 'bg-slate-300';
+    default: return 'bg-slate-300';
   }
 }
 
@@ -370,9 +370,9 @@ export default function ClerkingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
@@ -380,21 +380,21 @@ export default function ClerkingPage() {
                 <FileText size={20} className="text-emerald-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Clerking</h1>
-                <p className="text-sm text-gray-500">
+                <h1 className="text-2xl font-bold text-slate-900">Clerking</h1>
+                <p className="text-sm text-slate-500">
                   Structured admission clerking workflow
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               {saving && (
-                <span className="text-xs text-gray-400 flex items-center gap-1">
+                <span className="text-xs text-slate-400 flex items-center gap-1">
                   <Save size={12} className="animate-pulse" />
                   Saving...
                 </span>
               )}
               {lastSaved && !saving && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-slate-400">
                   Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
@@ -428,10 +428,10 @@ export default function ClerkingPage() {
           {noteId && (
             <div className="mt-4">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-medium text-gray-500">Progress</span>
-                <span className="text-xs font-semibold text-gray-700">{completionPercentage}%</span>
+                <span className="text-xs font-medium text-slate-500">Progress</span>
+                <span className="text-xs font-semibold text-slate-700">{completionPercentage}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-slate-200 rounded-full h-2">
                 <div
                   className={clsx(
                     'h-2 rounded-full transition-all duration-500',
@@ -452,7 +452,7 @@ export default function ClerkingPage() {
                       'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
                       expandedSteps.has(step.key)
                         ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
                     )}
                   >
                     <span className={clsx('w-2 h-2 rounded-full', getStatusColor(sectionStatus[step.key]))} />
@@ -477,11 +477,11 @@ export default function ClerkingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <Card>
             <div className="text-center py-12">
-              <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-              <h2 className="text-lg font-semibold text-gray-900">
+              <FileText size={40} className="mx-auto text-slate-300 mb-3" />
+              <h2 className="text-lg font-semibold text-slate-900">
                 Select a patient to begin clerking
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-slate-500 mt-1">
                 Choose a patient from the dropdown above to start a new clerking note.
               </p>
             </div>
@@ -554,7 +554,7 @@ export default function ClerkingPage() {
               <button
                 type="button"
                 onClick={() => setShowMoreHistory((v) => !v)}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
               >
                 {showMoreHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 {showMoreHistory ? 'Hide' : 'Show'} surgical history, family & social history, systems review
@@ -610,7 +610,7 @@ export default function ClerkingPage() {
                 placeholder="General appearance, alertness, distress level..."
               />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Vital Signs</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Vital Signs</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                   <Input
                     label="HR"
@@ -650,7 +650,7 @@ export default function ClerkingPage() {
               <button
                 type="button"
                 onClick={() => setShowSystemExam((v) => !v)}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
               >
                 {showSystemExam ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 {showSystemExam ? 'Hide' : 'Show'} system examinations (CVS · Resp · Abdo · Neuro)
@@ -790,27 +790,27 @@ export default function ClerkingPage() {
                     type="checkbox"
                     checked={vteConsidered}
                     onChange={(e) => setVteConsidered(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">VTE prophylaxis considered</span>
+                  <span className="text-sm text-slate-700">VTE prophylaxis considered</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={giProphIndicated}
                     onChange={(e) => setGiProphIndicated(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">GI prophylaxis indicated</span>
+                  <span className="text-sm text-slate-700">GI prophylaxis indicated</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={linesReviewed}
                     onChange={(e) => setLinesReviewed(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">Lines and catheters reviewed</span>
+                  <span className="text-sm text-slate-700">Lines and catheters reviewed</span>
                 </label>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -846,8 +846,8 @@ export default function ClerkingPage() {
           <Card padding="md" className="border-emerald-200 bg-emerald-50/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-900">Ready to submit?</p>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-sm font-semibold text-slate-900">Ready to submit?</p>
+                <p className="text-xs text-slate-500 mt-0.5">
                   Signing the note will mark it as complete and lock it from further edits.
                 </p>
               </div>
@@ -898,22 +898,22 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <Icon size={18} className="text-gray-400" />
-          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+          <Icon size={18} className="text-slate-400" />
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
           <span className={clsx('w-2.5 h-2.5 rounded-full', getStatusColor(status))} />
-          <span className="text-xs text-gray-400 capitalize">{status}</span>
+          <span className="text-xs text-slate-400 capitalize">{status}</span>
         </div>
         {expanded ? (
-          <ChevronUp size={16} className="text-gray-400" />
+          <ChevronUp size={16} className="text-slate-400" />
         ) : (
-          <ChevronDown size={16} className="text-gray-400" />
+          <ChevronDown size={16} className="text-slate-400" />
         )}
       </button>
       {expanded && (
-        <div className="px-4 pb-4 border-t border-gray-100 pt-4">
+        <div className="px-4 pb-4 border-t border-slate-100 pt-4">
           {children}
         </div>
       )}

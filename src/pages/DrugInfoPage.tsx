@@ -58,14 +58,14 @@ function renderMarkdown(text: string) {
 
     // Horizontal rule
     if (/^---+$/.test(line.trim())) {
-      elements.push(<hr key={key++} className="my-3 border-gray-200" />);
+      elements.push(<hr key={key++} className="my-3 border-slate-200" />);
       continue;
     }
 
     // H2 header
     if (line.startsWith('## ')) {
       elements.push(
-        <h2 key={key++} className="text-lg font-bold text-gray-900 mt-4 mb-1">
+        <h2 key={key++} className="text-lg font-bold text-slate-900 mt-4 mb-1">
           {formatInline(line.slice(3))}
         </h2>
       );
@@ -75,7 +75,7 @@ function renderMarkdown(text: string) {
     // H3 header
     if (line.startsWith('### ')) {
       elements.push(
-        <h3 key={key++} className="text-sm font-semibold text-gray-900 mt-3 mb-1">
+        <h3 key={key++} className="text-sm font-semibold text-slate-900 mt-3 mb-1">
           {formatInline(line.slice(4))}
         </h3>
       );
@@ -86,8 +86,8 @@ function renderMarkdown(text: string) {
     if (line.startsWith('- ')) {
       elements.push(
         <div key={key++} className="flex gap-2 ml-1 mb-0.5">
-          <span className="text-gray-400 shrink-0 mt-1.5 w-1 h-1 rounded-full bg-gray-400" />
-          <span className="text-sm text-gray-700 leading-relaxed">
+          <span className="text-slate-400 shrink-0 mt-1.5 w-1 h-1 rounded-full bg-slate-400" />
+          <span className="text-sm text-slate-700 leading-relaxed">
             {formatInline(line.slice(2))}
           </span>
         </div>
@@ -103,7 +103,7 @@ function renderMarkdown(text: string) {
 
     // Regular paragraph
     elements.push(
-      <p key={key++} className="text-sm text-gray-700 leading-relaxed">
+      <p key={key++} className="text-sm text-slate-700 leading-relaxed">
         {formatInline(line)}
       </p>
     );
@@ -126,7 +126,7 @@ function formatInline(text: string): React.ReactNode {
         parts.push(remaining.slice(0, boldMatch.index));
       }
       parts.push(
-        <strong key={key++} className="font-semibold text-gray-900">
+        <strong key={key++} className="font-semibold text-slate-900">
           {boldMatch[1]}
         </strong>
       );
@@ -200,13 +200,13 @@ export default function DrugInfoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-slate-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-3 mb-4">
-            <Pill size={24} className="text-gray-400" />
-            <h1 className="text-2xl font-bold text-gray-900">Drug Information</h1>
+            <Pill size={24} className="text-slate-400" />
+            <h1 className="text-2xl font-bold text-slate-900">Drug Information</h1>
           </div>
 
           {/* Search bar */}
@@ -214,7 +214,7 @@ export default function DrugInfoPage() {
             <div className="flex-1 relative">
               <Search
                 size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
               />
               <input
                 type="text"
@@ -224,9 +224,9 @@ export default function DrugInfoPage() {
                 placeholder="Search a drug (e.g. Metformin)..."
                 className={clsx(
                   'w-full h-11 pl-10 pr-4 rounded-xl text-sm',
-                  'bg-gray-50 border border-gray-200',
+                  'bg-slate-50 border border-slate-200',
                   'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white',
-                  'placeholder:text-gray-400',
+                  'placeholder:text-slate-400',
                 )}
               />
             </div>
@@ -257,7 +257,7 @@ export default function DrugInfoPage() {
           <Card padding="lg">
             <div className="flex flex-col items-center justify-center py-8">
               <Loader2 size={32} className="animate-spin text-blue-500 mb-3" />
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-slate-500">
                 Looking up {searchedTerm}...
               </p>
             </div>
@@ -268,21 +268,21 @@ export default function DrugInfoPage() {
         {drugResponse && !loading && (
           <div className="space-y-4">
             <Card padding="md">
-              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
                 <div className="p-2.5 bg-blue-100 rounded-xl">
                   <Pill size={20} className="text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-gray-900">{searchedTerm}</h2>
-                  <p className="text-xs text-gray-400">AI-generated drug reference</p>
+                  <h2 className="text-base font-bold text-slate-900">{searchedTerm}</h2>
+                  <p className="text-xs text-slate-400">AI-generated drug reference</p>
                 </div>
               </div>
               <div>{renderMarkdown(drugResponse)}</div>
             </Card>
 
             {/* Disclaimer */}
-            <div className="p-3 bg-gray-100 rounded-lg">
-              <p className="text-xs text-gray-500 text-center">
+            <div className="p-3 bg-slate-100 rounded-lg">
+              <p className="text-xs text-slate-500 text-center">
                 This information is AI-generated for clinical decision support only.
                 Always verify with official drug references (BNF, Micromedex) and apply clinical judgment.
               </p>
@@ -298,13 +298,13 @@ export default function DrugInfoPage() {
               <Card padding="md">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Clock size={16} className="text-gray-400" />
-                    <h3 className="text-sm font-semibold text-gray-700">Recent Searches</h3>
+                    <Clock size={16} className="text-slate-400" />
+                    <h3 className="text-sm font-semibold text-slate-700">Recent Searches</h3>
                   </div>
                   <button
                     type="button"
                     onClick={handleClearRecent}
-                    className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     Clear all
                   </button>
@@ -317,12 +317,12 @@ export default function DrugInfoPage() {
                       onClick={() => handleRecentClick(q)}
                       className={clsx(
                         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm',
-                        'bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors',
+                        'bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors',
                       )}
                     >
                       <Pill size={12} />
                       {q}
-                      <ChevronRight size={12} className="text-gray-400" />
+                      <ChevronRight size={12} className="text-slate-400" />
                     </button>
                   ))}
                 </div>

@@ -29,7 +29,7 @@ function Spinner({ size = 'md', label, className }: SpinnerProps) {
     >
       <Loader2 size={sizeMap[size]} className="animate-spin text-blue-600" />
       {label && (
-        <span className={clsx('text-gray-500', textSizeMap[size])}>{label}</span>
+        <span className={clsx('text-slate-500', textSizeMap[size])}>{label}</span>
       )}
       <span className="sr-only">{label || 'Loading...'}</span>
     </div>

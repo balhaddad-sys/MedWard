@@ -53,6 +53,34 @@
     /* Sidebar */
     --sidebar-width: 260px;
     --sidebar-collapsed-width: 72px;
+
+    /* Mode accent tokens — default ward (blue) */
+    --mode-accent-light: #eff6ff;
+    --mode-accent-text: #1d4ed8;
+    --mode-accent-dot: #3b82f6;
+    --mode-accent-border: #bfdbfe;
+  }
+
+  /* ---- Mode accent overrides per data-mode attribute ---- */
+  [data-mode="ward"] {
+    --mode-accent-light: #eff6ff;
+    --mode-accent-text: #1d4ed8;
+    --mode-accent-dot: #3b82f6;
+    --mode-accent-border: #bfdbfe;
+  }
+
+  [data-mode="acute"] {
+    --mode-accent-light: #fff1f2;
+    --mode-accent-text: #b91c1c;
+    --mode-accent-dot: #ef4444;
+    --mode-accent-border: #fecaca;
+  }
+
+  [data-mode="clerking"] {
+    --mode-accent-light: #fffbeb;
+    --mode-accent-text: #b45309;
+    --mode-accent-dot: #f59e0b;
+    --mode-accent-border: #fde68a;
   }
 
   *,
@@ -116,6 +144,26 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #475569;
     }
+
+    /* Dark mode accent overrides */
+    [data-mode="ward"] {
+      --mode-accent-light: rgba(37, 99, 235, 0.18);
+      --mode-accent-text: #60a5fa;
+      --mode-accent-dot: #3b82f6;
+      --mode-accent-border: rgba(59, 130, 246, 0.25);
+    }
+    [data-mode="acute"] {
+      --mode-accent-light: rgba(220, 38, 38, 0.18);
+      --mode-accent-text: #f87171;
+      --mode-accent-dot: #ef4444;
+      --mode-accent-border: rgba(239, 68, 68, 0.25);
+    }
+    [data-mode="clerking"] {
+      --mode-accent-light: rgba(245, 158, 11, 0.18);
+      --mode-accent-text: #fbbf24;
+      --mode-accent-dot: #f59e0b;
+      --mode-accent-border: rgba(245, 158, 11, 0.25);
+    }
   }
 
   /* Manual dark class override (for future toggle support) */
@@ -137,6 +185,25 @@
     --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  }
+
+  html.dark [data-mode="ward"] {
+    --mode-accent-light: rgba(37, 99, 235, 0.18);
+    --mode-accent-text: #60a5fa;
+    --mode-accent-dot: #3b82f6;
+    --mode-accent-border: rgba(59, 130, 246, 0.25);
+  }
+  html.dark [data-mode="acute"] {
+    --mode-accent-light: rgba(220, 38, 38, 0.18);
+    --mode-accent-text: #f87171;
+    --mode-accent-dot: #ef4444;
+    --mode-accent-border: rgba(239, 68, 68, 0.25);
+  }
+  html.dark [data-mode="clerking"] {
+    --mode-accent-light: rgba(245, 158, 11, 0.18);
+    --mode-accent-text: #fbbf24;
+    --mode-accent-dot: #f59e0b;
+    --mode-accent-border: rgba(245, 158, 11, 0.25);
   }
 }
 
