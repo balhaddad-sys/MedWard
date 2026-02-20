@@ -10,7 +10,9 @@ import {
   orderBy,
   onSnapshot,
   doc,
+  addDoc,
   deleteDoc,
+  serverTimestamp,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -43,6 +45,27 @@ export function subscribeToOnCallList(
       callback([]);
     }
   );
+}
+
+/**
+ * Add a patient to the on-call list
+ */
+export async function addToOnCallList(
+  userId: string,
+  patientId: string,
+  priority: 'low' | 'medium' | 'high' | 'critical',
+  notes?: string,
+): Promise<void> {
+  await addDoc(collection(db, ON_CALL_LIST_COLLECTION), {
+    patientId,
+    priority,
+    isActive: true,
+    addedBy: userId,
+    addedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+    escalationFlags: [],
+    ...(notes ? { notes } : {}),
+  });
 }
 
 /**

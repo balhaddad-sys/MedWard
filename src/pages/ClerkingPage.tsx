@@ -66,6 +66,8 @@ export default function ClerkingPage() {
   const [noteId, setNoteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [signing, setSigning] = useState(false);
+  const [showMoreHistory, setShowMoreHistory] = useState(false);
+  const [showSystemExam, setShowSystemExam] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ref to always point at the latest performSave — avoids stale closure in auto-save timer
   const performSaveRef = useRef<() => Promise<void>>(async () => {});
@@ -536,47 +538,58 @@ export default function ClerkingPage() {
                   helperText="One per line"
                 />
                 <Textarea
-                  label="Past Surgical History"
-                  value={psh}
-                  onChange={(e) => setPsh(e.target.value)}
-                  placeholder="One procedure per line..."
-                  helperText="One per line"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Textarea
                   label="Medications"
                   value={medications}
                   onChange={(e) => setMedications(e.target.value)}
                   placeholder="Current medications..."
                 />
-                <Textarea
-                  label="Allergies"
-                  value={allergies}
-                  onChange={(e) => setAllergies(e.target.value)}
-                  placeholder="Known allergies and reactions..."
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Textarea
-                  label="Family History"
-                  value={familyHistory}
-                  onChange={(e) => setFamilyHistory(e.target.value)}
-                  placeholder="Relevant family history..."
-                />
-                <Textarea
-                  label="Social History"
-                  value={socialHistory}
-                  onChange={(e) => setSocialHistory(e.target.value)}
-                  placeholder="Smoking, alcohol, occupation, living situation..."
-                />
               </div>
               <Textarea
-                label="Systems Review"
-                value={systemsReview}
-                onChange={(e) => setSystemsReview(e.target.value)}
-                placeholder="Systematic review of other systems..."
+                label="Allergies"
+                value={allergies}
+                onChange={(e) => setAllergies(e.target.value)}
+                placeholder="Known allergies and reactions..."
               />
+              {/* Secondary history — collapsed by default */}
+              <button
+                type="button"
+                onClick={() => setShowMoreHistory((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                {showMoreHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                {showMoreHistory ? 'Hide' : 'Show'} surgical history, family & social history, systems review
+              </button>
+              {showMoreHistory && (
+                <div className="space-y-4 pt-1">
+                  <Textarea
+                    label="Past Surgical History"
+                    value={psh}
+                    onChange={(e) => setPsh(e.target.value)}
+                    placeholder="One procedure per line..."
+                    helperText="One per line"
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Textarea
+                      label="Family History"
+                      value={familyHistory}
+                      onChange={(e) => setFamilyHistory(e.target.value)}
+                      placeholder="Relevant family history..."
+                    />
+                    <Textarea
+                      label="Social History"
+                      value={socialHistory}
+                      onChange={(e) => setSocialHistory(e.target.value)}
+                      placeholder="Smoking, alcohol, occupation, living situation..."
+                    />
+                  </div>
+                  <Textarea
+                    label="Systems Review"
+                    value={systemsReview}
+                    onChange={(e) => setSystemsReview(e.target.value)}
+                    placeholder="Systematic review of other systems..."
+                  />
+                </div>
+              )}
             </div>
           </CollapsibleSection>
 
@@ -633,34 +646,47 @@ export default function ClerkingPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Textarea
-                  label="Cardiovascular"
-                  value={cardiovascularExam}
-                  onChange={(e) => setCardiovascularExam(e.target.value)}
-                  placeholder="Heart sounds, JVP, peripheral pulses..."
-                />
-                <Textarea
-                  label="Respiratory"
-                  value={respiratoryExam}
-                  onChange={(e) => setRespiratoryExam(e.target.value)}
-                  placeholder="Chest expansion, percussion, auscultation..."
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Textarea
-                  label="Abdominal"
-                  value={abdominalExam}
-                  onChange={(e) => setAbdominalExam(e.target.value)}
-                  placeholder="Inspection, palpation, percussion..."
-                />
-                <Textarea
-                  label="Neurological"
-                  value={neurologicalExam}
-                  onChange={(e) => setNeurologicalExam(e.target.value)}
-                  placeholder="GCS, orientation, cranial nerves, power..."
-                />
-              </div>
+              {/* System exams — collapsed by default */}
+              <button
+                type="button"
+                onClick={() => setShowSystemExam((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                {showSystemExam ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                {showSystemExam ? 'Hide' : 'Show'} system examinations (CVS · Resp · Abdo · Neuro)
+              </button>
+              {showSystemExam && (
+                <div className="space-y-4 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Textarea
+                      label="Cardiovascular"
+                      value={cardiovascularExam}
+                      onChange={(e) => setCardiovascularExam(e.target.value)}
+                      placeholder="Heart sounds, JVP, peripheral pulses..."
+                    />
+                    <Textarea
+                      label="Respiratory"
+                      value={respiratoryExam}
+                      onChange={(e) => setRespiratoryExam(e.target.value)}
+                      placeholder="Chest expansion, percussion, auscultation..."
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Textarea
+                      label="Abdominal"
+                      value={abdominalExam}
+                      onChange={(e) => setAbdominalExam(e.target.value)}
+                      placeholder="Inspection, palpation, percussion..."
+                    />
+                    <Textarea
+                      label="Neurological"
+                      value={neurologicalExam}
+                      onChange={(e) => setNeurologicalExam(e.target.value)}
+                      placeholder="GCS, orientation, cranial nerves, power..."
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </CollapsibleSection>
 

@@ -36,7 +36,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Input, Textarea } from '@/components/ui/Input'
 import { useAuthStore } from '@/stores/authStore'
 import { usePatientStore } from '@/stores/patientStore'
-import { subscribeToOnCallList, removeFromOnCallList } from '@/services/firebase/onCallList'
+import { subscribeToOnCallList, addToOnCallList, removeFromOnCallList } from '@/services/firebase/onCallList'
 import {
   subscribeToOnCallJobs,
   addOnCallJob,
@@ -489,6 +489,11 @@ function PatientsTab({ userId }: { userId: string }) {
   const patients = usePatientStore((s) => s.patients)
   const [onCallEntries, setOnCallEntries] = useState<OnCallListEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addPatientId, setAddPatientId] = useState('')
+  const [addPriority, setAddPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium')
+  const [addNotes, setAddNotes] = useState('')
+  const [addSaving, setAddSaving] = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -553,10 +558,89 @@ function PatientsTab({ userId }: { userId: string }) {
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold text-gray-700">On-Call List</p>
-          <Badge variant={onCallEntries.length > 0 ? 'warning' : 'muted'}>
-            {onCallEntries.length} patient{onCallEntries.length !== 1 ? 's' : ''}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={onCallEntries.length > 0 ? 'warning' : 'muted'}>
+              {onCallEntries.length} patient{onCallEntries.length !== 1 ? 's' : ''}
+            </Badge>
+            <button
+              type="button"
+              onClick={() => setShowAddForm((v) => !v)}
+              className={clsx(
+                'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
+                showAddForm
+                  ? 'bg-blue-50 border-blue-300 text-blue-700'
+                  : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700',
+              )}
+            >
+              <Plus size={12} />
+              Add
+            </button>
+          </div>
         </div>
+
+        {/* Quick add form */}
+        {showAddForm && (
+          <Card padding="sm" className="mb-3 border-blue-100 bg-blue-50/30">
+            <p className="text-xs font-semibold text-blue-800 mb-2">Add patient to on-call list</p>
+            <div className="space-y-2">
+              <select
+                value={addPatientId}
+                onChange={(e) => setAddPatientId(e.target.value)}
+                className="w-full h-9 px-3 rounded-lg text-sm bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+              >
+                <option value="">Select patient...</option>
+                {patients
+                  .filter((p) => !onCallEntries.some((e) => e.patientId === p.id))
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.firstName} {p.lastName} — Bed {p.bedNumber}
+                    </option>
+                  ))}
+              </select>
+              <div className="flex gap-2">
+                <select
+                  value={addPriority}
+                  onChange={(e) => setAddPriority(e.target.value as typeof addPriority)}
+                  className="flex-1 h-9 px-3 rounded-lg text-sm bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+                <input
+                  type="text"
+                  value={addNotes}
+                  onChange={(e) => setAddNotes(e.target.value)}
+                  placeholder="Reason (optional)"
+                  className="flex-[2] h-9 px-3 rounded-lg text-sm bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddForm(false); setAddPatientId(''); setAddNotes('') }}
+                  className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={!addPatientId || addSaving}
+                  onClick={async () => {
+                    if (!addPatientId) return
+                    setAddSaving(true)
+                    await addToOnCallList(userId, addPatientId, addPriority, addNotes || undefined)
+                    setAddPatientId(''); setAddNotes(''); setShowAddForm(false); setAddSaving(false)
+                  }}
+                  className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 transition-colors"
+                >
+                  {addSaving ? 'Adding...' : 'Add to list'}
+                </button>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {loading ? (
           <div className="py-8"><Spinner size="md" label="Loading..." /></div>
