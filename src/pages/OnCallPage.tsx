@@ -1928,22 +1928,23 @@ function HandoverTab({ userId }: { userId: string }) {
         </Card>
       )}
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Handover summary</p>
-        <Button
-          size="sm"
-          variant={copied ? 'success' : 'secondary'}
-          iconLeft={copied ? <CheckCheck size={14} /> : <Copy size={14} />}
-          onClick={handleCopy}
-        >
-          {copied ? 'Copied!' : 'Copy'}
-        </Button>
-      </div>
-
       <Card padding="none">
-        <pre className="p-4 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto">
-          {handoverText}
-        </pre>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-ward-border">
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Handover summary</p>
+          <Button
+            size="sm"
+            variant={copied ? 'success' : 'secondary'}
+            iconLeft={copied ? <CheckCheck size={14} /> : <Copy size={14} />}
+            onClick={handleCopy}
+          >
+            {copied ? 'Copied!' : 'Copy'}
+          </Button>
+        </div>
+        <div className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-b-lg max-h-[60vh] overflow-y-auto">
+          <pre className="text-[13px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-[1.7]">
+            {handoverText}
+          </pre>
+        </div>
       </Card>
     </div>
   )

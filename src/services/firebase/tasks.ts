@@ -3,6 +3,7 @@ import {
   doc,
   getDocs,
   addDoc,
+  writeBatch,
   updateDoc,
   deleteDoc,
   query,
@@ -10,6 +11,7 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  Timestamp,
   type Unsubscribe,
 } from 'firebase/firestore'
 import { db } from '@/config/firebase'
@@ -18,6 +20,10 @@ import type { Task, TaskFormData } from '@/types'
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 const getTasksRef = () => collection(db, 'tasks')
+
+function omitUndefinedValues(input: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined))
+}
 
 const safeTask = (id: string, data: Record<string, unknown>): Task => ({
   id,
@@ -64,6 +70,39 @@ export const createTask = async (data: TaskFormData, userId: string, userName: s
     updatedAt: serverTimestamp(),
   })
   return docRef.id
+}
+
+/**
+ * Create multiple auto-generated tasks in a single batch write.
+ * Used by clerking workflow to convert problem list items into actionable tasks.
+ */
+export const createGeneratedTasks = async (tasks: Partial<Task>[]): Promise<string[]> => {
+  if (tasks.length === 0) return []
+
+  const now = Timestamp.now()
+  const batch = writeBatch(db)
+  const taskIds: string[] = []
+
+  for (const task of tasks) {
+    const taskRef = doc(getTasksRef())
+    taskIds.push(taskRef.id)
+
+    const payload = omitUndefinedValues({
+      ...task,
+      status: task.status ?? 'pending',
+      priority: task.priority ?? 'medium',
+      category: task.category ?? 'other',
+      viewedBy: task.viewedBy ?? [],
+      escalationLevel: task.escalationLevel ?? 'none',
+      createdAt: task.createdAt ?? now,
+      updatedAt: now,
+    })
+
+    batch.set(taskRef, payload)
+  }
+
+  await batch.commit()
+  return taskIds
 }
 
 export const updateTask = async (id: string, data: Partial<Task>): Promise<void> => {

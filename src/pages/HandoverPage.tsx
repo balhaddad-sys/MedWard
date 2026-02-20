@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
+import { getClerkingNotesByPatient, generateSBAR as generateClerkingSBAR } from '@/services/firebase/clerkingNotes';
 import { usePatientStore } from '@/stores/patientStore';
 import { ACUITY_LEVELS } from '@/config/constants';
 import type { Patient } from '@/types/patient';
@@ -81,13 +82,39 @@ export default function HandoverPage() {
     return parts.join(' | ');
   }
 
-  async function generateSBAR(patient: Patient) {
+  async function loadClerkingSbar(patient: Patient): Promise<string | null> {
+    try {
+      const notes = await getClerkingNotesByPatient(patient.id, 5);
+      if (notes.length === 0) return null;
+
+      const latestSigned = notes.find((note) => note.status === 'signed') ?? notes[0];
+      if (latestSigned.sbarText?.trim()) {
+        return latestSigned.sbarText;
+      }
+
+      return generateClerkingSBAR(latestSigned, `${patient.firstName} ${patient.lastName}`);
+    } catch (err) {
+      console.error('Failed to load clerking SBAR:', err);
+      return null;
+    }
+  }
+
+  async function generateSBAR(patient: Patient): Promise<string> {
     setSbarResults((prev) => ({
       ...prev,
       [patient.id]: { patientId: patient.id, text: '', loading: true },
     }));
 
     try {
+      const clerkingSbar = await loadClerkingSbar(patient);
+      if (clerkingSbar) {
+        setSbarResults((prev) => ({
+          ...prev,
+          [patient.id]: { patientId: patient.id, text: clerkingSbar, loading: false },
+        }));
+        return clerkingSbar;
+      }
+
       const patientData = [
         `Patient: ${patient.firstName} ${patient.lastName}, Bed ${patient.bedNumber}`,
         `Primary Diagnosis: ${patient.primaryDiagnosis}`,
@@ -125,6 +152,7 @@ export default function HandoverPage() {
         ...prev,
         [patient.id]: { patientId: patient.id, text: sbarText, loading: false },
       }));
+      return sbarText;
     } catch (err) {
       console.error('SBAR generation error:', err);
       // Fall back to local generation
@@ -138,6 +166,7 @@ export default function HandoverPage() {
           error: 'AI unavailable - generated locally',
         },
       }));
+      return localSBAR;
     }
   }
 
@@ -200,12 +229,7 @@ export default function HandoverPage() {
       handoverParts.push('');
 
       for (const patient of group) {
-        // Try to generate SBAR for each patient
-        if (!sbarResults[patient.id]?.text) {
-          await generateSBAR(patient);
-        }
-
-        const sbar = sbarResults[patient.id]?.text || generateLocalSBAR(patient);
+        const sbar = sbarResults[patient.id]?.text || await generateSBAR(patient);
         handoverParts.push(sbar);
         handoverParts.push('');
         handoverParts.push('---');

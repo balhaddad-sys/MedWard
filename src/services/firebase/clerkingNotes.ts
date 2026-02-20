@@ -21,15 +21,53 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { TaskAutomationEngine } from '@/services/TaskAutomationEngine';
+import { createGeneratedTasks } from '@/services/firebase/tasks';
 import type {
   ClerkingNote,
   OnCallListEntry,
   ClerkingStatus,
 } from '@/types/clerking';
+import type { Patient } from '@/types/patient';
+import type { Task } from '@/types/task';
 
 const CLERKING_NOTES_COLLECTION = 'clerking_notes';
 const ON_CALL_LIST_COLLECTION = 'on_call_list';
 const PATIENTS_COLLECTION = 'patients';
+
+export interface FinalizeClerkingWorkflowParams {
+  noteId: string;
+  userId: string;
+  userName: string;
+  patient: Pick<Patient, 'id' | 'firstName' | 'lastName' | 'bedNumber'>;
+  escalateToOnCall: boolean;
+  saveSbar?: boolean;
+}
+
+export interface FinalizeClerkingWorkflowResult {
+  signed: boolean;
+  escalated: boolean;
+  onCallId?: string;
+  tasksCreated: number;
+  taskIds: string[];
+  warnings: string[];
+}
+
+function dedupeGeneratedTasks(tasks: Partial<Task>[]): Partial<Task>[] {
+  const seen = new Set<string>();
+  return tasks.filter((task) => {
+    const key = [
+      task.patientId ?? '',
+      (task.title ?? '').toLowerCase().trim(),
+      task.category ?? 'other',
+      task.generatedFrom?.sourceId ?? '',
+    ].join('::');
+
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 // ============================================================================
 // CREATE OPERATIONS
@@ -370,6 +408,86 @@ export async function saveClerkingToOnCall(
       error: error instanceof Error ? error.message : 'Transaction failed',
     };
   }
+}
+
+/**
+ * Finalize clerking workflow:
+ * - Sign note (and optionally escalate to on-call list)
+ * - Auto-generate tasks from active problem list
+ * - Optionally persist SBAR text on the clerking note
+ */
+export async function finalizeClerkingWorkflow(
+  params: FinalizeClerkingWorkflowParams
+): Promise<FinalizeClerkingWorkflowResult> {
+  const warnings: string[] = [];
+  const patientName = `${params.patient.firstName} ${params.patient.lastName}`.trim();
+
+  const note = await getClerkingNote(params.noteId);
+  if (!note) {
+    throw new Error('Clerking note not found');
+  }
+
+  // 1) Sign and optionally escalate to on-call
+  let escalated = false;
+  let onCallId: string | undefined;
+
+  if (params.escalateToOnCall) {
+    const escalationResult = await saveClerkingToOnCall(params.noteId, params.userId, params.userName);
+    if (escalationResult.success) {
+      escalated = true;
+      onCallId = escalationResult.onCallId;
+    } else {
+      warnings.push(`On-call escalation failed: ${escalationResult.error ?? 'Unknown error'}`);
+      await signClerkingNote(params.noteId);
+    }
+  } else {
+    await signClerkingNote(params.noteId);
+  }
+
+  // 2) Auto-generate actionable tasks from active problem list
+  let taskIds: string[] = [];
+  const activeProblems = note.problemList.filter((problem) => problem.isActive);
+  const generatedTasks = dedupeGeneratedTasks(
+    activeProblems.flatMap((problem) =>
+      TaskAutomationEngine.generateTasksFromProblem(
+        problem,
+        params.patient.id,
+        patientName,
+        params.patient.bedNumber,
+        params.userId,
+        params.userName
+      )
+    )
+  );
+
+  if (generatedTasks.length > 0) {
+    try {
+      taskIds = await createGeneratedTasks(generatedTasks);
+    } catch (error) {
+      console.error('❌ Failed to create auto-generated tasks:', error);
+      warnings.push('Auto-generated tasks could not be saved');
+    }
+  }
+
+  // 3) Persist generated SBAR on note for handover reuse
+  if (params.saveSbar ?? true) {
+    try {
+      const sbarText = generateSBAR(note, patientName);
+      await saveHandoverText(params.noteId, sbarText, sbarText);
+    } catch (error) {
+      console.error('❌ Failed to save SBAR text on clerking note:', error);
+      warnings.push('SBAR output could not be saved on the clerking note');
+    }
+  }
+
+  return {
+    signed: true,
+    escalated,
+    onCallId,
+    tasksCreated: taskIds.length,
+    taskIds,
+    warnings,
+  };
 }
 
 /**

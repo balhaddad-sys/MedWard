@@ -17,7 +17,7 @@ import { useAuthStore } from '@/stores/authStore';
 import {
   createClerkingNote,
   updateClerkingNote,
-  signClerkingNote,
+  finalizeClerkingWorkflow,
 } from '@/services/firebase/clerkingNotes';
 import type {
   HistoryData,
@@ -27,6 +27,7 @@ import type {
   InvestigationsData,
   PlanData,
   SafetyChecklist,
+  Priority,
 } from '@/types/clerking';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -58,6 +59,84 @@ function getStatusColor(status: SectionStatus): string {
   }
 }
 
+const CRITICAL_PROBLEM_KEYWORDS = [
+  'sepsis',
+  'septic shock',
+  'stemi',
+  'cardiac arrest',
+  'respiratory failure',
+  'anaphylaxis',
+  'hyperkalaemia',
+  'hyperkalemia',
+  'dka',
+  'stroke',
+  'massive pe',
+];
+
+const HIGH_PROBLEM_KEYWORDS = [
+  'acs',
+  'chest pain',
+  'pneumonia',
+  'aki',
+  'pulmonary embolism',
+  'pe',
+  'hypoxia',
+  'hypotension',
+];
+
+function inferProblemSeverity(title: string): Priority {
+  const normalized = title.toLowerCase();
+  if (CRITICAL_PROBLEM_KEYWORDS.some((keyword) => normalized.includes(keyword))) return 'critical';
+  if (HIGH_PROBLEM_KEYWORDS.some((keyword) => normalized.includes(keyword))) return 'high';
+  return 'medium';
+}
+
+function parseProblemListInput(input: string): Array<{ id: string; title: string; severity: Priority }> {
+  const lines = input
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return lines.map((rawLine, index) => {
+    const strippedNumbering = rawLine.replace(/^\d+[\).\-\s]+/, '').trim();
+
+    // Supports: [critical] Sepsis OR critical: Sepsis
+    const bracketPrefix = strippedNumbering.match(/^\[(critical|high|medium|low)\]\s*(.+)$/i);
+    const labelPrefix = strippedNumbering.match(/^(critical|high|medium|low)\s*[:\-]\s*(.+)$/i);
+
+    let severity: Priority;
+    let title: string;
+
+    if (bracketPrefix) {
+      severity = bracketPrefix[1].toLowerCase() as Priority;
+      title = bracketPrefix[2].trim();
+    } else if (labelPrefix) {
+      severity = labelPrefix[1].toLowerCase() as Priority;
+      title = labelPrefix[2].trim();
+    } else if (strippedNumbering.startsWith('!!!')) {
+      severity = 'critical';
+      title = strippedNumbering.replace(/^!+/, '').trim();
+    } else if (strippedNumbering.startsWith('!')) {
+      severity = 'high';
+      title = strippedNumbering.replace(/^!+/, '').trim();
+    } else {
+      title = strippedNumbering;
+      severity = inferProblemSeverity(title);
+    }
+
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    return {
+      id: `problem-${index}-${slug || index}`,
+      title,
+      severity,
+    };
+  });
+}
+
 export default function ClerkingPage() {
   const user = useAuthStore((s) => s.user);
   const patients = usePatientStore((s) => s.patients);
@@ -74,6 +153,7 @@ export default function ClerkingPage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [expandedSteps, setExpandedSteps] = useState<Set<StepKey>>(new Set(['history']));
   const [error, setError] = useState<string | null>(null);
+  const [workflowNotice, setWorkflowNotice] = useState<{ type: 'success' | 'warning'; text: string } | null>(null);
 
   // Form state for each section
   const [presentingComplaint, setPresentingComplaint] = useState('');
@@ -123,6 +203,11 @@ export default function ClerkingPage() {
   const [pressureRisk, setPressureRisk] = useState<'low' | 'medium' | 'high'>('low');
   const [safetyNotes, setSafetyNotes] = useState('');
 
+  const selectedPatient = useMemo(
+    () => patients.find((patient) => patient.id === selectedPatientId) ?? null,
+    [patients, selectedPatientId]
+  );
+
   // Compute section statuses
   const sectionStatus = useMemo((): Record<StepKey, SectionStatus> => {
     return {
@@ -144,6 +229,8 @@ export default function ClerkingPage() {
   // Create note on patient selection
   async function handlePatientSelect(patientId: string) {
     setSelectedPatientId(patientId);
+    setError(null);
+    setWorkflowNotice(null);
     if (!patientId || !user) return;
 
     try {
@@ -205,6 +292,7 @@ export default function ClerkingPage() {
       if (respiratoryRate) vitals.respiratoryRate = parseInt(respiratoryRate, 10);
       if (temperature) vitals.temperature = parseFloat(temperature);
       if (oxygenSat) vitals.oxygenSaturation = parseFloat(oxygenSat);
+      const parsedProblems = parseProblemListInput(problemList);
 
       await updateClerkingNote(noteId, {
         presentingComplaint,
@@ -247,11 +335,11 @@ export default function ClerkingPage() {
           pendingResults: pendingResults.split('\n').filter(Boolean),
         } as Partial<InvestigationsData>,
         assessmentSummary: assessmentNotes,
-        problemList: problemList.split('\n').filter(Boolean).map((line, i) => ({
-          id: `problem-${i}`,
-          title: line.trim(),
+        problemList: parsedProblems.map((problem) => ({
+          id: problem.id,
+          title: problem.title,
           evidence: [],
-          severity: 'medium' as const,
+          severity: problem.severity,
           plan: [],
           tasks: [],
           isActive: true,
@@ -302,56 +390,96 @@ export default function ClerkingPage() {
     await performSave();
   }
 
+  function resetForm() {
+    setPresentingComplaint('');
+    setWorkingDiagnosis('');
+    setLocation('');
+    setHpi('');
+    setPmh('');
+    setPsh('');
+    setMedications('');
+    setAllergies('');
+    setFamilyHistory('');
+    setSocialHistory('');
+    setSystemsReview('');
+    setGeneralAppearance('');
+    setHeartRate('');
+    setBloodPressure('');
+    setRespiratoryRate('');
+    setTemperature('');
+    setOxygenSat('');
+    setCardiovascularExam('');
+    setRespiratoryExam('');
+    setAbdominalExam('');
+    setNeurologicalExam('');
+    setInvestigationsNotes('');
+    setPendingResults('');
+    setAssessmentNotes('');
+    setProblemList('');
+    setManagementPlan('');
+    setDisposition('');
+    setMonitoringPlan('');
+    setVteConsidered(false);
+    setGiProphIndicated(false);
+    setLinesReviewed(false);
+    setFallsRisk('low');
+    setPressureRisk('low');
+    setSafetyNotes('');
+    setNoteId(null);
+    setSelectedPatientId('');
+  }
+
   async function handleSignAndSubmit() {
-    if (!noteId) return;
+    if (!noteId || !user || !selectedPatient) return;
 
     // Save first
     await performSave();
 
     setSigning(true);
     try {
-      await signClerkingNote(noteId);
+      const parsedProblems = parseProblemListInput(problemList);
+      const shouldEscalateToOnCall = parsedProblems.some(
+        (problem) => problem.severity === 'critical' || problem.severity === 'high'
+      );
+
+      const result = await finalizeClerkingWorkflow({
+        noteId,
+        userId: user.id,
+        userName: user.displayName,
+        patient: {
+          id: selectedPatient.id,
+          firstName: selectedPatient.firstName,
+          lastName: selectedPatient.lastName,
+          bedNumber: selectedPatient.bedNumber,
+        },
+        escalateToOnCall: shouldEscalateToOnCall,
+        saveSbar: true,
+      });
+
       setError(null);
-      // Reset form after signing
-      setPresentingComplaint('');
-      setWorkingDiagnosis('');
-      setLocation('');
-      setHpi('');
-      setPmh('');
-      setPsh('');
-      setMedications('');
-      setAllergies('');
-      setFamilyHistory('');
-      setSocialHistory('');
-      setSystemsReview('');
-      setGeneralAppearance('');
-      setHeartRate('');
-      setBloodPressure('');
-      setRespiratoryRate('');
-      setTemperature('');
-      setOxygenSat('');
-      setCardiovascularExam('');
-      setRespiratoryExam('');
-      setAbdominalExam('');
-      setNeurologicalExam('');
-      setInvestigationsNotes('');
-      setPendingResults('');
-      setAssessmentNotes('');
-      setProblemList('');
-      setManagementPlan('');
-      setDisposition('');
-      setMonitoringPlan('');
-      setVteConsidered(false);
-      setGiProphIndicated(false);
-      setLinesReviewed(false);
-      setFallsRisk('low');
-      setPressureRisk('low');
-      setSafetyNotes('');
-      setNoteId(null);
-      setSelectedPatientId('');
+
+      const notices: string[] = [];
+      notices.push('Clerking note signed.');
+      if (result.tasksCreated > 0) {
+        notices.push(`Created ${result.tasksCreated} auto-task${result.tasksCreated === 1 ? '' : 's'}.`);
+      } else {
+        notices.push('No auto-generated tasks were required.');
+      }
+      if (result.escalated) {
+        notices.push('Patient escalated to on-call list.');
+      } else if (shouldEscalateToOnCall) {
+        notices.push('High-risk case detected but on-call escalation did not complete.');
+      }
+
+      setWorkflowNotice({
+        type: result.warnings.length > 0 ? 'warning' : 'success',
+        text: [...notices, ...result.warnings].join(' '),
+      });
+
+      resetForm();
     } catch (err) {
       console.error('Error signing note:', err);
-      setError('Failed to sign clerking note.');
+      setError('Failed to finalize clerking workflow.');
     } finally {
       setSigning(false);
     }
@@ -469,6 +597,21 @@ export default function ClerkingPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <div className="p-3 rounded-lg bg-red-50 border border-red-200">
             <p className="text-sm text-red-700">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {workflowNotice && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+          <div
+            className={clsx(
+              'p-3 rounded-lg border',
+              workflowNotice.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-amber-50 border-amber-200 text-amber-700'
+            )}
+          >
+            <p className="text-sm">{workflowNotice.text}</p>
           </div>
         </div>
       )}
@@ -735,8 +878,8 @@ export default function ClerkingPage() {
                 label="Problem List"
                 value={problemList}
                 onChange={(e) => setProblemList(e.target.value)}
-                placeholder="1. Primary problem\n2. Secondary problem\n..."
-                helperText="Number each problem"
+                placeholder="[critical] Sepsis\n[high] AKI\nCommunity-acquired pneumonia"
+                helperText="Optional severity prefixes: [critical], [high], [medium], [low]"
               />
             </div>
           </CollapsibleSection>
@@ -848,7 +991,7 @@ export default function ClerkingPage() {
               <div>
                 <p className="text-sm font-semibold text-slate-900">Ready to submit?</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Signing the note will mark it as complete and lock it from further edits.
+                  Signing will finalize the note, generate problem-based tasks, and escalate high-risk cases to on-call.
                 </p>
               </div>
               <Button

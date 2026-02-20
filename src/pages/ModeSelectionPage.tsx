@@ -70,9 +70,9 @@ const modeCards: ModeCardConfig[] = [
     features: [
       'Step-by-step clerking form',
       'Auto-save progress',
-      'AI-assisted assessment',
-      'Problem list generation',
-      'SBAR output and sign-off',
+      'Problem severity parsing',
+      'Auto-generated task bundles',
+      'SBAR output and on-call escalation',
     ],
   },
 ];
