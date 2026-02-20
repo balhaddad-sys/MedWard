@@ -796,6 +796,20 @@ function WellsCalc() {
   )
 }
 
+function CorrStep({ text, dose, sub, urgent }: { text: string; dose?: string; sub?: string[]; urgent?: boolean }) {
+  return (
+    <div className={clsx('rounded-lg px-3 py-2 text-sm', urgent ? 'bg-red-50 border border-red-200' : 'bg-gray-50 border border-gray-100')}>
+      <div className="flex justify-between items-start gap-2">
+        <span className={urgent ? 'text-red-800 font-medium' : 'text-gray-800'}>{text}</span>
+        {dose && <span className="font-mono text-xs bg-white border border-gray-200 rounded px-1.5 py-0.5 shrink-0 whitespace-nowrap">{dose}</span>}
+      </div>
+      {sub?.map((s, i) => (
+        <p key={i} className="text-xs text-gray-500 mt-0.5 pl-2">• {s}</p>
+      ))}
+    </div>
+  )
+}
+
 function CorrectedCaCalc() {
   const [measuredCa, setMeasuredCa] = useState('')
   const [albumin, setAlbumin] = useState('')
@@ -810,10 +824,32 @@ function CorrectedCaCalc() {
         <Input label="Albumin (g/L)" type="number" placeholder="40" value={albumin} onChange={(e) => setAlbumin(e.target.value)} />
       </div>
       {corrected !== null && (
-        <ScoreResult
-          label={`Corrected Ca = ${corrected.toFixed(2)} mmol/L ${corrected < 2.2 ? '⬇ Hypocalcaemia' : corrected > 2.6 ? '⬆ Hypercalcaemia' : '✓ Normal (2.2–2.6)'}`}
-          color={corrected < 2.2 || corrected > 2.6 ? 'amber' : 'green'}
-        />
+        <div className="space-y-2">
+          <ScoreResult
+            label={`Corrected Ca = ${corrected.toFixed(2)} mmol/L ${corrected < 1.9 ? '⬇ Severe Hypocalcaemia' : corrected < 2.2 ? '⬇ Hypocalcaemia' : corrected > 3.0 ? '⬆ Severe Hypercalcaemia' : corrected > 2.6 ? '⬆ Hypercalcaemia' : '✓ Normal (2.2–2.6)'}`}
+            color={corrected < 1.9 || corrected > 3.0 ? 'red' : corrected < 2.2 || corrected > 2.6 ? 'amber' : 'green'}
+          />
+          {corrected < 1.9 && (
+            <CorrStep urgent text="Severe — IV calcium gluconate" dose="10 mL 10% IV"
+              sub={['10 mL 10% calcium gluconate over 10 min. May repeat × 3 if tetany/seizures', 'Then 50 mL 10% CaGluc in 500 mL D5W at 50 mL/h maintenance', 'Check Mg²⁺ — hypomagnesaemia causes refractory hypocalcaemia']}
+            />
+          )}
+          {corrected >= 1.9 && corrected < 2.2 && (
+            <CorrStep text="Mild — oral replacement"
+              sub={['Adcal D3 1500 mg/400 IU twice daily PO', 'Recheck Ca²⁺ in 48–72h · Check Mg²⁺ and vitamin D level']}
+            />
+          )}
+          {corrected > 2.6 && corrected <= 3.0 && (
+            <CorrStep text="Hypercalcaemia — IV fluids + investigate"
+              sub={['NaCl 0.9% 3–4 L/24h IV', 'Bisphosphonate if malignancy-related', 'Stop Ca supplements, thiazides, vitamin D']}
+            />
+          )}
+          {corrected > 3.0 && (
+            <CorrStep urgent text="Severe Hypercalcaemia — urgent" dose="3–4 L NaCl/24h"
+              sub={['NaCl 0.9% 3–4 L/24h IV (high urine output target)', 'Zoledronic acid 4 mg IV over 15 min (avoid if eGFR < 35)', 'Calcitonin 4–8 IU/kg SC/IM q12h for rapid effect', 'Consider HDU if Ca²⁺ > 3.5 with symptoms']}
+            />
+          )}
+        </div>
       )}
     </div>
   )
@@ -876,6 +912,296 @@ function AkiCalc() {
       </div>
       <ScoreResult label={result.label} color={result.color} />
       <p className="text-xs text-gray-400">KDIGO criteria: Stage 1 ≥1.5x or +26µmol/L (48h) · Stage 2 ≥2x · Stage 3 ≥3x or ≥354µmol/L</p>
+    </div>
+  )
+}
+
+function PotassiumCalc() {
+  const [k, setK] = useState('')
+  const [weight, setWeight] = useState('')
+  const kVal = parseFloat(k)
+  const wt = parseFloat(weight)
+  const hasK = !isNaN(kVal)
+  const hasWt = !isNaN(wt) && wt > 0
+  const deficit = hasK && hasWt && kVal < 3.5 ? Math.round(0.4 * wt * (4.0 - kVal)) : null
+  const ivBags = deficit ? Math.ceil(deficit / 40) : null
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="K⁺ (mmol/L)" type="number" step="0.1" placeholder="3.2" value={k} onChange={(e) => setK(e.target.value)} />
+        <Input label="Weight (kg)" type="number" placeholder="70" value={weight} onChange={(e) => setWeight(e.target.value)} />
+      </div>
+      {hasK && (
+        <div className="space-y-2">
+          {kVal >= 3.5 && kVal <= 5.5 && <ScoreResult label={`K⁺ ${kVal} — Normal (3.5–5.5 mmol/L)`} color="green" />}
+          {kVal < 3.5 && (
+            <>
+              <ScoreResult
+                label={`K⁺ ${kVal} — Hypokalaemia${kVal < 3.0 ? ' (Severe)' : ''}${deficit ? ` · Est. deficit ~${deficit} mmol` : ''}`}
+                color={kVal < 3.0 ? 'red' : 'amber'}
+              />
+              {kVal < 3.0 && (
+                <CorrStep urgent text="IV potassium replacement" dose={ivBags ? `${ivBags} × 40 mmol bag${ivBags > 1 ? 's' : ''}` : '40 mmol/bag'}
+                  sub={[
+                    `40 mmol KCl in 1 L NaCl 0.9% over 4h (10 mmol/h peripheral max)`,
+                    `Est. ${deficit ?? '?'} mmol deficit → ${ivBags ?? '?'} bag${(ivBags ?? 0) > 1 ? 's' : ''} — recheck U&E after each`,
+                    'Cardiac monitoring mandatory if K⁺ < 3.0 or symptomatic (arrhythmia, weakness)',
+                  ]}
+                />
+              )}
+              <CorrStep text="Oral Sando-K (if K⁺ ≥ 3.0 and tolerating PO)" dose="2 tabs TDS"
+                sub={['Each tab = 12 mmol K⁺. 6 tabs/day = 72 mmol. Recheck U&E in 24–48h']}
+              />
+              <CorrStep text="Also replace Mg²⁺" sub={['Hypomagnesaemia causes refractory hypokalaemia']} />
+            </>
+          )}
+          {kVal > 5.5 && kVal <= 6.0 && (
+            <>
+              <ScoreResult label={`K⁺ ${kVal} — Mild Hyperkalaemia`} color="amber" />
+              <CorrStep text="Stop precipitants · treat cause · restrict dietary K⁺"
+                sub={['Stop NSAIDs, ACEi/ARBs, K⁺-sparing diuretics, K⁺ supplements. Repeat K⁺ in 2–4h']}
+              />
+            </>
+          )}
+          {kVal > 6.0 && (
+            <>
+              <ScoreResult label={`K⁺ ${kVal} — Severe Hyperkalaemia · URGENT`} color="red" />
+              <CorrStep urgent text="12-lead ECG immediately" sub={['Peaked T waves → wide QRS → sine wave → VF/cardiac arrest']} />
+              <CorrStep urgent text="Calcium gluconate 10% 10 mL IV" dose="Over 3–5 min"
+                sub={['Cardioprotects myocardium — does NOT lower K⁺', 'Repeat every 5 min up to × 3 if ECG changes persist']}
+              />
+              <CorrStep text="Insulin + dextrose" dose="10u actrapid + 250 mL 20% glucose"
+                sub={['Over 15–30 min. Lowers K⁺ 0.6–1 mmol/L in 30–60 min', 'Monitor BM at 30 min, 1h, 2h — risk of hypoglycaemia']}
+              />
+              <CorrStep text="Salbutamol 10–20 mg nebulised" dose="10–20 mg neb"
+                sub={['Lowers K⁺ 0.6–1 mmol/L. Adjunct to insulin/dextrose — tachycardia common']}
+              />
+              <CorrStep text="Sodium bicarbonate 8.4% 50 mL if severe metabolic acidosis" dose="50 mL slow IV" />
+              <CorrStep text="Calcium resonium 15 g TDS PO" sub={['Removes K⁺ from gut — slow onset 24–48h']} />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SodiumCorrectionCalc() {
+  const [na, setNa] = useState('')
+  const [weight, setWeight] = useState('')
+  const [symptoms, setSymptoms] = useState<'severe' | 'moderate' | 'mild'>('mild')
+  const naVal = parseFloat(na)
+  const wt = parseFloat(weight)
+  const hasInputs = !isNaN(naVal) && !isNaN(wt) && wt > 0
+
+  // Hyponatraemia: 3% NaCl = 513 mmol/L = 0.513 mmol/mL
+  const volFor5Rise = hasInputs ? Math.round((0.6 * wt * 5) / 0.513) : null   // mL to raise Na by 5 mmol/L
+  const rateTo10per24h = hasInputs ? Math.round((0.6 * wt * 10) / 0.513 / 24) : null  // mL/h for 10 mmol/L/24h
+  // Hypernatraemia: free water deficit (mL)
+  const fwDeficit = hasInputs && naVal > 145 ? Math.round(0.6 * wt * (naVal / 140 - 1) * 1000) : null
+  const fwRate = fwDeficit ? Math.round(fwDeficit / 48) : null  // mL/h over 48h
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Na⁺ (mmol/L)" type="number" placeholder="125" value={na} onChange={(e) => setNa(e.target.value)} />
+        <Input label="Weight (kg)" type="number" placeholder="70" value={weight} onChange={(e) => setWeight(e.target.value)} />
+      </div>
+      {!isNaN(naVal) && naVal < 135 && (
+        <div className="flex gap-1.5">
+          {(['severe', 'moderate', 'mild'] as const).map((s) => (
+            <button key={s} type="button" onClick={() => setSymptoms(s)}
+              className={clsx('flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all capitalize',
+                symptoms === s
+                  ? s === 'severe' ? 'bg-red-100 border-red-400 text-red-800'
+                    : s === 'moderate' ? 'bg-amber-100 border-amber-400 text-amber-800'
+                    : 'bg-blue-100 border-blue-400 text-blue-800'
+                  : 'border-gray-200 text-gray-500 hover:border-gray-300',
+              )}
+            >{s}</button>
+          ))}
+        </div>
+      )}
+      {!isNaN(naVal) && (
+        <div className="space-y-2">
+          {naVal >= 135 && naVal <= 145 && <ScoreResult label={`Na⁺ ${naVal} — Normal (135–145 mmol/L)`} color="green" />}
+          {naVal < 135 && (
+            <>
+              <ScoreResult
+                label={`Na⁺ ${naVal} — Hyponatraemia${naVal < 125 ? ' (Severe)' : naVal < 130 ? ' (Moderate)' : ' (Mild)'}`}
+                color={naVal < 125 ? 'red' : 'amber'}
+              />
+              {symptoms === 'severe' && (
+                <CorrStep urgent text="Severe symptoms (seizure / GCS ↓ / resp distress)" dose={volFor5Rise ? `${volFor5Rise} mL 3% NaCl` : '~150 mL 3% NaCl'}
+                  sub={[
+                    '3% NaCl 150 mL IV over 20 min — may repeat × 2 until symptoms resolve',
+                    'Target: Na⁺ rise ≥ 5 mmol/L in first hour',
+                    hasInputs ? `Then ~${rateTo10per24h} mL/h 3% NaCl to not exceed 10 mmol/L/24h` : 'Do not exceed 10–12 mmol/L per 24h (osmotic demyelination risk)',
+                    'Recheck Na⁺ 2-hourly. Involve ICU/nephrology early',
+                  ]}
+                />
+              )}
+              {symptoms === 'moderate' && (
+                <CorrStep text="Moderate symptoms (confusion, nausea)" dose={hasInputs ? `${rateTo10per24h} mL/h 3% NaCl` : ''}
+                  sub={[
+                    hasInputs ? `3% NaCl at ${rateTo10per24h} mL/h (target ≤10 mmol/L rise over 24h)` : '3% NaCl at rate to raise Na by ≤10 mmol/L over 24h',
+                    'Fluid restrict 800–1000 mL/day',
+                    'Recheck Na⁺ 4–6 hourly. Max 10–12 mmol/L per 24h',
+                  ]}
+                />
+              )}
+              {symptoms === 'mild' && (
+                <CorrStep text="Mild — no acute symptoms"
+                  sub={[
+                    'Fluid restrict 800–1000 mL/day',
+                    'Correct cause: SIADH, heart failure, cirrhosis, hypothyroidism, Addison\'s, drugs',
+                    'Target: ≤ 6–8 mmol/L rise per 24h. Recheck Na⁺ 12-hourly',
+                  ]}
+                />
+              )}
+              <p className="text-xs text-gray-400 px-1">
+                {hasInputs ? `Na deficit formula: 0.6 × ${wt} kg × (130 − ${naVal}) ≈ ${Math.round(0.6 * wt * (130 - naVal))} mmol` : 'Na deficit = 0.6 × weight × (target Na − current Na)'}
+              </p>
+            </>
+          )}
+          {naVal > 145 && (
+            <>
+              <ScoreResult label={`Na⁺ ${naVal} — Hypernatraemia${naVal > 155 ? ' (Severe)' : ''}`} color={naVal > 155 ? 'red' : 'amber'} />
+              <CorrStep urgent={naVal > 155} text={hasInputs ? `Free water deficit ≈ ${fwDeficit} mL → replace over 48h` : 'Free water deficit = 0.6 × weight × (Na/140 − 1)'}
+                dose={hasInputs ? `${fwRate} mL/h` : ''}
+                sub={[
+                  hasInputs ? `5% glucose (D5W) or 0.45% NaCl at ${fwRate} mL/h over 48h` : 'Correct slowly — max 0.5 mmol/L/h',
+                  'Max correction: 10–12 mmol/L per 24h — rapid correction risks cerebral oedema',
+                  'Recheck Na⁺ 4–6 hourly. If hypervolaemic: loop diuretic + hypotonic replacement',
+                ]}
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MagnesiumCalc() {
+  const [mg, setMg] = useState('')
+  const [torsades, setTorsades] = useState(false)
+  const mgVal = parseFloat(mg)
+  const hasVal = !isNaN(mgVal)
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Mg²⁺ (mmol/L)" type="number" step="0.1" placeholder="0.6" value={mg} onChange={(e) => setMg(e.target.value)} />
+        <div className="flex flex-col justify-end pb-1">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={torsades} onChange={(e) => setTorsades(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+            <span className="text-sm text-gray-700">Torsades / VT</span>
+          </label>
+        </div>
+      </div>
+      {(hasVal || torsades) && (
+        <div className="space-y-2">
+          {torsades && (
+            <CorrStep urgent text="Torsades de Pointes" dose="2 g (8 mmol) IV push"
+              sub={['MgSO₄ 2 g (8 mmol) IV over 1–2 min, regardless of Mg level', 'May repeat once after 10 min', 'Correct underlying hypokalaemia']}
+            />
+          )}
+          {hasVal && !torsades && (
+            <>
+              {mgVal >= 0.7 && mgVal <= 1.0 && <ScoreResult label={`Mg²⁺ ${mgVal} — Normal (0.7–1.0 mmol/L)`} color="green" />}
+              {mgVal < 0.4 && (
+                <>
+                  <ScoreResult label={`Mg²⁺ ${mgVal} — Severe Hypomagnesaemia`} color="red" />
+                  <CorrStep urgent text="IV MgSO₄ 20 mmol over 2h" dose="20 mmol IV"
+                    sub={['20 mmol MgSO₄ in 250 mL NaCl 0.9% over 2h', 'Then 10 mmol over 12h as maintenance', 'Monitor for respiratory depression, hypotension, loss of reflexes', 'Also check and replace K⁺ and Ca²⁺']}
+                  />
+                </>
+              )}
+              {mgVal >= 0.4 && mgVal < 0.7 && (
+                <>
+                  <ScoreResult label={`Mg²⁺ ${mgVal} — Hypomagnesaemia`} color="amber" />
+                  <CorrStep text="IV MgSO₄ 10 mmol over 30 min" dose="10 mmol IV"
+                    sub={['10 mmol MgSO₄ in 100 mL NaCl 0.9% over 30 min', 'Or oral magnesium oxide if mild and tolerating PO', 'Recheck Mg²⁺ in 12–24h']}
+                  />
+                </>
+              )}
+              {mgVal > 1.0 && (
+                <>
+                  <ScoreResult label={`Mg²⁺ ${mgVal} — Hypermagnesaemia`} color="amber" />
+                  <CorrStep text="Stop all Mg supplements"
+                    sub={['If > 2.0 or symptomatic (bradycardia, hypotension, respiratory depression):', 'Calcium gluconate 10 mL 10% IV to antagonise Mg²⁺ effects', 'Haemodialysis if renal failure and severe']}
+                  />
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PhosphateCalc() {
+  const [po4, setPo4] = useState('')
+  const [weight, setWeight] = useState('')
+  const po4Val = parseFloat(po4)
+  const wt = parseFloat(weight)
+  const hasWt = !isNaN(wt) && wt > 0
+  const ivSevere = hasWt ? Math.round(0.4 * wt) : null    // mmol for severe
+  const ivModerate = hasWt ? Math.round(0.2 * wt) : null  // mmol for moderate
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="PO₄ (mmol/L)" type="number" step="0.01" placeholder="0.6" value={po4} onChange={(e) => setPo4(e.target.value)} />
+        <Input label="Weight (kg)" type="number" placeholder="70" value={weight} onChange={(e) => setWeight(e.target.value)} />
+      </div>
+      {!isNaN(po4Val) && (
+        <div className="space-y-2">
+          {po4Val >= 0.8 && po4Val <= 1.45 && <ScoreResult label={`PO₄ ${po4Val} — Normal (0.8–1.45 mmol/L)`} color="green" />}
+          {po4Val >= 0.6 && po4Val < 0.8 && (
+            <>
+              <ScoreResult label={`PO₄ ${po4Val} — Mild Hypophosphataemia`} color="amber" />
+              <CorrStep text="Oral replacement" dose="Phosphate-Sandoz 2 tabs TDS"
+                sub={['Phosphate-Sandoz 2 tabs TDS (≈16 mmol/day)', 'Recheck PO₄ in 24–48h. Treat cause (poor intake, refeeding, DKA)']}
+              />
+            </>
+          )}
+          {po4Val >= 0.32 && po4Val < 0.6 && (
+            <>
+              <ScoreResult label={`PO₄ ${po4Val} — Moderate Hypophosphataemia`} color="amber" />
+              <CorrStep text="IV phosphate" dose={ivModerate ? `${ivModerate} mmol IV` : '0.2 mmol/kg'}
+                sub={[
+                  `0.2 mmol/kg${hasWt ? ` = ${ivModerate} mmol` : ''} in 500 mL NaCl 0.9% over 6h`,
+                  'Recheck PO₄ 6h after infusion. Step down to oral once PO₄ > 0.6',
+                ]}
+              />
+            </>
+          )}
+          {po4Val < 0.32 && (
+            <>
+              <ScoreResult label={`PO₄ ${po4Val} — Severe Hypophosphataemia`} color="red" />
+              <CorrStep urgent text="IV phosphate" dose={ivSevere ? `${ivSevere} mmol IV` : '0.4 mmol/kg'}
+                sub={[
+                  `0.4 mmol/kg${hasWt ? ` = ${ivSevere} mmol` : ''} in 500 mL NaCl 0.9% over 6h`,
+                  'Risk: hypocalcaemia, hypotension. Monitor Ca²⁺ and renal function',
+                  'Recheck PO₄ and Ca²⁺ 4–6h after infusion. Divide dose if renal impairment',
+                ]}
+              />
+            </>
+          )}
+          {po4Val > 1.45 && (
+            <>
+              <ScoreResult label={`PO₄ ${po4Val} — Hyperphosphataemia`} color="amber" />
+              <CorrStep text="Phosphate binders with meals"
+                sub={['Calcium carbonate 500 mg TDS with food', 'Review diet (dairy, nuts, cola drinks). Renally dose binders in CKD']}
+              />
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -1364,7 +1690,7 @@ function ReferenceTab() {
           <CalcCard title="NEWS2" description="Early warning score · ≥ 7 = urgent review">
             <News2Calc />
           </CalcCard>
-          <CalcCard title="Corrected Calcium" description="Adjust serum Ca for hypoalbuminaemia">
+          <CalcCard title="Corrected Calcium" description="Adjust serum Ca for hypoalbuminaemia + treatment">
             <CorrectedCaCalc />
           </CalcCard>
           <CalcCard title="Corrected Sodium" description="Na correction in hyperglycaemia (Katz formula)">
@@ -1372,6 +1698,19 @@ function ReferenceTab() {
           </CalcCard>
           <CalcCard title="AKI Staging" description="KDIGO creatinine-based staging">
             <AkiCalc />
+          </CalcCard>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1 px-0.5">Electrolyte Corrections</p>
+          <CalcCard title="Potassium (K⁺)" description="Hypo/hyperkalaemia — specific correction doses">
+            <PotassiumCalc />
+          </CalcCard>
+          <CalcCard title="Sodium (Na⁺)" description="Hypo/hypernatraemia — 3% NaCl rate, free water deficit">
+            <SodiumCorrectionCalc />
+          </CalcCard>
+          <CalcCard title="Magnesium (Mg²⁺)" description="Hypomagnesaemia + Torsades dosing">
+            <MagnesiumCalc />
+          </CalcCard>
+          <CalcCard title="Phosphate (PO₄)" description="Hypo/hyperphosphataemia — weight-based IV dose">
+            <PhosphateCalc />
           </CalcCard>
         </div>
       )}
