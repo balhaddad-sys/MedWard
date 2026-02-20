@@ -36,7 +36,7 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Input, Textarea } from '@/components/ui/Input'
 import { useAuthStore } from '@/stores/authStore'
 import { usePatientStore } from '@/stores/patientStore'
-import { subscribeToOnCallList } from '@/services/firebase/onCallList'
+import { subscribeToOnCallList, removeFromOnCallList } from '@/services/firebase/onCallList'
 import {
   subscribeToOnCallJobs,
   addOnCallJob,
@@ -572,20 +572,24 @@ function PatientsTab({ userId }: { userId: string }) {
           <div className="space-y-3">
             {sortedEntries.map((entry) => {
               const patient = patientMap.get(entry.patientId)
+              const isStale = !patient
               return (
                 <Card key={entry.id} padding="sm" className={clsx(
                   'border-l-4',
-                  entry.priority === 'critical' && 'border-l-red-500 bg-red-50/30',
-                  entry.priority === 'high' && 'border-l-amber-500',
-                  entry.priority === 'medium' && 'border-l-blue-400',
-                  entry.priority === 'low' && 'border-l-gray-300',
+                  isStale ? 'border-l-gray-300 bg-gray-50/60' :
+                  entry.priority === 'critical' ? 'border-l-red-500 bg-red-50/30' :
+                  entry.priority === 'high' ? 'border-l-amber-500' :
+                  entry.priority === 'medium' ? 'border-l-blue-400' :
+                  'border-l-gray-300',
                 )}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <Badge variant={getPriorityVariant(entry.priority)} size="sm" dot>
-                          {entry.priority}
-                        </Badge>
+                        {!isStale && (
+                          <Badge variant={getPriorityVariant(entry.priority)} size="sm" dot>
+                            {entry.priority}
+                          </Badge>
+                        )}
                         {patient ? (
                           <button
                             type="button"
@@ -596,9 +600,7 @@ function PatientsTab({ userId }: { userId: string }) {
                             <ChevronRight size={13} />
                           </button>
                         ) : (
-                          <span className="text-sm font-semibold text-gray-700">
-                            Unknown patient
-                          </span>
+                          <span className="text-sm text-gray-400 italic">Patient no longer exists</span>
                         )}
                       </div>
                       {patient && (
@@ -606,7 +608,7 @@ function PatientsTab({ userId }: { userId: string }) {
                           MRN {patient.mrn} · Bed {patient.bedNumber} · {patient.primaryDiagnosis}
                         </p>
                       )}
-                      {entry.escalationFlags?.length > 0 && (
+                      {entry.escalationFlags?.length > 0 && !isStale && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {entry.escalationFlags.map((f, i) => (
                             <Badge key={i} variant="warning" size="sm">
@@ -617,7 +619,22 @@ function PatientsTab({ userId }: { userId: string }) {
                         </div>
                       )}
                     </div>
-                    <span className="text-xs text-gray-400 shrink-0">{timeAgo(entry.addedAt)}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {!isStale && <span className="text-xs text-gray-400">{timeAgo(entry.addedAt)}</span>}
+                      <button
+                        type="button"
+                        onClick={() => removeFromOnCallList(entry.id)}
+                        title="Remove from on-call list"
+                        className={clsx(
+                          'flex items-center justify-center h-6 w-6 rounded-full transition-colors',
+                          isStale
+                            ? 'bg-red-100 text-red-500 hover:bg-red-200'
+                            : 'text-gray-300 hover:text-red-400 hover:bg-red-50',
+                        )}
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
                   </div>
                 </Card>
               )

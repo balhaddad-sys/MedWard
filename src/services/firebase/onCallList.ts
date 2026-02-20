@@ -9,6 +9,8 @@ import {
   where,
   orderBy,
   onSnapshot,
+  doc,
+  deleteDoc,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -41,4 +43,11 @@ export function subscribeToOnCallList(
       callback([]);
     }
   );
+}
+
+/**
+ * Remove an on-call list entry by ID
+ */
+export async function removeFromOnCallList(entryId: string): Promise<void> {
+  await deleteDoc(doc(db, ON_CALL_LIST_COLLECTION, entryId));
 }
