@@ -318,7 +318,7 @@ export default function TasksPage() {
 
           {/* Patient + category */}
           <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 flex-wrap">
-            <span className="font-medium text-slate-700">
+            <span className="font-medium text-slate-700 dark:text-slate-200">
               {task.patientName}
             </span>
             <span>Bed {task.bedNumber}</span>
@@ -494,7 +494,7 @@ export default function TasksPage() {
                 <div className="flex items-center gap-2 mb-2">
                   <div className="h-px flex-1 bg-slate-200" />
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-700">{group.patientName}</span>
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{group.patientName}</span>
                     <span className="text-xs text-slate-400">Bed {group.bedNumber}</span>
                     <Badge variant="default" size="sm">{group.tasks.length}</Badge>
                     {groupOverdueCount > 0 && (

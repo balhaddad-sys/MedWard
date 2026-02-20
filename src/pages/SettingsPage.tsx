@@ -201,7 +201,7 @@ export default function SettingsPage() {
           <div className="space-y-5">
             {/* Default mode */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">
                 Default Clinical Mode
               </label>
               <select
@@ -227,7 +227,7 @@ export default function SettingsPage() {
             {/* Compact view toggle */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-700">Compact View</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Compact View</p>
                 <p className="text-xs text-slate-500">Display patient cards in a condensed format</p>
               </div>
               <button
@@ -258,7 +258,7 @@ export default function SettingsPage() {
             {/* AI suggestions toggle */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-700">AI Suggestions</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">AI Suggestions</p>
                 <p className="text-xs text-slate-500">Show AI-powered clinical suggestions</p>
               </div>
               <button
@@ -294,7 +294,7 @@ export default function SettingsPage() {
             {/* Critical labs */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-700">Critical Lab Values</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Critical Lab Values</p>
                 <p className="text-xs text-slate-500">Alert when critical lab results arrive</p>
               </div>
               <button
@@ -321,7 +321,7 @@ export default function SettingsPage() {
             {/* Task reminders */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-700">Task Reminders</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Task Reminders</p>
                 <p className="text-xs text-slate-500">Notify about upcoming and overdue tasks</p>
               </div>
               <button
@@ -348,7 +348,7 @@ export default function SettingsPage() {
             {/* Handover alerts */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-700">Handover Alerts</p>
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Handover Alerts</p>
                 <p className="text-xs text-slate-500">Notifications for handover-related events</p>
               </div>
               <button
@@ -384,7 +384,7 @@ export default function SettingsPage() {
             {/* Trend days slider */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   Lab Trend Days
                 </label>
                 <span className="text-sm font-semibold text-blue-600">{labTrendDays} days</span>
@@ -408,7 +408,7 @@ export default function SettingsPage() {
 
             {/* Priority profile */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5">
                 Lab Priority Profile
               </label>
               <select

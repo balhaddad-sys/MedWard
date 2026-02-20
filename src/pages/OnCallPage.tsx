@@ -187,7 +187,7 @@ function JobCard({ job, onStatusChange }: JobCardProps) {
         </div>
 
         {/* Reason */}
-        <p className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 mb-3">
+        <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 rounded-md px-3 py-2 mb-3">
           {job.reason}
         </p>
 
@@ -326,7 +326,7 @@ function QuickAddForm({ userId, onAdded }: QuickAddFormProps) {
       ) : (
         <Card padding="sm">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-slate-800">New job</p>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">New job</p>
             <button
               type="button"
               onClick={() => setOpen(false)}
@@ -375,7 +375,7 @@ function QuickAddForm({ userId, onAdded }: QuickAddFormProps) {
             />
             {/* Priority selector */}
             <div className="space-y-1.5">
-              <p className="text-sm font-medium text-slate-700">Priority</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Priority</p>
               <div className="flex gap-2">
                 {(['critical', 'urgent', 'routine'] as JobPriority[]).map((p) => (
                   <button
@@ -557,7 +557,7 @@ function PatientsTab({ userId }: { userId: string }) {
       {/* On-call list */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-slate-700">On-Call List</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">On-Call List</p>
           <div className="flex items-center gap-2">
             <Badge variant={onCallEntries.length > 0 ? 'warning' : 'muted'}>
               {onCallEntries.length} patient{onCallEntries.length !== 1 ? 's' : ''}
@@ -568,8 +568,8 @@ function PatientsTab({ userId }: { userId: string }) {
               className={clsx(
                 'flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all',
                 showAddForm
-                  ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                  ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400'
+                  : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 hover:text-slate-700 dark:hover:text-slate-200',
               )}
             >
               <Plus size={12} />
@@ -1198,8 +1198,8 @@ function MagnesiumCalc() {
         <Input label="Mg²⁺ (mmol/L)" type="number" step="0.1" placeholder="0.6" value={mg} onChange={(e) => setMg(e.target.value)} />
         <div className="flex flex-col justify-end pb-1">
           <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={torsades} onChange={(e) => setTorsades(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500" />
-            <span className="text-sm text-slate-700">Torsades / VT</span>
+            <input type="checkbox" checked={torsades} onChange={(e) => setTorsades(e.target.checked)} className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-800 text-red-600 focus:ring-red-500" />
+            <span className="text-sm text-slate-700 dark:text-slate-200">Torsades / VT</span>
           </label>
         </div>
       </div>
@@ -1918,10 +1918,10 @@ function HandoverTab({ userId }: { userId: string }) {
   return (
     <div className="space-y-4">
       {activeCount > 0 && (
-        <Card padding="sm" className="border-amber-200 bg-amber-50/40">
+        <Card padding="sm" className="border-amber-200 dark:border-amber-800 bg-amber-50/40 dark:bg-amber-900/20">
           <div className="flex items-center gap-2">
-            <AlertTriangle size={15} className="text-amber-600" />
-            <p className="text-sm text-amber-800">
+            <AlertTriangle size={15} className="text-amber-600 dark:text-amber-400" />
+            <p className="text-sm text-amber-800 dark:text-amber-300">
               <span className="font-semibold">{activeCount} outstanding job{activeCount !== 1 ? 's' : ''}</span> — ensure these are documented before handover
             </p>
           </div>
@@ -1929,7 +1929,7 @@ function HandoverTab({ userId }: { userId: string }) {
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-700">Handover summary</p>
+        <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">Handover summary</p>
         <Button
           size="sm"
           variant={copied ? 'success' : 'secondary'}
@@ -1941,7 +1941,7 @@ function HandoverTab({ userId }: { userId: string }) {
       </div>
 
       <Card padding="none">
-        <pre className="p-4 text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto">
+        <pre className="p-4 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto">
           {handoverText}
         </pre>
       </Card>
@@ -1978,8 +1978,8 @@ export default function OnCallPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-red-100 rounded-xl shrink-0">
-          <Phone size={18} className="text-red-600" />
+        <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-xl shrink-0">
+          <Phone size={18} className="text-red-600 dark:text-red-400" />
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">On-Call Hub</h1>

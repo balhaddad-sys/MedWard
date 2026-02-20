@@ -205,7 +205,7 @@ export default function AIAssistantPage() {
                       onClick={() => sendMessage(prompt.prompt)}
                       className={clsx(
                         'flex items-center gap-2 px-4 py-2.5 rounded-xl',
-                        'bg-ward-card border border-ward-border text-sm text-slate-700',
+                        'bg-ward-card border border-ward-border text-sm text-slate-700 dark:text-slate-200',
                         'hover:bg-slate-50 hover:border-slate-300 transition-colors',
                       )}
                     >
@@ -236,7 +236,7 @@ export default function AIAssistantPage() {
                       'max-w-[80%] rounded-2xl px-4 py-3',
                       msg.role === 'user'
                         ? 'bg-blue-600 text-white'
-                        : 'bg-ward-card border border-ward-border text-slate-800',
+                        : 'bg-ward-card border border-ward-border text-slate-800 dark:text-slate-100',
                     )}
                   >
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>

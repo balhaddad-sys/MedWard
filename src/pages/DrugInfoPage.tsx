@@ -87,7 +87,7 @@ function renderMarkdown(text: string) {
       elements.push(
         <div key={key++} className="flex gap-2 ml-1 mb-0.5">
           <span className="text-slate-400 shrink-0 mt-1.5 w-1 h-1 rounded-full bg-slate-400" />
-          <span className="text-sm text-slate-700 leading-relaxed">
+          <span className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
             {formatInline(line.slice(2))}
           </span>
         </div>
@@ -103,7 +103,7 @@ function renderMarkdown(text: string) {
 
     // Regular paragraph
     elements.push(
-      <p key={key++} className="text-sm text-slate-700 leading-relaxed">
+      <p key={key++} className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
         {formatInline(line)}
       </p>
     );
@@ -299,7 +299,7 @@ export default function DrugInfoPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Clock size={16} className="text-slate-400" />
-                    <h3 className="text-sm font-semibold text-slate-700">Recent Searches</h3>
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Recent Searches</h3>
                   </div>
                   <button
                     type="button"
@@ -317,7 +317,7 @@ export default function DrugInfoPage() {
                       onClick={() => handleRecentClick(q)}
                       className={clsx(
                         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm',
-                        'bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors',
+                        'bg-slate-100 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors',
                       )}
                     >
                       <Pill size={12} />

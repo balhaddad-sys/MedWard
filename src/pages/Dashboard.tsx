@@ -102,10 +102,10 @@ export default function Dashboard() {
   const quickActions = useMemo(() => {
     const baseActions = [
       { label: 'Add Patient', icon: Plus, path: '/patients', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
-      { label: 'Lab Analysis', icon: Beaker, path: '/labs', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300' },
-      { label: 'Drug Info', icon: Pill, path: '/drugs', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300' },
-      { label: 'AI Assistant', icon: Stethoscope, path: '/ai', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300' },
-      { label: 'Handover', icon: FileText, path: '/handover', color: 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-300' },
+      { label: 'Lab Analysis', icon: Beaker, path: '/labs', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-300' },
+      { label: 'Drug Info', icon: Pill, path: '/drugs', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-300' },
+      { label: 'AI Assistant', icon: Stethoscope, path: '/ai', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-300' },
+      { label: 'Handover', icon: FileText, path: '/handover', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-300' },
     ];
 
     if (mode === 'acute') {
@@ -186,7 +186,7 @@ export default function Dashboard() {
           </div>
           <p className="text-sm text-slate-500">
             {greeting}{user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.&ensp;
-            <span className="font-medium text-slate-700">{modeConfig.label} Mode</span>
+            <span className="font-medium text-slate-700 dark:text-slate-200">{modeConfig.label} Mode</span>
             &ensp;&mdash;&ensp;{modeConfig.description}
           </p>
         </div>
@@ -222,7 +222,7 @@ export default function Dashboard() {
             <Clock size={18} className="text-amber-600" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
               {stats.overdueTasks} overdue task{stats.overdueTasks > 1 ? 's' : ''}
             </p>
             <p className="text-xs text-amber-600">Action required — review and complete</p>
