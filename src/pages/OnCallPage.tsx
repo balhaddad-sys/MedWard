@@ -741,26 +741,28 @@ function CalcCard({ title, description, children }: { title: string; description
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
       >
-        <div>
-          <p className="text-sm font-semibold text-gray-800">{title}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+        <div className="min-w-0 flex-1 mr-3">
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>
         </div>
-        {open ? <ChevronUp size={16} className="text-gray-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />}
+        {open
+          ? <ChevronUp size={16} className="text-slate-400 dark:text-slate-500 shrink-0" />
+          : <ChevronDown size={16} className="text-slate-400 dark:text-slate-500 shrink-0" />}
       </button>
-      {open && <div className="px-4 pb-4 border-t border-gray-100 pt-4">{children}</div>}
+      {open && <div className="px-4 pb-4 border-t border-ward-border pt-4">{children}</div>}
     </Card>
   )
 }
 
 function ScoreResult({ label, color }: { label: string; color: 'red' | 'amber' | 'green' | 'blue' | 'gray' }) {
   const colorMap = {
-    red: 'bg-red-50 border-red-200 text-red-800',
-    amber: 'bg-amber-50 border-amber-200 text-amber-800',
-    green: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-    blue: 'bg-blue-50 border-blue-200 text-blue-800',
-    gray: 'bg-gray-50 border-gray-200 text-gray-700',
+    red: 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800 dark:text-red-400',
+    amber: 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-400',
+    green: 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-400',
+    blue: 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400',
+    gray: 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300',
   }
   return (
     <div className={clsx('rounded-lg border px-3 py-2 text-sm font-medium mt-3', colorMap[color])}>
@@ -795,9 +797,9 @@ function Curb65Calc() {
             type="checkbox"
             checked={vals[key]}
             onChange={(e) => setVals((v) => ({ ...v, [key]: e.target.checked }))}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 dark:bg-slate-800"
           />
-          <span className="text-sm text-gray-700 group-hover:text-gray-900">{label}</span>
+          <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-slate-100">{label}</span>
         </label>
       ))}
       <ScoreResult label={result.label} color={result.color} />
@@ -822,8 +824,8 @@ function GcsCalc() {
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Eye (E)</label>
-          <select value={eye} onChange={(e) => setEye(Number(e.target.value))} className="w-full text-sm rounded-lg border border-gray-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Eye (E)</label>
+          <select value={eye} onChange={(e) => setEye(Number(e.target.value))} className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
             <option value={4}>4 – Spontaneous</option>
             <option value={3}>3 – To voice</option>
             <option value={2}>2 – To pain</option>
@@ -831,8 +833,8 @@ function GcsCalc() {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Verbal (V)</label>
-          <select value={verbal} onChange={(e) => setVerbal(Number(e.target.value))} className="w-full text-sm rounded-lg border border-gray-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Verbal (V)</label>
+          <select value={verbal} onChange={(e) => setVerbal(Number(e.target.value))} className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
             <option value={5}>5 – Oriented</option>
             <option value={4}>4 – Confused</option>
             <option value={3}>3 – Words</option>
@@ -841,8 +843,8 @@ function GcsCalc() {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Motor (M)</label>
-          <select value={motor} onChange={(e) => setMotor(Number(e.target.value))} className="w-full text-sm rounded-lg border border-gray-300 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Motor (M)</label>
+          <select value={motor} onChange={(e) => setMotor(Number(e.target.value))} className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
             <option value={6}>6 – Obeys commands</option>
             <option value={5}>5 – Localises pain</option>
             <option value={4}>4 – Withdraws</option>
@@ -885,10 +887,10 @@ function WellsCalc() {
             type="checkbox"
             checked={!!vals[item.key]}
             onChange={(e) => setVals((v) => ({ ...v, [item.key]: e.target.checked }))}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 dark:bg-slate-800"
           />
-          <span className="text-sm text-gray-700 flex-1 group-hover:text-gray-900">{item.label}</span>
-          <span className="text-xs font-mono text-gray-400 shrink-0">+{item.points}</span>
+          <span className="text-sm text-slate-700 dark:text-slate-300 flex-1 group-hover:text-slate-900 dark:group-hover:text-slate-100">{item.label}</span>
+          <span className="text-xs font-mono text-slate-400 dark:text-slate-500 shrink-0">+{item.points}</span>
         </label>
       ))}
       <ScoreResult label={result.label} color={result.color} />
@@ -898,13 +900,13 @@ function WellsCalc() {
 
 function CorrStep({ text, dose, sub, urgent }: { text: string; dose?: string; sub?: string[]; urgent?: boolean }) {
   return (
-    <div className={clsx('rounded-lg px-3 py-2 text-sm', urgent ? 'bg-red-50 border border-red-200' : 'bg-gray-50 border border-gray-100')}>
+    <div className={clsx('rounded-lg px-3 py-2 text-sm', urgent ? 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700')}>
       <div className="flex justify-between items-start gap-2">
-        <span className={urgent ? 'text-red-800 font-medium' : 'text-gray-800'}>{text}</span>
-        {dose && <span className="font-mono text-xs bg-white border border-gray-200 rounded px-1.5 py-0.5 shrink-0 whitespace-nowrap">{dose}</span>}
+        <span className={urgent ? 'text-red-800 dark:text-red-400 font-medium' : 'text-slate-800 dark:text-slate-200'}>{text}</span>
+        {dose && <span className="font-mono text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded px-1.5 py-0.5 shrink-0 whitespace-nowrap">{dose}</span>}
       </div>
       {sub?.map((s, i) => (
-        <p key={i} className="text-xs text-gray-500 mt-0.5 pl-2">• {s}</p>
+        <p key={i} className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 pl-2">• {s}</p>
       ))}
     </div>
   )
@@ -1348,15 +1350,15 @@ function News2Calc() {
         <Input label="Heart rate (bpm)" type="number" placeholder="80" value={hr} onChange={(e) => setHr(e.target.value)} />
         <Input label="Temperature (°C)" type="number" step="0.1" placeholder="37.2" value={temp} onChange={(e) => setTemp(e.target.value)} />
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-gray-700">Supplemental O₂</label>
-          <select value={o2} onChange={(e) => setO2(e.target.value)} className="w-full text-sm rounded-lg border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Supplemental O₂</label>
+          <select value={o2} onChange={(e) => setO2(e.target.value)} className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
             <option value="no">No (room air)</option>
             <option value="yes">Yes (+2 pts)</option>
           </select>
         </div>
         <div className="space-y-1.5 col-span-2">
-          <label className="block text-sm font-medium text-gray-700">Consciousness</label>
-          <select value={avpu} onChange={(e) => setAvpu(e.target.value)} className="w-full text-sm rounded-lg border border-gray-300 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Consciousness</label>
+          <select value={avpu} onChange={(e) => setAvpu(e.target.value)} className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 h-10 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500">
             <option value="A">Alert (0)</option>
             <option value="C">Confused / CVPU (+3)</option>
           </select>
@@ -1525,31 +1527,31 @@ function ProtocolCard({ protocol }: { protocol: Protocol }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={clsx('w-full flex items-center justify-between p-4 text-left border-b transition-colors', open ? colors.header : 'hover:bg-gray-50')}
+        className={clsx('w-full flex items-center justify-between p-4 text-left border-b transition-colors', open ? colors.header : 'hover:bg-slate-50 dark:hover:bg-slate-800/60')}
       >
         <div>
-          <p className={clsx('text-sm font-semibold', open ? colors.text : 'text-gray-800')}>{protocol.title}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{protocol.subtitle}</p>
+          <p className={clsx('text-sm font-semibold', open ? colors.text : 'text-slate-800 dark:text-slate-100')}>{protocol.title}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{protocol.subtitle}</p>
         </div>
-        {open ? <ChevronUp size={16} className="text-gray-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />}
+        {open ? <ChevronUp size={16} className="text-slate-400 dark:text-slate-500 shrink-0" /> : <ChevronDown size={16} className="text-slate-400 dark:text-slate-500 shrink-0" />}
       </button>
       {open && (
         <div className="p-4 space-y-2">
           {protocol.steps.map((step, i) => (
-            <div key={i} className={clsx('rounded-lg p-3', step.urgent ? colors.header : 'bg-gray-50 border border-gray-100')}>
+            <div key={i} className={clsx('rounded-lg p-3', step.urgent ? colors.header : 'bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700')}>
               <div className="flex items-start gap-2">
-                <span className={clsx('text-xs font-bold shrink-0 mt-0.5 w-5 h-5 rounded-full flex items-center justify-center', step.urgent ? colors.badge : 'bg-gray-200 text-gray-600')}>
+                <span className={clsx('text-xs font-bold shrink-0 mt-0.5 w-5 h-5 rounded-full flex items-center justify-center', step.urgent ? colors.badge : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400')}>
                   {i + 1}
                 </span>
                 <div className="flex-1">
-                  <p className={clsx('text-sm font-medium', step.urgent ? colors.text : 'text-gray-800')}>
+                  <p className={clsx('text-sm font-medium', step.urgent ? colors.text : 'text-slate-800 dark:text-slate-200')}>
                     {step.text}
                   </p>
                   {step.sub && (
                     <ul className="mt-1.5 space-y-0.5">
                       {step.sub.map((s, si) => (
-                        <li key={si} className="text-xs text-gray-600 flex items-start gap-1.5">
-                          <span className="text-gray-400 shrink-0 mt-0.5">›</span>
+                        <li key={si} className="text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
+                          <span className="text-slate-400 dark:text-slate-500 shrink-0 mt-0.5">›</span>
                           {s}
                         </li>
                       ))}
@@ -1560,8 +1562,8 @@ function ProtocolCard({ protocol }: { protocol: Protocol }) {
             </div>
           ))}
           {protocol.notes && (
-            <div className="mt-3 px-3 py-2 rounded-lg bg-gray-100 border border-gray-200">
-              <p className="text-xs text-gray-600"><span className="font-semibold">Note:</span> {protocol.notes}</p>
+            <div className="mt-3 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <p className="text-xs text-slate-600 dark:text-slate-400"><span className="font-semibold">Note:</span> {protocol.notes}</p>
             </div>
           )}
         </div>
@@ -1670,18 +1672,18 @@ const DRUG_GUIDE: DrugCategory[] = [
 
 function DrugCard({ drug }: { drug: DrugEntry }) {
   return (
-    <div className="border border-gray-200 rounded-lg p-3 bg-white">
+    <div className="border border-ward-border rounded-lg p-3 bg-ward-card">
       <div className="flex items-start justify-between gap-2 mb-1.5">
-        <p className="text-sm font-semibold text-gray-900">{drug.name}</p>
-        <span className="text-xs text-gray-500 shrink-0 font-mono">{drug.route}</span>
+        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{drug.name}</p>
+        <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0 font-mono">{drug.route}</span>
       </div>
-      <div className="flex items-center gap-3 text-xs text-gray-600 mb-1.5">
-        <span className="font-medium text-blue-700">{drug.dose}</span>
+      <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-400 mb-1.5">
+        <span className="font-medium text-blue-700 dark:text-blue-400">{drug.dose}</span>
         <span>·</span>
         <span>{drug.frequency}</span>
-        {drug.max && <><span>·</span><span className="text-amber-600 font-medium">Max: {drug.max}</span></>}
+        {drug.max && <><span>·</span><span className="text-amber-600 dark:text-amber-400 font-medium">Max: {drug.max}</span></>}
       </div>
-      <p className="text-xs text-gray-500 leading-relaxed">{drug.notes}</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{drug.notes}</p>
     </div>
   )
 }
@@ -1720,8 +1722,8 @@ function DrugsSection() {
             className={clsx(
               'whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
               activeCategory === cat.id
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50',
+                ? 'bg-primary-600 text-white border-primary-600'
+                : 'bg-ward-card text-slate-600 dark:text-slate-400 border-ward-border hover:bg-slate-50 dark:hover:bg-slate-800',
             )}
           >
             {cat.label}
@@ -1730,11 +1732,11 @@ function DrugsSection() {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-gray-500 text-center py-6">No drugs found</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-6">No drugs found</p>
       ) : (
         filtered.map((cat) => (
           <div key={cat.id}>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{cat.label}</p>
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">{cat.label}</p>
             <div className="space-y-2">
               {cat.drugs.map((drug) => (
                 <DrugCard key={drug.name} drug={drug} />
@@ -1754,7 +1756,7 @@ function ReferenceTab() {
   return (
     <div>
       {/* Sub-tab pills */}
-      <div className="flex gap-2 mb-5 bg-gray-100 rounded-xl p-1">
+      <div className="flex gap-1 mb-5 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
         {([
           { id: 'calculators', label: 'Calculators' },
           { id: 'protocols', label: 'Protocols' },
@@ -1767,8 +1769,8 @@ function ReferenceTab() {
             className={clsx(
               'flex-1 py-2 rounded-lg text-sm font-medium transition-all',
               section === s.id
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800',
+                ? 'bg-ward-card text-slate-900 dark:text-slate-100 shadow-sm'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200',
             )}
           >
             {s.label}
@@ -1799,7 +1801,7 @@ function ReferenceTab() {
           <CalcCard title="AKI Staging" description="KDIGO creatinine-based staging">
             <AkiCalc />
           </CalcCard>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1 px-0.5">Electrolyte Corrections</p>
+          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider pt-1 px-0.5">Electrolyte Corrections</p>
           <CalcCard title="Potassium (K⁺)" description="Hypo/hyperkalaemia — specific correction doses">
             <PotassiumCalc />
           </CalcCard>
@@ -1980,7 +1982,7 @@ export default function OnCallPage() {
           <Phone size={18} className="text-red-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-gray-900">On-Call Hub</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">On-Call Hub</h1>
         </div>
         {pendingCount > 0 && (
           <Badge variant="critical">
@@ -1991,7 +1993,7 @@ export default function OnCallPage() {
       </div>
 
       {/* Section selector — pill grid, not a nav bar */}
-      <div className="grid grid-cols-4 gap-1.5 bg-gray-100 rounded-2xl p-1.5">
+      <div className="grid grid-cols-4 gap-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1.5">
         {ONCALL_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -2000,8 +2002,8 @@ export default function OnCallPage() {
             className={clsx(
               'relative flex flex-col items-center gap-1 py-2.5 rounded-xl text-xs font-medium transition-all',
               activeTab === tab.id
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700',
+                ? 'bg-ward-card text-slate-900 dark:text-slate-100 shadow-sm'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
             )}
           >
             {tab.icon}
