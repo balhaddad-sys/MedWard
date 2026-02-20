@@ -98,11 +98,11 @@ function parseProblemListInput(input: string): Array<{ id: string; title: string
     .filter(Boolean);
 
   return lines.map((rawLine, index) => {
-    const strippedNumbering = rawLine.replace(/^\d+[\).\-\s]+/, '').trim();
+    const strippedNumbering = rawLine.replace(/^\d+[).\-\s]+/, '').trim();
 
     // Supports: [critical] Sepsis OR critical: Sepsis
     const bracketPrefix = strippedNumbering.match(/^\[(critical|high|medium|low)\]\s*(.+)$/i);
-    const labelPrefix = strippedNumbering.match(/^(critical|high|medium|low)\s*[:\-]\s*(.+)$/i);
+    const labelPrefix = strippedNumbering.match(/^(critical|high|medium|low)\s*[:-]\s*(.+)$/i);
 
     let severity: Priority;
     let title: string;
