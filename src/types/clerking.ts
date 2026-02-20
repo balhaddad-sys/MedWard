@@ -333,6 +333,9 @@ export interface OnCallListEntry {
   addedAt: Date | Timestamp; // When added to on-call list
   addedBy: string; // User ID who added
   notes?: string; // Clinician notes about this on-call patient
+  clerkingNoteId?: string; // Reference to the clerking note that created this entry
+  presentingComplaint?: string; // Quick summary from clerking
+  workingDiagnosis?: string; // Working Dx from clerking
   // Optional metadata for non-permanent on-call cases (patients outside local unit list)
   isTemporary?: boolean;
   temporaryPatientName?: string;

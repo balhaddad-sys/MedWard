@@ -19,7 +19,7 @@ import {
   updateClerkingNote,
   finalizeClerkingWorkflow,
 } from '@/services/firebase/clerkingNotes';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type {
   HistoryData,
   SectionStatus,
@@ -148,6 +148,7 @@ function createTemporaryPatientId(name: string): string {
 }
 
 export default function ClerkingPage() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const patients = usePatientStore((s) => s.patients);
   const [searchParams] = useSearchParams();
@@ -615,6 +616,17 @@ export default function ClerkingPage() {
       });
 
       resetForm();
+
+      // Navigate to the patient / on-call page after a brief delay so the
+      // user sees the success notice before being redirected
+      const targetPatientId = currentPatientIdentity.id;
+      setTimeout(() => {
+        if (isTemporaryCase || result.escalated) {
+          navigate('/on-call');
+        } else {
+          navigate(`/patients/${targetPatientId}`);
+        }
+      }, 1200);
     } catch (err) {
       console.error('Error signing note:', err);
       setError('Failed to finalize clerking workflow.');

@@ -859,7 +859,23 @@ function PatientsTab({ userId }: { userId: string }) {
                         )}
                       </div>
                       {display.subtitle && <p className="text-xs text-slate-500">{display.subtitle}</p>}
-                      {entry.notes && <p className="text-xs text-slate-500 mt-1">Reason: {entry.notes}</p>}
+                      {(entry.presentingComplaint || entry.workingDiagnosis) && (
+                        <div className="mt-1.5 px-2 py-1.5 rounded-md bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 space-y-0.5">
+                          {entry.presentingComplaint && (
+                            <p className="text-xs text-slate-600 dark:text-slate-300">
+                              <span className="font-medium">PC:</span> {entry.presentingComplaint}
+                            </p>
+                          )}
+                          {entry.workingDiagnosis && (
+                            <p className="text-xs text-slate-600 dark:text-slate-300">
+                              <span className="font-medium">Dx:</span> {entry.workingDiagnosis}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {entry.notes && !entry.presentingComplaint && (
+                        <p className="text-xs text-slate-500 mt-1">Reason: {entry.notes}</p>
+                      )}
                       {entry.escalationFlags?.length > 0 && !isStale && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {entry.escalationFlags.map((f, i) => (
@@ -873,7 +889,17 @@ function PatientsTab({ userId }: { userId: string }) {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {!isStale && <span className="text-xs text-slate-400">{timeAgo(entry.addedAt)}</span>}
-                      {!isStale && (
+                      {!isStale && entry.clerkingNoteId && patient && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/patients/${patient.id}`)}
+                          title="View patient"
+                          className="h-7 px-2 rounded-md text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                        >
+                          View
+                        </button>
+                      )}
+                      {!isStale && !entry.clerkingNoteId && (
                         <button
                           type="button"
                           onClick={() => goToClerking(entry, patient)}
@@ -2066,8 +2092,10 @@ function HandoverTab({ userId }: { userId: string }) {
         const display = getOnCallEntryDisplay(entry, patient)
         const locationSuffix = display.subtitle ? ` — ${display.subtitle}` : ''
         lines.push(`• [${entry.priority.toUpperCase()}] ${display.name}${locationSuffix}`)
+        if (entry.presentingComplaint) lines.push(`  PC: ${entry.presentingComplaint}`)
+        if (entry.workingDiagnosis) lines.push(`  Dx: ${entry.workingDiagnosis}`)
         if (entry.escalationFlags?.length) lines.push(`  Flags: ${entry.escalationFlags.join(', ')}`)
-        if (entry.notes) lines.push(`  Notes: ${entry.notes}`)
+        if (entry.notes && entry.notes !== entry.presentingComplaint) lines.push(`  Notes: ${entry.notes}`)
       })
       lines.push('')
     }
