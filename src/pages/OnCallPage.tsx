@@ -420,7 +420,7 @@ function JobsTab({ userId }: { userId: string }) {
   const [showDone, setShowDone] = useState(false)
 
   useEffect(() => {
-    if (!userId) { setLoading(false); return }
+    if (!userId) return
     const unsub = subscribeToOnCallJobs(userId, (data) => {
       setJobs(data)
       setLoading(false)
