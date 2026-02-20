@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS = {
 }
 
 function isClinicalMode(value: unknown): value is ClinicalMode {
-  return value === 'ward' || value === 'acute' || value === 'clerking'
+  return value === 'ward' || value === 'acute'
 }
 
 function isLabPriorityProfile(value: unknown): value is LabPriorityProfile {

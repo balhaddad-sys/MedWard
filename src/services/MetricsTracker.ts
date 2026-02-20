@@ -31,7 +31,7 @@ export class MetricsTracker {
     userId: string;
     userName: string;
     patientId?: string;
-    shiftType?: 'ward' | 'acute' | 'clerking';
+    shiftType?: 'ward' | 'acute';
     metadata?: Record<string, unknown>;
   }): Promise<string> {
     const metric: Omit<PerformanceMetric, 'id'> = {

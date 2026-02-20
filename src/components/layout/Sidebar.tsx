@@ -36,6 +36,7 @@ interface NavItem {
 const NAV_ITEMS: Record<ClinicalMode, NavItem[]> = {
   ward: [
     { to: '/', label: 'Patients', icon: Users, badge: 'patients' },
+    { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList, badge: 'tasks' },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
@@ -45,17 +46,11 @@ const NAV_ITEMS: Record<ClinicalMode, NavItem[]> = {
   acute: [
     { to: '/', label: 'Patients', icon: Users, badge: 'patients' },
     { to: '/on-call', label: 'On-Call List', icon: Phone },
+    { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/shift', label: 'Shift View', icon: Activity },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList, badge: 'tasks' },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
-    { to: '/ai', label: 'AI Assistant', icon: Bot },
-  ],
-  clerking: [
-    { to: '/', label: 'Patients', icon: Users, badge: 'patients' },
-    { to: '/clerking', label: 'Clerking', icon: FileText },
-    { to: '/tasks', label: 'Tasks', icon: ClipboardList, badge: 'tasks' },
-    { to: '/labs', label: 'Labs', icon: FlaskConical },
     { to: '/ai', label: 'AI Assistant', icon: Bot },
   ],
 }

@@ -76,13 +76,6 @@
     --mode-accent-border: #fecaca;
   }
 
-  [data-mode="clerking"] {
-    --mode-accent-light: #fffbeb;
-    --mode-accent-text: #b45309;
-    --mode-accent-dot: #f59e0b;
-    --mode-accent-border: #fde68a;
-  }
-
   *,
   *::before,
   *::after {
@@ -158,12 +151,6 @@
       --mode-accent-dot: #ef4444;
       --mode-accent-border: rgba(239, 68, 68, 0.25);
     }
-    [data-mode="clerking"] {
-      --mode-accent-light: rgba(245, 158, 11, 0.18);
-      --mode-accent-text: #fbbf24;
-      --mode-accent-dot: #f59e0b;
-      --mode-accent-border: rgba(245, 158, 11, 0.25);
-    }
   }
 
   /* Manual dark class override (for future toggle support) */
@@ -198,12 +185,6 @@
     --mode-accent-text: #f87171;
     --mode-accent-dot: #ef4444;
     --mode-accent-border: rgba(239, 68, 68, 0.25);
-  }
-  html.dark [data-mode="clerking"] {
-    --mode-accent-light: rgba(245, 158, 11, 0.18);
-    --mode-accent-text: #fbbf24;
-    --mode-accent-dot: #f59e0b;
-    --mode-accent-border: rgba(245, 158, 11, 0.25);
   }
 }
 

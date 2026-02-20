@@ -19,7 +19,7 @@ const STORAGE_KEY = 'medward:clinical-mode'
 function readPersistedMode(fallback: ClinicalMode): ClinicalMode {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && (stored === 'ward' || stored === 'acute' || stored === 'clerking')) {
+    if (stored && (stored === 'ward' || stored === 'acute')) {
       return stored
     }
   } catch {

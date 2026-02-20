@@ -3,7 +3,6 @@ import { clsx } from 'clsx';
 import {
   Users,
   Phone,
-  FileText,
   CheckCircle2,
   ArrowRight,
   Activity,
@@ -58,23 +57,6 @@ const modeCards: ModeCardConfig[] = [
       'Quick clinical scoring',
     ],
   },
-  {
-    id: 'clerking',
-    title: 'Clerking',
-    description: 'Structured admission clerking workflow',
-    icon: FileText,
-    themeColor: 'text-emerald-600',
-    bgGradient: 'from-emerald-50 to-emerald-100/50',
-    borderColor: 'border-emerald-200 hover:border-emerald-400',
-    iconBg: 'bg-emerald-100 text-emerald-600',
-    features: [
-      'Step-by-step clerking form',
-      'Auto-save progress',
-      'Problem severity parsing',
-      'Auto-generated task bundles',
-      'SBAR output and on-call escalation',
-    ],
-  },
 ];
 
 export default function ModeSelectionPage() {
@@ -104,7 +86,7 @@ export default function ModeSelectionPage() {
 
       {/* Mode cards */}
       <div className="max-w-5xl mx-auto px-4 py-10">
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 max-w-3xl mx-auto">
           {modeCards.map((card) => {
             const Icon = card.icon;
             const isCurrentMode = currentMode === card.id;

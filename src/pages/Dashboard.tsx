@@ -123,14 +123,13 @@ export default function Dashboard() {
       });
     }
 
-    if (mode === 'clerking') {
-      baseActions.splice(1, 0, {
-        label: 'New Clerking',
-        icon: Stethoscope,
-        path: '/clerking',
-        color: 'bg-emerald-600 hover:bg-emerald-700 text-white',
-      });
-    }
+    // Clerking is always available as an action
+    baseActions.splice(mode === 'acute' ? 3 : 1, 0, {
+      label: 'New Clerking',
+      icon: Stethoscope,
+      path: '/clerking',
+      color: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+    });
 
     return baseActions;
   }, [mode]);

@@ -30,11 +30,6 @@ export async function updateDataSubscriptions(
       }
       break
 
-    case 'clerking':
-      if (patientId) {
-        activeSubscriptions.push(subscribeToPatientHistory(patientId))
-      }
-      break
   }
 }
 
@@ -69,15 +64,6 @@ function subscribeToVitals(patientId: string, refreshRate: number): Subscription
       }
     },
   }
-}
-
-function subscribeToPatientHistory(patientId: string): Subscription {
-  // Subscribe to full lab history for clerking trend view
-  const unsubscribe: Unsubscribe = subscribeToLabs(patientId, () => {
-    // Lab data flows through Zustand store
-  })
-
-  return { unsubscribe }
 }
 
 export function teardownSubscriptions(): void {

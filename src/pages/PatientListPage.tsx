@@ -14,6 +14,7 @@ import {
   BedDouble,
   AlertTriangle,
   Building2,
+  FileText,
 } from 'lucide-react';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -240,17 +241,24 @@ export default function PatientListPage() {
     return Object.keys(errors).length === 0;
   }
 
+  const addAndClerkRef = { current: false };
+
   async function handleAddPatient(e: FormEvent) {
     e.preventDefault();
     if (!validateForm() || !user) return;
+    const goToClerking = addAndClerkRef.current;
+    addAndClerkRef.current = false;
     setSaving(true);
     try {
-      await createPatient(formData, user.id);
+      const newPatientId = await createPatient(formData, user.id);
       setShowAddModal(false);
       setFormData(initialFormData);
       setFormErrors({});
       setDiagnosisInput('');
       setAllergyInput('');
+      if (goToClerking && newPatientId) {
+        navigate(`/clerking?patientId=${encodeURIComponent(newPatientId)}`);
+      }
     } catch (err) {
       console.error('Error creating patient:', err);
       setFormErrors({ general: 'Failed to create patient. Please try again.' });
@@ -854,6 +862,15 @@ export default function PatientListPage() {
             </Button>
             <Button type="submit" loading={saving} iconLeft={<Plus size={14} />}>
               Add Patient
+            </Button>
+            <Button
+              type="submit"
+              loading={saving}
+              variant="success"
+              iconLeft={<FileText size={14} />}
+              onClick={() => { addAndClerkRef.current = true; }}
+            >
+              Add & Clerk
             </Button>
           </div>
         </form>

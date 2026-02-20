@@ -33,21 +33,15 @@ interface MobileNavItem {
 const MOBILE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
     { to: '/', label: 'Patients', icon: Users },
+    { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
-    { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
   ],
   acute: [
     { to: '/on-call', label: 'On-Call', icon: Phone },
-    { to: '/shift', label: 'Shift', icon: Activity },
-    { to: '/tasks', label: 'Tasks', icon: ClipboardList },
-    { to: '/labs', label: 'Labs', icon: FlaskConical },
-  ],
-  clerking: [
     { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
-    { to: '/', label: 'Patients', icon: Users },
   ],
 }
 
@@ -55,6 +49,7 @@ const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
     { to: '/ai', label: 'AI Assistant', icon: Bot },
     { to: '/drugs', label: 'Drug Info', icon: Pill },
+    { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/settings', label: 'Settings', icon: Settings },
     { to: '/mode', label: 'Change Mode', icon: Repeat },
@@ -63,13 +58,8 @@ const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
     { to: '/', label: 'Patients', icon: Users },
     { to: '/ai', label: 'AI Assistant', icon: Bot },
     { to: '/drugs', label: 'Drug Info', icon: Pill },
+    { to: '/shift', label: 'Shift', icon: Activity },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
-    { to: '/settings', label: 'Settings', icon: Settings },
-    { to: '/mode', label: 'Change Mode', icon: Repeat },
-  ],
-  clerking: [
-    { to: '/ai', label: 'AI Assistant', icon: Bot },
-    { to: '/drugs', label: 'Drug Info', icon: Pill },
     { to: '/settings', label: 'Settings', icon: Settings },
     { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],

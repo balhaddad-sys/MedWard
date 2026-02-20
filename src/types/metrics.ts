@@ -20,7 +20,7 @@ export interface PerformanceMetric {
   userId: string;
   userName: string;
   patientId?: string;
-  shiftType?: 'ward' | 'acute' | 'clerking';
+  shiftType?: 'ward' | 'acute';
   metadata?: Record<string, unknown>;
 }
 

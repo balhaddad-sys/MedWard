@@ -377,7 +377,6 @@ export default function SettingsPage() {
               >
                 <option value="ward">Ward Round</option>
                 <option value="acute">On-Call</option>
-                <option value="clerking">Clerking</option>
               </select>
               <p className="text-xs text-slate-500 mt-1">
                 The mode that loads when you open the app

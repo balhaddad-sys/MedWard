@@ -17,7 +17,7 @@ export interface User {
 
 export interface UserPreferences {
   defaultWard: string
-  defaultMode: 'ward' | 'acute' | 'clerking'
+  defaultMode: 'ward' | 'acute'
   notificationSettings: {
     criticalLabs: boolean
     taskReminders: boolean
