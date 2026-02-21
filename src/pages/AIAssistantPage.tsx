@@ -17,7 +17,6 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { usePatientStore } from '@/stores/patientStore';
-import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';

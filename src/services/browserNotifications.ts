@@ -61,11 +61,11 @@ export const showNotification = async (options: BrowserNotificationOptions): Pro
   try {
     const notification = new Notification(options.title, {
       body: options.body,
-      icon: options.icon || '/icon-192.png',
+      icon: options.icon || '/icons/icon-192x192.png',
       tag: options.tag,
       requireInteraction: options.requireInteraction ?? true,
       silent: options.silent ?? false,
-      badge: '/icon-96.png',
+      badge: '/icons/icon-96x96.png',
     })
 
     // Auto-close after 10 seconds unless requireInteraction is true
