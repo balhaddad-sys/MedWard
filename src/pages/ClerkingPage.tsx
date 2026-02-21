@@ -273,11 +273,14 @@ export default function ClerkingPage() {
     setTemporaryLocation('');
     setError(null);
     setWorkflowNotice(null);
-    if (!patientId || !user) return;
+  }
+
+  async function handleExistingStart() {
+    if (!selectedPatientId || !user) return;
     prefillAppliedRef.current = true;
 
     try {
-      const id = await createClerkingNote(user.id, user.displayName, patientId, {
+      const id = await createClerkingNote(user.id, user.displayName, selectedPatientId, {
         location,
         workingDiagnosis,
         presentingComplaint,
@@ -571,6 +574,17 @@ export default function ClerkingPage() {
     setTemporaryLocation('');
   }
 
+  function handleStartNewCase() {
+    if (noteId) {
+      const confirmed = window.confirm('Start a new clerking case? Unsaved progress in the current note may be lost.')
+      if (!confirmed) return
+    }
+    resetForm()
+    setError(null)
+    setWorkflowNotice(null)
+    setLastSaved(null)
+  }
+
   async function handleSignAndSubmit() {
     if (!noteId || !user || !currentPatientIdentity) return;
 
@@ -665,6 +679,15 @@ export default function ClerkingPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {noteId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleStartNewCase}
+                >
+                  New case
+                </Button>
+              )}
               {saving && (
                 <span className="text-xs text-slate-400 flex items-center gap-1">
                   <Save size={12} className="animate-pulse" />
@@ -720,19 +743,32 @@ export default function ClerkingPage() {
             </div>
 
             {patientMode === 'existing' ? (
-              <Select
-                label="Patient"
-                value={selectedPatientId}
-                onChange={(e) => handlePatientSelect(e.target.value)}
-                disabled={Boolean(noteId)}
-              >
-                <option value="">Select a patient to clerk...</option>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.firstName} {p.lastName} - MRN: {p.mrn} - Bed {p.bedNumber}
-                  </option>
-                ))}
-              </Select>
+              <div className="space-y-2">
+                <Select
+                  label="Patient"
+                  value={selectedPatientId}
+                  onChange={(e) => handlePatientSelect(e.target.value)}
+                  disabled={Boolean(noteId)}
+                >
+                  <option value="">Select a patient to clerk...</option>
+                  {patients.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.firstName} {p.lastName} - MRN: {p.mrn} - Bed {p.bedNumber}
+                    </option>
+                  ))}
+                </Select>
+                {!noteId && (
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      onClick={handleExistingStart}
+                      disabled={!selectedPatientId}
+                    >
+                      Start clerking
+                    </Button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="space-y-2">
                 <Input
@@ -762,11 +798,30 @@ export default function ClerkingPage() {
                 )}
               </div>
             )}
+
+            {!noteId && (
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-3 py-2">
+                <p className="text-xs font-medium text-slate-700 dark:text-slate-300">Workflow</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  1) Choose case type, 2) Start clerking, 3) Complete key sections, 4) Sign & submit.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Progress bar */}
           {noteId && (
             <div className="mt-4">
+              <div className="mb-2 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2">
+                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                  Case in progress: {isTemporaryCase
+                    ? (temporaryPatientName.trim() || 'Temporary on-call case')
+                    : (selectedPatient ? `${selectedPatient.firstName} ${selectedPatient.lastName}` : 'Selected patient')}
+                </p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5">
+                  Finish documentation and use <span className="font-medium">Sign & Submit</span> to complete workflow.
+                </p>
+              </div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-medium text-slate-500">Progress</span>
                 <span className="text-xs font-semibold text-slate-700">{completionPercentage}%</span>

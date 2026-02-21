@@ -627,6 +627,29 @@ function PatientsTab({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4">
+      <Card padding="sm" className="border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50">
+        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Quick Actions</p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/clerking')}
+            className="h-9 rounded-lg text-xs font-medium border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          >
+            Clerk unit patient
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAddMode('temporary')
+              setShowAddForm(true)
+            }}
+            className="h-9 rounded-lg text-xs font-medium border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+          >
+            Log temporary case
+          </button>
+        </div>
+      </Card>
+
       {/* Unstable patients signal */}
       {unstablePatients.length > 0 && (
         <Card padding="sm" className="border-red-200 bg-red-50/40">
@@ -660,10 +683,10 @@ function PatientsTab({ userId }: { userId: string }) {
       {/* On-call list */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">On-Call List</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">On-Call Cases</p>
           <div className="flex items-center gap-2">
             <Badge variant={onCallEntries.length > 0 ? 'warning' : 'muted'}>
-              {onCallEntries.length} patient{onCallEntries.length !== 1 ? 's' : ''}
+              {onCallEntries.length} case{onCallEntries.length !== 1 ? 's' : ''}
             </Badge>
             <button
               type="button"
@@ -712,6 +735,11 @@ function PatientsTab({ userId }: { userId: string }) {
                   Temporary case
                 </button>
               </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {addMode === 'existing'
+                  ? 'Use existing for patients already in your ward list.'
+                  : 'Use temporary for external/non-unit patients during on-call.'}
+              </p>
 
               {addMode === 'existing' ? (
                 <select
@@ -810,7 +838,7 @@ function PatientsTab({ userId }: { userId: string }) {
           <Card>
             <EmptyState
               icon={<Phone size={24} />}
-              title="No patients on on-call list"
+              title="No cases on on-call list"
               description="Escalated ward patients and temporary on-call cases appear here."
             />
           </Card>
@@ -2085,7 +2113,7 @@ function HandoverTab({ userId }: { userId: string }) {
     }
 
     if (entries.length > 0) {
-      lines.push(`ON-CALL PATIENTS (${entries.length}):`)
+      lines.push(`ON-CALL CASES (${entries.length}):`)
       const sorted = [...entries].sort((a, b) => PRIORITY_ORDER_MAP[a.priority] - PRIORITY_ORDER_MAP[b.priority])
       sorted.forEach((entry) => {
         const patient = patientMap.get(entry.patientId)
@@ -2164,7 +2192,7 @@ type OnCallTab = 'jobs' | 'patients' | 'reference' | 'handover'
 
 const ONCALL_TABS: { id: OnCallTab; label: string; icon: React.ReactNode }[] = [
   { id: 'jobs',      label: 'Jobs',      icon: <ListTodo size={16} /> },
-  { id: 'patients',  label: 'Patients',  icon: <Users size={16} /> },
+  { id: 'patients',  label: 'Cases',     icon: <Users size={16} /> },
   { id: 'reference', label: 'Reference', icon: <BookOpen size={16} /> },
   { id: 'handover',  label: 'Handover',  icon: <ClipboardList size={16} /> },
 ]
