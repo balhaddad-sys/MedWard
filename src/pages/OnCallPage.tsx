@@ -565,22 +565,7 @@ function PatientsTab({ userId }: { userId: string }) {
     setShowAddForm(false)
   }
 
-  function goToClerking(entry: OnCallListEntry, patient?: Patient) {
-    if (patient) {
-      navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)
-      return
-    }
-
-    const params = new URLSearchParams()
-    const display = getOnCallEntryDisplay(entry)
-    params.set('tempName', display.name)
-    if (entry.temporaryWard) params.set('tempWard', entry.temporaryWard)
-    if (entry.temporaryBed) params.set('tempBed', entry.temporaryBed)
-    if (entry.notes) params.set('reason', entry.notes)
-    navigate(`/clerking?${params.toString()}`)
-  }
-
-  async function handleAddToOnCall(andOpenClerking: boolean) {
+  async function handleAddToOnCall() {
     const isExisting = addMode === 'existing'
     const hasExistingPatient = isExisting && Boolean(addPatientId)
     const hasTemporaryPatient = !isExisting && Boolean(addTemporaryName.trim())
@@ -606,17 +591,15 @@ function PatientsTab({ userId }: { userId: string }) {
         temporaryBed: !isExisting ? addTemporaryBed : undefined,
       })
 
-      if (andOpenClerking) {
-        if (isExisting) {
-          navigate(`/clerking?patientId=${encodeURIComponent(patientId)}`)
-        } else {
-          const params = new URLSearchParams()
-          params.set('tempName', addTemporaryName.trim())
-          if (addTemporaryWard.trim()) params.set('tempWard', addTemporaryWard.trim())
-          if (addTemporaryBed.trim()) params.set('tempBed', addTemporaryBed.trim())
-          if (addNotes.trim()) params.set('reason', addNotes.trim())
-          navigate(`/clerking?${params.toString()}`)
-        }
+      if (isExisting) {
+        navigate(`/clerking?patientId=${encodeURIComponent(patientId)}`)
+      } else {
+        const params = new URLSearchParams()
+        params.set('tempName', addTemporaryName.trim())
+        if (addTemporaryWard.trim()) params.set('tempWard', addTemporaryWard.trim())
+        if (addTemporaryBed.trim()) params.set('tempBed', addTemporaryBed.trim())
+        if (addNotes.trim()) params.set('reason', addNotes.trim())
+        navigate(`/clerking?${params.toString()}`)
       }
 
       resetAddForm()
@@ -629,23 +612,16 @@ function PatientsTab({ userId }: { userId: string }) {
     <div className="space-y-4">
       <Card padding="sm" className="border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50">
         <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Quick Actions</p>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => navigate('/clerking')}
-            className="h-9 rounded-lg text-xs font-medium border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-          >
-            Clerk unit patient
-          </button>
+        <div className="grid grid-cols-1 gap-2">
           <button
             type="button"
             onClick={() => {
-              setAddMode('temporary')
+              setAddMode('existing')
               setShowAddForm(true)
             }}
             className="h-9 rounded-lg text-xs font-medium border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
           >
-            Log temporary case
+            Add case
           </button>
         </div>
       </Card>
@@ -814,18 +790,10 @@ function PatientsTab({ userId }: { userId: string }) {
                 <button
                   type="button"
                   disabled={addSaving || (addMode === 'existing' ? !addPatientId : !addTemporaryName.trim())}
-                  onClick={() => void handleAddToOnCall(false)}
+                  onClick={() => void handleAddToOnCall()}
                   className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 transition-colors"
                 >
-                  {addSaving ? 'Adding...' : 'Add to list'}
-                </button>
-                <button
-                  type="button"
-                  disabled={addSaving || (addMode === 'existing' ? !addPatientId : !addTemporaryName.trim())}
-                  onClick={() => void handleAddToOnCall(true)}
-                  className="px-3 py-1.5 text-xs font-medium bg-emerald-600 text-white rounded-lg disabled:opacity-50 hover:bg-emerald-700 transition-colors"
-                >
-                  {addSaving ? 'Please wait...' : 'Add & clerk'}
+                  {addSaving ? 'Opening...' : 'Add and continue'}
                 </button>
               </div>
             </div>
@@ -925,16 +893,6 @@ function PatientsTab({ userId }: { userId: string }) {
                           className="h-7 px-2 rounded-md text-[11px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
                         >
                           View
-                        </button>
-                      )}
-                      {!isStale && !entry.clerkingNoteId && (
-                        <button
-                          type="button"
-                          onClick={() => goToClerking(entry, patient)}
-                          title="Start clerking"
-                          className="h-7 px-2 rounded-md text-[11px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
-                        >
-                          Clerk
                         </button>
                       )}
                       <button
