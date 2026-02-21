@@ -6,13 +6,9 @@ import {
   FlaskConical,
   Bot,
   Phone,
-  Activity,
-  FileText,
   MoreHorizontal,
-  Pill,
   Settings,
   X,
-  Repeat,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useModeContext } from '@/context/useModeContext'
@@ -41,27 +37,20 @@ const MOBILE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
-    { to: '/shift', label: 'Shift', icon: Activity },
+    { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
   ],
 }
 
 const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
-    { to: '/clerking', label: 'Clerking', icon: FileText },
-    { to: '/ai', label: 'AI Assistant', icon: Bot },
-    { to: '/drugs', label: 'Drug Info', icon: Pill },
+    { to: '/ai', label: 'AI Tools', icon: Bot },
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/settings', label: 'Settings', icon: Settings },
-    { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],
   acute: [
     { to: '/', label: 'Patients', icon: Users },
-    { to: '/clerking', label: 'Clerking', icon: FileText },
-    { to: '/ai', label: 'AI Assistant', icon: Bot },
-    { to: '/drugs', label: 'Drug Info', icon: Pill },
-    { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
+    { to: '/ai', label: 'AI Tools', icon: Bot },
     { to: '/settings', label: 'Settings', icon: Settings },
-    { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],
 }
 

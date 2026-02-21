@@ -26,6 +26,10 @@ import {
   AlertTriangle,
   Activity,
   Zap,
+  CheckCircle2,
+  Beaker,
+  Shield,
+  ArrowRight,
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { Card } from '@/components/ui/Card'
@@ -36,6 +40,10 @@ import { Spinner } from '@/components/ui/Spinner'
 import { Input, Textarea } from '@/components/ui/Input'
 import { useAuthStore } from '@/stores/authStore'
 import { usePatientStore } from '@/stores/patientStore'
+import { useTaskStore } from '@/stores/taskStore'
+import { completeTask } from '@/services/firebase/tasks'
+import { ACUITY_LEVELS } from '@/config/constants'
+import type { Task } from '@/types/task'
 import { subscribeToOnCallList, addToOnCallList, removeFromOnCallList } from '@/services/firebase/onCallList'
 import {
   subscribeToOnCallJobs,
@@ -2143,13 +2151,207 @@ function HandoverTab({ userId }: { userId: string }) {
 }
 
 // ===========================================================================
+// ALERTS TAB (merged from ShiftViewPage)
+// ===========================================================================
+
+function AlertsTab() {
+  const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const patients = usePatientStore((s) => s.patients)
+  const labPanels = usePatientStore((s) => s.labPanels)
+  const tasks = useTaskStore((s) => s.tasks)
+  const [completingTask, setCompletingTask] = useState<string | null>(null)
+
+  const overdueTasks = useMemo(() => {
+    const now = new Date()
+    return tasks.filter((t) => {
+      if (t.status === 'completed' || t.status === 'cancelled') return false
+      if (!t.dueAt) return false
+      const due =
+        typeof t.dueAt === 'object' && 'toDate' in t.dueAt
+          ? t.dueAt.toDate()
+          : new Date(t.dueAt as unknown as string)
+      return due < now
+    }).sort((a, b) => {
+      const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
+      return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2)
+    })
+  }, [tasks])
+
+  const criticalLabPatients = useMemo(() => {
+    const result: { patient: Patient; criticalCount: number }[] = []
+    patients.forEach((patient) => {
+      const panels = labPanels[patient.id] || []
+      let criticalCount = 0
+      panels.forEach((panel) => {
+        ;(panel.values || []).forEach((val) => {
+          if (val.flag === 'critical_low' || val.flag === 'critical_high') criticalCount++
+        })
+      })
+      if (criticalCount > 0) result.push({ patient, criticalCount })
+    })
+    return result.sort((a, b) => b.criticalCount - a.criticalCount)
+  }, [patients, labPanels])
+
+  const unstablePatients = useMemo(() => {
+    return patients.filter((p) => p.state === 'unstable').sort((a, b) => a.acuity - b.acuity)
+  }, [patients])
+
+  async function handleCompleteTask(taskId: string) {
+    if (!user) return
+    setCompletingTask(taskId)
+    try {
+      await completeTask(taskId, user.id)
+    } catch (err) {
+      console.error('Error completing task:', err)
+    } finally {
+      setCompletingTask(null)
+    }
+  }
+
+  function getTimeOverdue(task: Task): string {
+    if (!task.dueAt) return ''
+    try {
+      const due =
+        typeof task.dueAt === 'object' && 'toDate' in task.dueAt
+          ? task.dueAt.toDate()
+          : new Date(task.dueAt as unknown as string)
+      return formatDistanceToNow(due, { addSuffix: true })
+    } catch {
+      return ''
+    }
+  }
+
+  const isEmpty = overdueTasks.length === 0 && criticalLabPatients.length === 0 && unstablePatients.length === 0
+
+  if (isEmpty) {
+    return (
+      <Card>
+        <EmptyState
+          icon={<Shield size={24} />}
+          title="All clear"
+          description="No overdue tasks, critical labs, or unstable patients at this time."
+        />
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Overdue Tasks */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Clock size={16} className="text-red-500" />
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Overdue Tasks</h3>
+          <Badge variant="critical" size="sm">{overdueTasks.length}</Badge>
+        </div>
+        {overdueTasks.length === 0 ? (
+          <Card padding="sm">
+            <p className="text-xs text-slate-500 text-center py-2">No overdue tasks.</p>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {overdueTasks.map((task) => (
+              <Card key={task.id} padding="sm" className="border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/20">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{task.title}</p>
+                      <Badge variant={task.priority === 'critical' ? 'critical' : task.priority === 'high' ? 'warning' : 'default'} size="sm">
+                        {task.priority}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {task.patientName} &middot; Bed {task.bedNumber} &middot; Overdue {getTimeOverdue(task)}
+                    </p>
+                  </div>
+                  <Button variant="success" size="sm" loading={completingTask === task.id} onClick={() => handleCompleteTask(task.id)} iconLeft={<CheckCircle2 size={14} />}>
+                    Done
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Critical Labs */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Beaker size={16} className="text-amber-500" />
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Critical Labs</h3>
+          <Badge variant="warning" size="sm">{criticalLabPatients.length}</Badge>
+        </div>
+        {criticalLabPatients.length === 0 ? (
+          <Card padding="sm">
+            <p className="text-xs text-slate-500 text-center py-2">No critical lab values.</p>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {criticalLabPatients.map(({ patient, criticalCount }) => (
+              <Card key={patient.id} padding="sm" hover onClick={() => navigate(`/patients/${patient.id}`)} className="border-amber-200 dark:border-amber-800">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.firstName} {patient.lastName}</p>
+                    <p className="text-xs text-slate-500">Bed {patient.bedNumber} &middot; {patient.primaryDiagnosis}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant="critical" size="sm">{criticalCount} critical</Badge>
+                    <ArrowRight size={14} className="text-slate-400" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Unstable Patients */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Activity size={16} className="text-red-500" />
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Unstable Patients</h3>
+          <Badge variant="critical" size="sm">{unstablePatients.length}</Badge>
+        </div>
+        {unstablePatients.length === 0 ? (
+          <Card padding="sm">
+            <p className="text-xs text-slate-500 text-center py-2">No unstable patients.</p>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {unstablePatients.map((patient) => (
+              <Card key={patient.id} padding="sm" hover onClick={() => navigate(`/patients/${patient.id}`)} className="border-red-200 dark:border-red-800 bg-red-50/20 dark:bg-red-950/10">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.firstName} {patient.lastName}</p>
+                      <Badge variant={patient.acuity <= 2 ? 'critical' : 'warning'} dot size="sm">{ACUITY_LEVELS[patient.acuity].label}</Badge>
+                    </div>
+                    <p className="text-xs text-slate-500">Bed {patient.bedNumber} &middot; {patient.primaryDiagnosis}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Badge variant="critical" size="sm">Unstable</Badge>
+                    <ArrowRight size={14} className="text-slate-400" />
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+// ===========================================================================
 // MAIN PAGE
 // ===========================================================================
 
-type OnCallTab = 'jobs' | 'patients' | 'reference' | 'handover'
+type OnCallTab = 'jobs' | 'alerts' | 'patients' | 'reference' | 'handover'
 
 const ONCALL_TABS: { id: OnCallTab; label: string; icon: React.ReactNode }[] = [
   { id: 'jobs',      label: 'Jobs',      icon: <ListTodo size={16} /> },
+  { id: 'alerts',    label: 'Alerts',    icon: <Zap size={16} /> },
   { id: 'patients',  label: 'Cases',     icon: <Users size={16} /> },
   { id: 'reference', label: 'Reference', icon: <BookOpen size={16} /> },
   { id: 'handover',  label: 'Handover',  icon: <ClipboardList size={16} /> },
@@ -2186,7 +2388,7 @@ export default function OnCallPage() {
       </div>
 
       {/* Section selector — pill grid, not a nav bar */}
-      <div className="grid grid-cols-4 gap-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1.5">
+      <div className="grid grid-cols-5 gap-1 bg-slate-100 dark:bg-slate-800 rounded-2xl p-1.5">
         {ONCALL_TABS.map((tab) => (
           <button
             key={tab.id}
@@ -2211,6 +2413,7 @@ export default function OnCallPage() {
       {/* Content */}
       <div>
         {activeTab === 'jobs'      && <JobsTab userId={userId} />}
+        {activeTab === 'alerts'    && <AlertsTab />}
         {activeTab === 'patients'  && <PatientsTab userId={userId} />}
         {activeTab === 'reference' && <ReferenceTab />}
         {activeTab === 'handover'  && <HandoverTab userId={userId} />}

@@ -19,9 +19,7 @@ import TasksPage from '@/pages/TasksPage'
 import HandoverPage from '@/pages/HandoverPage'
 import LabAnalysisPage from '@/pages/LabAnalysisPage'
 import AIAssistantPage from '@/pages/AIAssistantPage'
-import DrugInfoPage from '@/pages/DrugInfoPage'
 import OnCallPage from '@/pages/OnCallPage'
-import ShiftViewPage from '@/pages/ShiftViewPage'
 import ClerkingPage from '@/pages/ClerkingPage'
 import SettingsPage from '@/pages/SettingsPage'
 import PrivacyPage from '@/pages/PrivacyPage'
@@ -105,9 +103,9 @@ function AppRoutes() {
         <Route path="handover" element={<HandoverPage />} />
         <Route path="labs" element={<LabAnalysisPage />} />
         <Route path="ai" element={<AIAssistantPage />} />
-        <Route path="drugs" element={<DrugInfoPage />} />
+        <Route path="drugs" element={<Navigate to="/ai" replace />} />
         <Route path="on-call" element={<OnCallPage />} />
-        <Route path="shift" element={<ShiftViewPage />} />
+        <Route path="shift" element={<Navigate to="/on-call" replace />} />
         <Route path="clerking" element={<ClerkingPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
