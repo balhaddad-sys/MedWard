@@ -39,9 +39,7 @@
     <title>MedWard Pro</title>
 
     <!-- Synchronous theme init — prevents flash of wrong theme -->
-    <script>
-      (function(){try{var s=localStorage.getItem('medward-settings');if(s){var d=JSON.parse(s),t=(d.state||d).theme||'system';if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}else if(matchMedia('(prefers-color-scheme:dark)').matches)document.documentElement.classList.add('dark')}catch(e){}})();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body class="bg-ward-bg text-ward-text antialiased">
     <!-- Splash screen shown while JS loads -->
