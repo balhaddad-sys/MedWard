@@ -33,32 +33,32 @@ interface MobileNavItem {
 const MOBILE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
     { to: '/', label: 'Patients', icon: Users },
-    { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
+    { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
   ],
   acute: [
     { to: '/on-call', label: 'On-Call', icon: Phone },
-    { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/labs', label: 'Labs', icon: FlaskConical },
+    { to: '/shift', label: 'Shift', icon: Activity },
   ],
 }
 
 const MORE_NAV_ITEMS: Record<ClinicalMode, MobileNavItem[]> = {
   ward: [
+    { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/ai', label: 'AI Assistant', icon: Bot },
     { to: '/drugs', label: 'Drug Info', icon: Pill },
-    { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
     { to: '/on-call', label: 'On-Call', icon: Phone },
     { to: '/settings', label: 'Settings', icon: Settings },
     { to: '/mode', label: 'Change Mode', icon: Repeat },
   ],
   acute: [
     { to: '/', label: 'Patients', icon: Users },
+    { to: '/clerking', label: 'Clerking', icon: FileText },
     { to: '/ai', label: 'AI Assistant', icon: Bot },
     { to: '/drugs', label: 'Drug Info', icon: Pill },
-    { to: '/shift', label: 'Shift', icon: Activity },
     { to: '/handover', label: 'Handover', icon: ArrowLeftRight },
     { to: '/settings', label: 'Settings', icon: Settings },
     { to: '/mode', label: 'Change Mode', icon: Repeat },
