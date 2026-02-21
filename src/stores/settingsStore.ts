@@ -4,12 +4,14 @@ import type { ClinicalMode } from '@/config/modes'
 import type { UserPreferences } from '@/types'
 
 export type LabPriorityProfile = 'ward' | 'icu' | 'cardiac'
+export type ThemeSetting = 'system' | 'light' | 'dark'
 
-const SETTINGS_STORAGE_VERSION = 2
+const SETTINGS_STORAGE_VERSION = 3
 
 const DEFAULT_SETTINGS = {
   defaultWard: '',
   defaultMode: 'ward' as ClinicalMode,
+  theme: 'system' as ThemeSetting,
   compactView: false,
   showAISuggestions: true,
   labTrendDays: 7,
@@ -25,6 +27,10 @@ function isClinicalMode(value: unknown): value is ClinicalMode {
 
 function isLabPriorityProfile(value: unknown): value is LabPriorityProfile {
   return value === 'ward' || value === 'icu' || value === 'cardiac'
+}
+
+function isThemeSetting(value: unknown): value is ThemeSetting {
+  return value === 'system' || value === 'light' || value === 'dark'
 }
 
 function clampLabTrendDays(value: number): number {
@@ -62,6 +68,7 @@ function mapSettingsToPreferences(state: {
 interface SettingsStore {
   defaultWard: string
   defaultMode: ClinicalMode
+  theme: ThemeSetting
   compactView: boolean
   showAISuggestions: boolean
   labTrendDays: number
@@ -71,6 +78,7 @@ interface SettingsStore {
   notifyHandoverAlerts: boolean
   setDefaultWard: (ward: string) => void
   setDefaultMode: (mode: ClinicalMode) => void
+  setTheme: (theme: ThemeSetting) => void
   setCompactView: (compact: boolean) => void
   setShowAISuggestions: (show: boolean) => void
   setLabTrendDays: (days: number) => void
@@ -88,6 +96,7 @@ export const useSettingsStore = create<SettingsStore>()(
       ...DEFAULT_SETTINGS,
       setDefaultWard: (defaultWard) => set({ defaultWard }),
       setDefaultMode: (defaultMode) => set({ defaultMode }),
+      setTheme: (theme) => set({ theme }),
       setCompactView: (compactView) => set({ compactView }),
       setShowAISuggestions: (showAISuggestions) => set({ showAISuggestions }),
       setLabTrendDays: (labTrendDays) => set({ labTrendDays: clampLabTrendDays(labTrendDays) }),
@@ -134,6 +143,7 @@ export const useSettingsStore = create<SettingsStore>()(
       partialize: (state) => ({
         defaultWard: state.defaultWard,
         defaultMode: state.defaultMode,
+        theme: state.theme,
         compactView: state.compactView,
         showAISuggestions: state.showAISuggestions,
         labTrendDays: state.labTrendDays,
@@ -154,6 +164,9 @@ export const useSettingsStore = create<SettingsStore>()(
           defaultMode: isClinicalMode(persisted.defaultMode)
             ? persisted.defaultMode
             : DEFAULT_SETTINGS.defaultMode,
+          theme: isThemeSetting(persisted.theme)
+            ? persisted.theme
+            : DEFAULT_SETTINGS.theme,
           compactView:
             typeof persisted.compactView === 'boolean'
               ? persisted.compactView

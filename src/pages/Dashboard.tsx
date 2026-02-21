@@ -102,10 +102,10 @@ export default function Dashboard() {
   const quickActions = useMemo(() => {
     const baseActions = [
       { label: 'Add Patient', icon: Plus, path: '/patients', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
-      { label: 'Lab Analysis', icon: Beaker, path: '/labs', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-300' },
-      { label: 'Drug Info', icon: Pill, path: '/drugs', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-300' },
-      { label: 'AI Assistant', icon: Stethoscope, path: '/ai', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-300' },
-      { label: 'Handover', icon: FileText, path: '/handover', color: 'bg-white hover:bg-slate-50 text-slate-700 dark:text-slate-200 border border-slate-300' },
+      { label: 'Lab Analysis', icon: Beaker, path: '/labs', color: 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600' },
+      { label: 'Drug Info', icon: Pill, path: '/drugs', color: 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600' },
+      { label: 'AI Assistant', icon: Stethoscope, path: '/ai', color: 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600' },
+      { label: 'Handover', icon: FileText, path: '/handover', color: 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600' },
     ];
 
     if (mode === 'acute') {
@@ -561,7 +561,7 @@ export default function Dashboard() {
                     onClick={() => navigate('/tasks')}
                     className={clsx(
                       'flex items-start justify-between gap-3 px-3 py-2.5 rounded-xl',
-                      'bg-white border cursor-pointer',
+                      'bg-white dark:bg-slate-800 border cursor-pointer',
                       'hover:shadow-sm transition-all duration-150',
                       overdue
                         ? 'border-red-200 bg-red-50/50 border-l-4 border-l-red-400'

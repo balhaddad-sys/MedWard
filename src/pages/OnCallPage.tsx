@@ -694,7 +694,7 @@ function PatientsTab({ userId }: { userId: string }) {
                     'h-8 rounded-lg text-xs font-medium border transition-colors',
                     addMode === 'existing'
                       ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400',
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500',
                   )}
                 >
                   Existing patient
@@ -706,7 +706,7 @@ function PatientsTab({ userId }: { userId: string }) {
                     'h-8 rounded-lg text-xs font-medium border transition-colors',
                     addMode === 'temporary'
                       ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400',
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500',
                   )}
                 >
                   Temporary case

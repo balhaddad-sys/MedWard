@@ -167,16 +167,16 @@ export default function NotificationDrawer({ open, onClose }: NotificationDrawer
         aria-label="Notifications"
         aria-modal="true"
         className={[
-          'fixed top-0 right-0 z-50 h-full w-full max-w-sm bg-white shadow-2xl flex flex-col',
+          'fixed top-0 right-0 z-50 h-full w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl flex flex-col',
           'transform transition-transform duration-300 ease-in-out',
           open ? 'translate-x-0' : 'translate-x-full',
         ].join(' ')}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-2">
-            <Bell size={18} className="text-slate-600" />
-            <h2 className="text-base font-semibold text-slate-900">Notifications</h2>
+            <Bell size={18} className="text-slate-600 dark:text-slate-400" />
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Notifications</h2>
             {unread.length > 0 && (
               <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
                 {unread.length}
@@ -291,10 +291,10 @@ function NotificationItem({
       onClick={onClick}
       className={[
         'w-full flex items-start gap-3 px-4 py-3 text-left',
-        'border-b border-slate-100 transition-colors',
+        'border-b border-slate-100 dark:border-slate-800 transition-colors',
         isRead
-          ? 'hover:bg-slate-50'
-          : 'hover:bg-white',
+          ? 'hover:bg-slate-50 dark:hover:bg-slate-800'
+          : 'hover:bg-slate-50 dark:hover:bg-slate-800',
         getSeverityStyles(n.severity, isRead),
       ].join(' ')}
     >

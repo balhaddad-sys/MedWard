@@ -5,6 +5,7 @@ import { onAuthChange, getOrCreateProfile, handleRedirectResult } from '@/servic
 import { firebaseReady } from '@/config/firebase'
 import { useAuthStore } from '@/stores/authStore'
 import { useSettingsStore } from '@/stores/settingsStore'
+import type { ThemeSetting } from '@/stores/settingsStore'
 import { ModeProvider } from '@/context/ModeContext'
 import ClinicalLayout from '@/components/layout/ClinicalLayout'
 import { Spinner } from '@/components/ui'
@@ -26,6 +27,32 @@ import SettingsPage from '@/pages/SettingsPage'
 import PrivacyPage from '@/pages/PrivacyPage'
 import TermsPage from '@/pages/TermsPage'
 import NotFoundPage from '@/pages/NotFoundPage'
+
+// ---------------------------------------------------------------------------
+// Theme effect — manages the .dark class on <html> based on user preference
+// ---------------------------------------------------------------------------
+
+function applyThemeClass(theme: ThemeSetting) {
+  const isDark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.classList.toggle('dark', isDark)
+}
+
+function useThemeEffect() {
+  const theme = useSettingsStore((s) => s.theme)
+
+  useEffect(() => {
+    applyThemeClass(theme)
+
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      const handler = () => applyThemeClass('system')
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    }
+  }, [theme])
+}
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { firebaseUser, loading } = useAuthStore()
@@ -92,6 +119,7 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useThemeEffect()
   const { setFirebaseUser, setUser, setLoading } = useAuthStore()
   const [firebaseOk, setFirebaseOk] = useState(false)
 

@@ -223,10 +223,10 @@ export default function DrugInfoPage() {
                 onKeyDown={handleKeyDown}
                 placeholder="Search a drug (e.g. Metformin)..."
                 className={clsx(
-                  'w-full h-11 pl-10 pr-4 rounded-xl text-sm',
-                  'bg-slate-50 border border-slate-200',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white',
-                  'placeholder:text-slate-400',
+                  'w-full h-11 pl-10 pr-4 rounded-xl text-sm dark:text-slate-100',
+                  'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700',
+                  'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-700',
+                  'placeholder:text-slate-400 dark:placeholder:text-slate-500',
                 )}
               />
             </div>

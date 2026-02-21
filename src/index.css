@@ -110,50 +110,7 @@
     background: #94a3b8;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --ward-bg: #0f172a;
-      --ward-card: #1e293b;
-      --ward-border: #334155;
-      --ward-text: #f1f5f9;
-      --ward-muted: #94a3b8;
-      --ward-subtle: #1e293b;
-      --ward-hover: #334155;
-
-      --critical-bg: #450a0a;
-      --warning-bg: #451a03;
-      --success-bg: #052e16;
-      --info-bg: #172554;
-
-      --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.2);
-      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
-      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
-      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: #334155;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #475569;
-    }
-
-    /* Dark mode accent overrides */
-    [data-mode="ward"] {
-      --mode-accent-light: rgba(37, 99, 235, 0.18);
-      --mode-accent-text: #60a5fa;
-      --mode-accent-dot: #3b82f6;
-      --mode-accent-border: rgba(59, 130, 246, 0.25);
-    }
-    [data-mode="acute"] {
-      --mode-accent-light: rgba(220, 38, 38, 0.18);
-      --mode-accent-text: #f87171;
-      --mode-accent-dot: #ef4444;
-      --mode-accent-border: rgba(239, 68, 68, 0.25);
-    }
-  }
-
-  /* Manual dark class override (for future toggle support) */
+  /* Dark mode — activated via .dark class on <html> */
   html.dark {
     --ward-bg: #0f172a;
     --ward-card: #1e293b;
@@ -172,6 +129,13 @@
     --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.25);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  }
+
+  html.dark ::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
   }
 
   html.dark [data-mode="ward"] {

@@ -13,6 +13,9 @@ import {
   Check,
   RefreshCw,
   Users,
+  Sun,
+  Moon,
+  Laptop,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -20,7 +23,7 @@ import { usePatientStore } from '@/stores/patientStore';
 import { useModeContext } from '@/context/useModeContext';
 import { useSheetIntegrationStore } from '@/stores/sheetIntegrationStore';
 import type { ClinicalMode } from '@/config/modes';
-import type { LabPriorityProfile } from '@/stores/settingsStore';
+import type { LabPriorityProfile, ThemeSetting } from '@/stores/settingsStore';
 import { APP_NAME, APP_VERSION } from '@/config/constants';
 import { RELEASE_STAGE } from '@/config/release';
 import { updateUserProfile } from '@/services/firebase/auth';
@@ -45,6 +48,7 @@ export default function SettingsPage() {
 
   const {
     defaultMode,
+    theme,
     compactView,
     showAISuggestions,
     labTrendDays,
@@ -53,6 +57,7 @@ export default function SettingsPage() {
     notifyTaskReminders,
     notifyHandoverAlerts,
     setDefaultMode,
+    setTheme,
     setCompactView,
     setShowAISuggestions,
     setLabTrendDays,
@@ -304,7 +309,7 @@ export default function SettingsPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center gap-3">
             <Settings size={24} className="text-slate-400" />
-            <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Settings</h1>
           </div>
         </div>
       </div>
@@ -380,6 +385,38 @@ export default function SettingsPage() {
               </select>
               <p className="text-xs text-slate-500 mt-1">
                 The mode that loads when you open the app
+              </p>
+            </div>
+
+            {/* Theme selector */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+                Appearance
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { value: 'light' as ThemeSetting, label: 'Light', icon: Sun },
+                  { value: 'dark' as ThemeSetting, label: 'Dark', icon: Moon },
+                  { value: 'system' as ThemeSetting, label: 'System', icon: Laptop },
+                ]).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setTheme(value)}
+                    className={clsx(
+                      'flex items-center justify-center gap-2 h-10 rounded-lg text-sm font-medium border transition-colors',
+                      theme === value
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-ward-card text-slate-600 dark:text-slate-300 border-ward-border hover:border-slate-400 dark:hover:border-slate-500',
+                    )}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Choose light, dark, or match your device setting
               </p>
             </div>
 

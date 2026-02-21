@@ -699,7 +699,7 @@ export default function ClerkingPage() {
                   'h-9 rounded-lg text-sm font-medium border transition-colors disabled:opacity-60 disabled:cursor-not-allowed',
                   patientMode === 'existing'
                     ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500'
                 )}
               >
                 Unit patient
@@ -712,7 +712,7 @@ export default function ClerkingPage() {
                   'h-9 rounded-lg text-sm font-medium border transition-colors disabled:opacity-60 disabled:cursor-not-allowed',
                   patientMode === 'temporary'
                     ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:border-slate-400 dark:hover:border-slate-500'
                 )}
               >
                 Temporary on-call

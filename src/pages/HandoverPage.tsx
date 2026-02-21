@@ -313,7 +313,7 @@ export default function HandoverPage() {
                 {fullHandoverCopied ? 'Copied' : 'Copy All'}
               </Button>
             </div>
-            <pre className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-mono bg-white p-4 rounded-lg border border-slate-200 max-h-96 overflow-y-auto">
+            <pre className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-mono bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 max-h-96 overflow-y-auto">
               {fullHandover}
             </pre>
           </Card>

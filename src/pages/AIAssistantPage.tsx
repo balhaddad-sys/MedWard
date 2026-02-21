@@ -300,10 +300,10 @@ export default function AIAssistantPage() {
                 placeholder="Ask a clinical question..."
                 rows={1}
                 className={clsx(
-                  'w-full resize-none rounded-xl text-sm text-slate-900',
-                  'bg-slate-50 border border-slate-200 px-4 py-3',
-                  'placeholder:text-slate-400',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white',
+                  'w-full resize-none rounded-xl text-sm text-slate-900 dark:text-slate-100',
+                  'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3',
+                  'placeholder:text-slate-400 dark:placeholder:text-slate-500',
+                  'focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-700',
                 )}
                 style={{ maxHeight: '120px' }}
               />
