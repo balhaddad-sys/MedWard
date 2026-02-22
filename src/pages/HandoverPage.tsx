@@ -258,8 +258,8 @@ export default function HandoverPage() {
         <div className="bg-ward-card border-b border-ward-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center gap-3">
-              <FileText size={24} className="text-slate-400" />
-              <h1 className="text-2xl font-bold text-slate-900">Handover</h1>
+              <FileText size={24} className="text-slate-400 dark:text-slate-500" />
+              <h1 className="text-2xl font-bold text-ward-text">Handover</h1>
             </div>
           </div>
         </div>
@@ -280,30 +280,33 @@ export default function HandoverPage() {
     <div className="min-h-screen bg-ward-bg">
       {/* Header */}
       <div className="bg-ward-card border-b border-ward-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText size={24} className="text-slate-400" />
-              <h1 className="text-2xl font-bold text-slate-900">Handover</h1>
-              <Badge variant="default" size="sm">{patients.length} patients</Badge>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="flex items-center gap-3 mb-3 sm:mb-0 sm:float-left">
+            <FileText size={24} className="text-slate-400 dark:text-slate-500" />
+            <h1 className="text-xl sm:text-2xl font-bold text-ward-text">Handover</h1>
+            <Badge variant="default" size="sm">{patients.length} patients</Badge>
+          </div>
+          <div className="sm:float-right sm:mt-1">
             <Button
               onClick={generateFullHandover}
               loading={generatingAll}
               iconLeft={!generatingAll ? <ClipboardCopy size={16} /> : undefined}
+              className="w-full sm:w-auto"
+              size="sm"
             >
-              Generate Full Handover
+              {generatingAll ? 'Generating...' : 'Full Handover'}
             </Button>
           </div>
+          <div className="clear-both" />
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4">
         {/* Full handover output */}
         {fullHandover && (
-          <Card padding="md" className="border-blue-200 bg-blue-50/30">
+          <Card padding="md" className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-slate-900">Full Handover Report</h2>
+              <h2 className="text-sm font-semibold text-ward-text">Full Handover Report</h2>
               <Button
                 variant="secondary"
                 size="sm"
@@ -313,7 +316,7 @@ export default function HandoverPage() {
                 {fullHandoverCopied ? 'Copied' : 'Copy All'}
               </Button>
             </div>
-            <pre className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-mono bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 max-h-96 overflow-y-auto">
+            <pre className="text-[13px] text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-mono leading-relaxed bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 max-h-96 overflow-y-auto">
               {fullHandover}
             </pre>
           </Card>
@@ -331,13 +334,13 @@ export default function HandoverPage() {
               <button
                 type="button"
                 onClick={() => toggleGroup(acuity)}
-                className="w-full flex items-center justify-between p-3 bg-ward-card rounded-lg border border-ward-border hover:bg-slate-50 transition-colors mb-2"
+                className="w-full flex items-center justify-between p-3 bg-ward-card rounded-lg border border-ward-border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors mb-2"
               >
                 <div className="flex items-center gap-3">
                   <Badge variant={getAcuityVariant(acuity)} dot>
                     {ACUITY_LEVELS[acuity].label}
                   </Badge>
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
                     {group.length} patient{group.length !== 1 ? 's' : ''}
                   </span>
                 </div>
@@ -351,12 +354,12 @@ export default function HandoverPage() {
 
                     return (
                       <Card key={patient.id} padding="md">
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-900">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-ward-text">
                               {patient.firstName} {patient.lastName}
                             </p>
-                            <p className="text-xs text-slate-500 mt-0.5">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                               {getOneLiner(patient)}
                             </p>
                           </div>
@@ -366,18 +369,19 @@ export default function HandoverPage() {
                             loading={sbar?.loading}
                             onClick={() => generateSBAR(patient)}
                             iconLeft={!sbar?.loading ? <RefreshCw size={14} /> : undefined}
+                            className="shrink-0 self-start"
                           >
-                            {sbar?.text ? 'Regenerate SBAR' : 'Generate SBAR'}
+                            {sbar?.text ? 'Regenerate' : 'Generate SBAR'}
                           </Button>
                         </div>
 
                         {sbar?.error && (
-                          <p className="text-xs text-amber-600 mb-2">{sbar.error}</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">{sbar.error}</p>
                         )}
 
                         {sbar?.text && (
                           <div className="relative mt-2">
-                            <pre className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-mono bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <pre className="text-[13px] text-slate-700 dark:text-slate-200 whitespace-pre-wrap font-mono leading-relaxed bg-slate-50 dark:bg-slate-800/60 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
                               {sbar.text}
                             </pre>
                             <button
@@ -386,8 +390,8 @@ export default function HandoverPage() {
                               className={clsx(
                                 'absolute top-2 right-2 p-1.5 rounded-lg transition-colors',
                                 copiedId === patient.id
-                                  ? 'bg-green-100 text-green-600'
-                                  : 'bg-ward-card dark:bg-slate-800 text-slate-400 dark:text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700',
+                                  ? 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400'
+                                  : 'bg-ward-card dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600',
                               )}
                               title="Copy to clipboard"
                             >

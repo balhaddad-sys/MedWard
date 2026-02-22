@@ -50,40 +50,29 @@ function masterSvg(size = 512) {
       <stop offset="100%" stop-color="#1565C0"/>
     </linearGradient>
     <radialGradient id="glow" cx="30%" cy="25%" r="65%">
-      <stop offset="0%" stop-color="#42A5F5" stop-opacity="0.12"/>
+      <stop offset="0%" stop-color="#42A5F5" stop-opacity="0.15"/>
       <stop offset="100%" stop-color="#071E33" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="sf" x1="256" y1="78" x2="256" y2="510" gradientUnits="userSpaceOnUse">
+    <linearGradient id="hf" x1="256" y1="68" x2="256" y2="395" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#FFFFFF"/>
       <stop offset="100%" stop-color="#E0E8F0"/>
-    </linearGradient>
-    <linearGradient id="cf" x1="160" y1="170" x2="352" y2="370" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0D47A1"/>
-      <stop offset="100%" stop-color="#1976D2"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
   <rect width="512" height="512" rx="112" fill="url(#glow)"/>
-  <path d="M256 86c-70 0-137 29-172 58-9 8-14 19-14 31v102c0 98 59 179 178 231 5 2 11 2 16 0 119-52 178-133 178-231V175c0-12-5-23-14-31-35-29-102-58-172-58z" fill="#000" opacity="0.18" transform="translate(0,7)"/>
-  <path d="M256 86c-70 0-137 29-172 58-9 8-14 19-14 31v102c0 98 59 179 178 231 5 2 11 2 16 0 119-52 178-133 178-231V175c0-12-5-23-14-31-35-29-102-58-172-58z" fill="url(#sf)"/>
-  <path d="M256 86c-70 0-137 29-172 58-9 8-14 19-14 31v102c0 98 59 179 178 231 5 2 11 2 16 0 119-52 178-133 178-231V175c0-12-5-23-14-31-35-29-102-58-172-58z" fill="none" stroke="#FFF" stroke-width="1.5" opacity="0.2"/>
-  <rect x="229" y="174" width="54" height="192" rx="13" fill="url(#cf)"/>
-  <rect x="161" y="242" width="190" height="54" rx="13" fill="url(#cf)"/>
+  <path d="M256 395 C256 395 88 272 88 180 C88 108 140 68 196 68 C232 68 253 100 256 120 C259 100 280 68 316 68 C372 68 424 108 424 180 C424 272 256 395 256 395Z" fill="#000" opacity="0.15" transform="translate(0,8)"/>
+  <path d="M256 395 C256 395 88 272 88 180 C88 108 140 68 196 68 C232 68 253 100 256 120 C259 100 280 68 316 68 C372 68 424 108 424 180 C424 272 256 395 256 395Z" fill="url(#hf)"/>
+  <path d="M256 395 C256 395 88 272 88 180 C88 108 140 68 196 68 C232 68 253 100 256 120 C259 100 280 68 316 68 C372 68 424 108 424 180 C424 272 256 395 256 395Z" fill="none" stroke="#FFF" stroke-width="1.5" opacity="0.2"/>
+  <path d="M70 240 L178 240 L218 240 L242 142 L262 335 L284 240 L326 240 L442 240" fill="none" stroke="#42A5F5" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"/>
+  <path d="M70 240 L178 240 L218 240 L242 142 L262 335 L284 240 L326 240 L442 240" fill="none" stroke="#1976D2" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 }
 
 function foregroundSvg(size = 512) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="cf" x1="160" y1="170" x2="352" y2="370" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#0D47A1"/>
-      <stop offset="100%" stop-color="#1976D2"/>
-    </linearGradient>
-  </defs>
-  <path d="M256 86c-70 0-137 29-172 58-9 8-14 19-14 31v102c0 98 59 179 178 231 5 2 11 2 16 0 119-52 178-133 178-231V175c0-12-5-23-14-31-35-29-102-58-172-58z" fill="#FFFFFF"/>
-  <rect x="229" y="174" width="54" height="192" rx="13" fill="url(#cf)"/>
-  <rect x="161" y="242" width="190" height="54" rx="13" fill="url(#cf)"/>
+  <path d="M256 395 C256 395 88 272 88 180 C88 108 140 68 196 68 C232 68 253 100 256 120 C259 100 280 68 316 68 C372 68 424 108 424 180 C424 272 256 395 256 395Z" fill="#FFFFFF"/>
+  <path d="M70 240 L178 240 L218 240 L242 142 L262 335 L284 240 L326 240 L442 240" fill="none" stroke="#1976D2" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 }
 
