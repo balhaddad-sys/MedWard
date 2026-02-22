@@ -197,11 +197,11 @@ export default function PatientDetailPage() {
 
   if (!patient) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <Card padding="lg" className="text-center max-w-sm">
           <AlertCircle size={40} className="mx-auto text-slate-400 mb-3" />
-          <h2 className="text-lg font-semibold text-slate-900">Patient Not Found</h2>
-          <p className="text-sm text-slate-500 mt-1 mb-4">
+          <h2 className="text-lg font-semibold text-ward-text">Patient Not Found</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-4">
             This patient may have been removed or you may not have access.
           </p>
           <Button variant="secondary" onClick={() => navigate('/patients')}>

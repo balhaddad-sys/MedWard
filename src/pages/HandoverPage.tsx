@@ -384,6 +384,7 @@ export default function HandoverPage() {
                                 : 'bg-ward-card dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600',
                             )}
                             title="Copy to clipboard"
+                            aria-label="Copy SBAR to clipboard"
                           >
                             {copiedId === patient.id ? <Check size={14} /> : <Copy size={14} />}
                           </button>

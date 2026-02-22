@@ -887,7 +887,7 @@ export default function LabAnalysisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-ward-bg pb-20 sm:pb-6">
+    <div className="bg-ward-bg pb-20 sm:pb-6">
       {/* Header */}
       <div className="bg-ward-card border-b border-ward-border">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -1250,6 +1250,7 @@ export default function LabAnalysisPage() {
                       type="button"
                       onClick={(e) => { e.stopPropagation(); removeFile(i); }}
                       className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                      aria-label="Remove file"
                     >
                       <X size={12} />
                     </button>

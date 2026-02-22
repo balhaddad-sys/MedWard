@@ -170,8 +170,8 @@ export default function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-ward-bg">
         <div className="text-center">
-          <h1 className="text-xl font-semibold text-slate-900 mb-2">Configuration Error</h1>
-          <p className="text-slate-500">Firebase is not configured. Check your environment variables.</p>
+          <h1 className="text-xl font-semibold text-ward-text mb-2">Configuration Error</h1>
+          <p className="text-slate-500 dark:text-slate-400">Firebase is not configured. Check your environment variables.</p>
         </div>
       </div>
     )
