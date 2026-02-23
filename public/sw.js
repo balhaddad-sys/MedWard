@@ -1,9 +1,11 @@
 // Cache name includes a timestamp that changes on each deployment.
-const CACHE_VERSION = '20260221';
+const CACHE_VERSION = '20260223';
 const CACHE_NAME = `medward-pro-v${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   '/',
   '/favicon.png',
+  '/icons/icon-96x96.png',
+  '/icons/icon-192x192.png',
   '/manifest.json',
 ];
 
