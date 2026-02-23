@@ -35,7 +35,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { MedicationEntry } from '@/components/clerking/MedicationEntry';
-import { ScanNotesButton, type HistoryExtractionResponse } from '@/components/clerking/ScanNotesButton';
+import { ScanNotesButton, type ClinicalExtractionResponse } from '@/components/clerking/ScanNotesButton';
 
 type StepKey = 'history' | 'examination' | 'investigations' | 'assessment' | 'plan' | 'safety';
 
@@ -575,10 +575,13 @@ export default function ClerkingPage() {
     setTemporaryLocation('');
   }
 
-  function handleScanResult(data: HistoryExtractionResponse, acceptedFields: Set<string>) {
+  function handleScanResult(data: ClinicalExtractionResponse, acceptedFields: Set<string>) {
+    // --- Top-level fields ---
     if (acceptedFields.has('presentingComplaint') && data.presentingComplaint) {
       setPresentingComplaint((prev) => prev ? `${prev}; ${data.presentingComplaint}` : data.presentingComplaint!);
     }
+
+    // --- History fields ---
     if (acceptedFields.has('historyOfPresentingIllness') && data.historyOfPresentingIllness) {
       setHpi((prev) => prev ? `${prev}\n\n${data.historyOfPresentingIllness}` : data.historyOfPresentingIllness);
     }
@@ -588,8 +591,7 @@ export default function ClerkingPage() {
         const newItems = data.pastMedicalHistory.filter(
           (item) => !existing.includes(item.trim().toLowerCase())
         );
-        const combined = [...prev.split('\n').filter(Boolean), ...newItems];
-        return combined.join('\n');
+        return [...prev.split('\n').filter(Boolean), ...newItems].join('\n');
       });
     }
     if (acceptedFields.has('pastSurgicalHistory') && data.pastSurgicalHistory.length > 0) {
@@ -598,8 +600,7 @@ export default function ClerkingPage() {
         const newItems = data.pastSurgicalHistory.filter(
           (item) => !existing.includes(item.trim().toLowerCase())
         );
-        const combined = [...prev.split('\n').filter(Boolean), ...newItems];
-        return combined.join('\n');
+        return [...prev.split('\n').filter(Boolean), ...newItems].join('\n');
       });
     }
     if (acceptedFields.has('medications') && data.medications.length > 0) {
@@ -638,7 +639,62 @@ export default function ClerkingPage() {
     if (acceptedFields.has('systemsReview') && data.systemsReview) {
       setSystemsReview((prev) => prev ? `${prev}\n${data.systemsReview}` : data.systemsReview);
     }
-    // Expand secondary history if populated
+
+    // --- Examination fields ---
+    if (acceptedFields.has('generalAppearance') && data.examination?.generalAppearance) {
+      setGeneralAppearance((prev) => prev ? `${prev}; ${data.examination.generalAppearance}` : data.examination.generalAppearance!);
+    }
+    if (acceptedFields.has('vitals')) {
+      const exam = data.examination;
+      if (exam?.heartRate) setHeartRate((prev) => prev || exam.heartRate!);
+      if (exam?.bloodPressure) setBloodPressure((prev) => prev || exam.bloodPressure!);
+      if (exam?.respiratoryRate) setRespiratoryRate((prev) => prev || exam.respiratoryRate!);
+      if (exam?.temperature) setTemperature((prev) => prev || exam.temperature!);
+      if (exam?.oxygenSaturation) setOxygenSat((prev) => prev || exam.oxygenSaturation!);
+    }
+    if (acceptedFields.has('systemExams')) {
+      const exam = data.examination;
+      if (exam?.cardiovascular) setCardiovascularExam((prev) => prev ? `${prev}\n${exam.cardiovascular}` : exam.cardiovascular!);
+      if (exam?.respiratory) setRespiratoryExam((prev) => prev ? `${prev}\n${exam.respiratory}` : exam.respiratory!);
+      if (exam?.abdominal) setAbdominalExam((prev) => prev ? `${prev}\n${exam.abdominal}` : exam.abdominal!);
+      if (exam?.neurological) setNeurologicalExam((prev) => prev ? `${prev}\n${exam.neurological}` : exam.neurological!);
+      setShowSystemExam(true);
+    }
+
+    // --- Investigations fields ---
+    if (acceptedFields.has('investigationsNotes') && data.investigations?.notes) {
+      setInvestigationsNotes((prev) => prev ? `${prev}\n\n${data.investigations.notes}` : data.investigations.notes);
+    }
+    if (acceptedFields.has('pendingResults') && (data.investigations?.pendingResults || []).length > 0) {
+      setPendingResults((prev) => {
+        const existing = prev.split('\n').filter(Boolean).map((s) => s.trim().toLowerCase());
+        const newItems = data.investigations.pendingResults.filter(
+          (item) => !existing.includes(item.trim().toLowerCase())
+        );
+        return [...prev.split('\n').filter(Boolean), ...newItems].join('\n');
+      });
+    }
+
+    // --- Assessment fields ---
+    if (acceptedFields.has('assessment') && data.assessment) {
+      setAssessmentNotes((prev) => prev ? `${prev}\n\n${data.assessment}` : data.assessment!);
+    }
+    if (acceptedFields.has('problemList') && data.problemList) {
+      setProblemList((prev) => prev ? `${prev}\n${data.problemList}` : data.problemList!);
+    }
+
+    // --- Plan fields ---
+    if (acceptedFields.has('managementPlan') && data.plan?.managementPlan) {
+      setManagementPlan((prev) => prev ? `${prev}\n\n${data.plan.managementPlan}` : data.plan.managementPlan!);
+    }
+    if (acceptedFields.has('disposition') && data.plan?.disposition) {
+      setDisposition((prev) => prev || data.plan.disposition!);
+    }
+    if (acceptedFields.has('monitoringPlan') && data.plan?.monitoring) {
+      setMonitoringPlan((prev) => prev ? `${prev}\n${data.plan.monitoring}` : data.plan.monitoring!);
+    }
+
+    // --- Auto-expand sections that received data ---
     if (
       (acceptedFields.has('pastSurgicalHistory') && data.pastSurgicalHistory.length > 0) ||
       (acceptedFields.has('familyHistory') && data.familyHistory) ||
@@ -646,6 +702,28 @@ export default function ClerkingPage() {
       (acceptedFields.has('systemsReview') && data.systemsReview)
     ) {
       setShowMoreHistory(true);
+    }
+
+    // Expand collapsed sections that received data
+    const sectionsToExpand: StepKey[] = [];
+    if (acceptedFields.has('generalAppearance') || acceptedFields.has('vitals') || acceptedFields.has('systemExams')) {
+      sectionsToExpand.push('examination');
+    }
+    if (acceptedFields.has('investigationsNotes') || acceptedFields.has('pendingResults')) {
+      sectionsToExpand.push('investigations');
+    }
+    if (acceptedFields.has('assessment') || acceptedFields.has('problemList')) {
+      sectionsToExpand.push('assessment');
+    }
+    if (acceptedFields.has('managementPlan') || acceptedFields.has('disposition') || acceptedFields.has('monitoringPlan')) {
+      sectionsToExpand.push('plan');
+    }
+    if (sectionsToExpand.length > 0) {
+      setExpandedSteps((prev) => {
+        const next = new Set(prev);
+        sectionsToExpand.forEach((key) => next.add(key));
+        return next;
+      });
     }
   }
 
@@ -978,6 +1056,19 @@ export default function ClerkingPage() {
         </div>
       ) : (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-4">
+          {/* Scan clinical notes — top-level so it populates all sections */}
+          <Card padding="md" className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Quick data entry</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Photograph a referral letter, clinical notes, or lab report and AI will fill the relevant sections.
+                </p>
+              </div>
+              <ScanNotesButton onExtracted={handleScanResult} />
+            </div>
+          </Card>
+
           {/* Basic info */}
           <Card padding="md">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1012,7 +1103,6 @@ export default function ClerkingPage() {
             onToggle={() => toggleStep('history')}
           >
             <div className="space-y-4">
-              <ScanNotesButton onExtracted={handleScanResult} />
               <Textarea
                 label="History of Presenting Illness"
                 value={hpi}

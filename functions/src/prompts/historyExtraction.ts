@@ -1,20 +1,24 @@
 /**
- * System prompt for extracting structured clinical history from images.
+ * System prompt for extracting structured clinical data from images.
+ * Covers ALL clerking sections: history, examination, investigations, assessment, plan.
  * Used by the extractHistoryFromImage Cloud Function with Claude vision.
  */
 
 export const HISTORY_EXTRACTION_PROMPT = `You are a clinical data extraction engine for hospital ward clerking.
-Your job is to read clinical notes images (handwritten or printed) and extract structured data.
+Your job is to read clinical document images (handwritten or printed) and extract ALL structured clinical data.
 
-The image may be a referral letter, transfer document, discharge summary, clinic letter, or handwritten clinical notes.
+The image may be a referral letter, transfer document, discharge summary, clinic letter, lab report, prescription, handwritten clinical notes, or any clinical document.
 
-Extract the following fields from the image. Return ONLY valid JSON — no markdown fences, no commentary.
+Extract ALL available data into the following JSON structure. Return ONLY valid JSON — no markdown fences, no commentary.
 
 JSON Schema:
 {
+  "presentingComplaint": "string or null — brief chief complaint",
+  "workingDiagnosis": "string or null — primary/working diagnosis if stated",
+
   "historyOfPresentingIllness": "string — narrative HPI",
-  "pastMedicalHistory": ["string array — list of conditions, use standard abbreviations (HTN, DM2, CKD, AF, etc.)"],
-  "pastSurgicalHistory": ["string array — list of procedures with year if visible"],
+  "pastMedicalHistory": ["string array — conditions, use standard abbreviations (HTN, DM2, CKD, AF, etc.)"],
+  "pastSurgicalHistory": ["string array — procedures with year if visible"],
   "medications": [
     {
       "name": "string — generic drug name",
@@ -35,15 +39,43 @@ JSON Schema:
   "familyHistory": "string — free text summary",
   "socialHistory": {
     "occupation": "string or null",
-    "smoking": "string or null — e.g. 'ex-smoker, quit 2019' or '10 pack-years'",
-    "alcohol": "string or null — e.g. '2 units/week' or 'teetotal'",
+    "smoking": "string or null",
+    "alcohol": "string or null",
     "illicitDrugs": "string or null",
-    "living": "string or null — e.g. 'lives alone' or 'with spouse'",
-    "functionalStatus": "string or null — e.g. 'independent' or 'uses walking frame'"
+    "living": "string or null",
+    "functionalStatus": "string or null"
   },
   "systemsReview": "string — free text summary of systems review if present",
-  "presentingComplaint": "string or null — brief chief complaint if visible",
+
+  "examination": {
+    "generalAppearance": "string or null — e.g. 'Alert, oriented, comfortable at rest'",
+    "heartRate": "string or null — numeric only, e.g. '82'",
+    "bloodPressure": "string or null — format 'systolic/diastolic', e.g. '130/85'",
+    "respiratoryRate": "string or null — numeric only, e.g. '18'",
+    "temperature": "string or null — numeric only in Celsius, e.g. '37.2'",
+    "oxygenSaturation": "string or null — numeric only, e.g. '97'",
+    "cardiovascular": "string or null — CVS exam findings",
+    "respiratory": "string or null — respiratory exam findings",
+    "abdominal": "string or null — abdominal exam findings",
+    "neurological": "string or null — neurological exam findings"
+  },
+
+  "investigations": {
+    "notes": "string — lab results, imaging reports, or other investigation findings as free text",
+    "pendingResults": ["string array — list of pending investigations"]
+  },
+
+  "assessment": "string or null — clinical impression or assessment summary",
+  "problemList": "string or null — list of active problems, one per line",
+
+  "plan": {
+    "managementPlan": "string or null — overall management plan",
+    "disposition": "string or null — e.g. 'Admit to ward', 'Discharge', 'Transfer to ICU'",
+    "monitoring": "string or null — monitoring instructions"
+  },
+
   "confidence": {
+    "presentingComplaint": "high | medium | low | not_found",
     "historyOfPresentingIllness": "high | medium | low | not_found",
     "pastMedicalHistory": "high | medium | low | not_found",
     "pastSurgicalHistory": "high | medium | low | not_found",
@@ -52,7 +84,10 @@ JSON Schema:
     "familyHistory": "high | medium | low | not_found",
     "socialHistory": "high | medium | low | not_found",
     "systemsReview": "high | medium | low | not_found",
-    "presentingComplaint": "high | medium | low | not_found"
+    "examination": "high | medium | low | not_found",
+    "investigations": "high | medium | low | not_found",
+    "assessment": "high | medium | low | not_found",
+    "plan": "high | medium | low | not_found"
   }
 }
 
@@ -61,10 +96,12 @@ RULES:
 2. For handwriting, transcribe as faithfully as possible. Mark confidence as "low" if uncertain.
 3. Use standard medical abbreviations (HTN, DM2, CKD, AF, IHD, COPD, etc.) for conditions.
 4. For medications, always try to separate name, dose, route, and frequency into distinct fields.
-5. If a field has no information in the image, use empty string "" or empty array [].
-6. The confidence object indicates extraction quality per field:
+5. For vitals, extract numeric values only (no units). Blood pressure as "systolic/diastolic".
+6. For lab values, include them in investigations.notes with values and units.
+7. If a field has no information in the image, use empty string "" or empty array [].
+8. The confidence object indicates extraction quality per field:
    - "high": clearly legible text, confident in accuracy
    - "medium": partially legible or some interpretation needed
    - "low": poor legibility, significant guessing required
    - "not_found": field not present in the image at all
-7. Return ONLY the JSON object. No markdown code fences. No explanatory text.`;
+9. Return ONLY the JSON object. No markdown code fences. No explanatory text.`;

@@ -9,10 +9,14 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
 
 // ---------------------------------------------------------------------------
-// Types matching the Cloud Function response
+// Types matching the Cloud Function response (all clerking sections)
 // ---------------------------------------------------------------------------
 
-export interface HistoryExtractionResponse {
+export interface ClinicalExtractionResponse {
+  presentingComplaint?: string;
+  workingDiagnosis?: string;
+
+  // History
   historyOfPresentingIllness: string;
   pastMedicalHistory: string[];
   pastSurgicalHistory: string[];
@@ -39,7 +43,38 @@ export interface HistoryExtractionResponse {
     functionalStatus?: string;
   };
   systemsReview: string;
-  presentingComplaint?: string;
+
+  // Examination
+  examination: {
+    generalAppearance?: string;
+    heartRate?: string;
+    bloodPressure?: string;
+    respiratoryRate?: string;
+    temperature?: string;
+    oxygenSaturation?: string;
+    cardiovascular?: string;
+    respiratory?: string;
+    abdominal?: string;
+    neurological?: string;
+  };
+
+  // Investigations
+  investigations: {
+    notes: string;
+    pendingResults: string[];
+  };
+
+  // Assessment
+  assessment?: string;
+  problemList?: string;
+
+  // Plan
+  plan: {
+    managementPlan?: string;
+    disposition?: string;
+    monitoring?: string;
+  };
+
   confidence: Record<string, 'high' | 'medium' | 'low' | 'not_found'>;
 }
 
@@ -61,12 +96,21 @@ function confidenceBadge(level: ConfidenceLevel) {
 interface ExtractedField {
   key: string;
   label: string;
+  section: 'history' | 'examination' | 'investigations' | 'assessment' | 'plan';
   preview: string;
   confidence: ConfidenceLevel;
   hasData: boolean;
 }
 
-function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
+const SECTION_LABELS: Record<string, string> = {
+  history: 'History',
+  examination: 'Examination',
+  investigations: 'Investigations',
+  assessment: 'Assessment',
+  plan: 'Plan',
+};
+
+function buildFieldList(data: ClinicalExtractionResponse): ExtractedField[] {
   const socialParts: string[] = [];
   if (data.socialHistory.occupation) socialParts.push(`Occupation: ${data.socialHistory.occupation}`);
   if (data.socialHistory.smoking) socialParts.push(`Smoking: ${data.socialHistory.smoking}`);
@@ -74,10 +118,25 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
   if (data.socialHistory.living) socialParts.push(`Living: ${data.socialHistory.living}`);
   if (data.socialHistory.functionalStatus) socialParts.push(`Function: ${data.socialHistory.functionalStatus}`);
 
+  const vitalParts: string[] = [];
+  if (data.examination?.heartRate) vitalParts.push(`HR ${data.examination.heartRate}`);
+  if (data.examination?.bloodPressure) vitalParts.push(`BP ${data.examination.bloodPressure}`);
+  if (data.examination?.respiratoryRate) vitalParts.push(`RR ${data.examination.respiratoryRate}`);
+  if (data.examination?.temperature) vitalParts.push(`T ${data.examination.temperature}`);
+  if (data.examination?.oxygenSaturation) vitalParts.push(`SpO2 ${data.examination.oxygenSaturation}%`);
+
+  const examParts: string[] = [];
+  if (data.examination?.cardiovascular) examParts.push(`CVS: ${data.examination.cardiovascular}`);
+  if (data.examination?.respiratory) examParts.push(`Resp: ${data.examination.respiratory}`);
+  if (data.examination?.abdominal) examParts.push(`Abdo: ${data.examination.abdominal}`);
+  if (data.examination?.neurological) examParts.push(`Neuro: ${data.examination.neurological}`);
+
   return [
+    // --- History ---
     {
       key: 'presentingComplaint',
       label: 'Presenting Complaint',
+      section: 'history',
       preview: data.presentingComplaint || '',
       confidence: data.confidence?.presentingComplaint || 'not_found',
       hasData: !!data.presentingComplaint,
@@ -85,6 +144,7 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
     {
       key: 'historyOfPresentingIllness',
       label: 'History of Presenting Illness',
+      section: 'history',
       preview: data.historyOfPresentingIllness.slice(0, 200) + (data.historyOfPresentingIllness.length > 200 ? '...' : ''),
       confidence: data.confidence?.historyOfPresentingIllness || 'not_found',
       hasData: !!data.historyOfPresentingIllness,
@@ -92,6 +152,7 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
     {
       key: 'pastMedicalHistory',
       label: 'Past Medical History',
+      section: 'history',
       preview: data.pastMedicalHistory.join(', ') || '',
       confidence: data.confidence?.pastMedicalHistory || 'not_found',
       hasData: data.pastMedicalHistory.length > 0,
@@ -99,6 +160,7 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
     {
       key: 'pastSurgicalHistory',
       label: 'Past Surgical History',
+      section: 'history',
       preview: data.pastSurgicalHistory.join(', ') || '',
       confidence: data.confidence?.pastSurgicalHistory || 'not_found',
       hasData: data.pastSurgicalHistory.length > 0,
@@ -106,6 +168,7 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
     {
       key: 'medications',
       label: `Medications (${data.medications.length})`,
+      section: 'history',
       preview: data.medications.map((m) => `${m.name} ${m.dose} ${m.route} ${m.frequency}`.trim()).join('; ') || '',
       confidence: data.confidence?.medications || 'not_found',
       hasData: data.medications.length > 0,
@@ -113,6 +176,7 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
     {
       key: 'allergies',
       label: `Allergies (${data.allergies.length})`,
+      section: 'history',
       preview: data.allergies.map((a) => `${a.substance} (${a.reaction})`).join('; ') || '',
       confidence: data.confidence?.allergies || 'not_found',
       hasData: data.allergies.length > 0,
@@ -120,6 +184,7 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
     {
       key: 'familyHistory',
       label: 'Family History',
+      section: 'history',
       preview: data.familyHistory,
       confidence: data.confidence?.familyHistory || 'not_found',
       hasData: !!data.familyHistory,
@@ -127,6 +192,7 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
     {
       key: 'socialHistory',
       label: 'Social History',
+      section: 'history',
       preview: socialParts.join('; '),
       confidence: data.confidence?.socialHistory || 'not_found',
       hasData: socialParts.length > 0,
@@ -134,9 +200,98 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
     {
       key: 'systemsReview',
       label: 'Systems Review',
+      section: 'history',
       preview: data.systemsReview,
       confidence: data.confidence?.systemsReview || 'not_found',
       hasData: !!data.systemsReview,
+    },
+
+    // --- Examination ---
+    {
+      key: 'generalAppearance',
+      label: 'General Appearance',
+      section: 'examination',
+      preview: data.examination?.generalAppearance || '',
+      confidence: data.confidence?.examination || 'not_found',
+      hasData: !!data.examination?.generalAppearance,
+    },
+    {
+      key: 'vitals',
+      label: 'Vital Signs',
+      section: 'examination',
+      preview: vitalParts.join(', '),
+      confidence: data.confidence?.examination || 'not_found',
+      hasData: vitalParts.length > 0,
+    },
+    {
+      key: 'systemExams',
+      label: 'System Examinations',
+      section: 'examination',
+      preview: examParts.join('; '),
+      confidence: data.confidence?.examination || 'not_found',
+      hasData: examParts.length > 0,
+    },
+
+    // --- Investigations ---
+    {
+      key: 'investigationsNotes',
+      label: 'Investigation Results',
+      section: 'investigations',
+      preview: (data.investigations?.notes || '').slice(0, 200),
+      confidence: data.confidence?.investigations || 'not_found',
+      hasData: !!data.investigations?.notes,
+    },
+    {
+      key: 'pendingResults',
+      label: 'Pending Results',
+      section: 'investigations',
+      preview: (data.investigations?.pendingResults || []).join(', '),
+      confidence: data.confidence?.investigations || 'not_found',
+      hasData: (data.investigations?.pendingResults || []).length > 0,
+    },
+
+    // --- Assessment ---
+    {
+      key: 'assessment',
+      label: 'Clinical Assessment',
+      section: 'assessment',
+      preview: (data.assessment || '').slice(0, 200),
+      confidence: data.confidence?.assessment || 'not_found',
+      hasData: !!data.assessment,
+    },
+    {
+      key: 'problemList',
+      label: 'Problem List',
+      section: 'assessment',
+      preview: data.problemList || '',
+      confidence: data.confidence?.assessment || 'not_found',
+      hasData: !!data.problemList,
+    },
+
+    // --- Plan ---
+    {
+      key: 'managementPlan',
+      label: 'Management Plan',
+      section: 'plan',
+      preview: (data.plan?.managementPlan || '').slice(0, 200),
+      confidence: data.confidence?.plan || 'not_found',
+      hasData: !!data.plan?.managementPlan,
+    },
+    {
+      key: 'disposition',
+      label: 'Disposition',
+      section: 'plan',
+      preview: data.plan?.disposition || '',
+      confidence: data.confidence?.plan || 'not_found',
+      hasData: !!data.plan?.disposition,
+    },
+    {
+      key: 'monitoringPlan',
+      label: 'Monitoring',
+      section: 'plan',
+      preview: data.plan?.monitoring || '',
+      confidence: data.confidence?.plan || 'not_found',
+      hasData: !!data.plan?.monitoring,
     },
   ];
 }
@@ -146,7 +301,7 @@ function buildFieldList(data: HistoryExtractionResponse): ExtractedField[] {
 // ---------------------------------------------------------------------------
 
 interface ScanNotesButtonProps {
-  onExtracted: (data: HistoryExtractionResponse, acceptedFields: Set<string>) => void;
+  onExtracted: (data: ClinicalExtractionResponse, acceptedFields: Set<string>) => void;
 }
 
 export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
@@ -154,7 +309,7 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
   const [scanning, setScanning] = useState(false);
   const [scanStep, setScanStep] = useState('');
   const [scanError, setScanError] = useState<string | null>(null);
-  const [extractedData, setExtractedData] = useState<HistoryExtractionResponse | null>(null);
+  const [extractedData, setExtractedData] = useState<ClinicalExtractionResponse | null>(null);
   const [showReview, setShowReview] = useState(false);
   const [acceptedFields, setAcceptedFields] = useState<Set<string>>(new Set());
 
@@ -172,11 +327,11 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
     try {
       const { base64 } = await compressImage(file);
 
-      setScanStep('Analyzing notes...');
+      setScanStep('Analyzing document...');
 
       const extractFn = httpsCallable<
         { imageBase64: string; mediaType: string },
-        { structured: HistoryExtractionResponse; usage: { inputTokens: number; outputTokens: number } }
+        { structured: ClinicalExtractionResponse; usage: { inputTokens: number; outputTokens: number } }
       >(functions, 'extractHistoryFromImage');
 
       const result = await extractFn({ imageBase64: base64, mediaType: 'image/jpeg' });
@@ -225,6 +380,15 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
   }
 
   const fields = extractedData ? buildFieldList(extractedData) : [];
+  const fieldsWithData = fields.filter((f) => f.hasData);
+
+  // Group by section for display
+  const sections = ['history', 'examination', 'investigations', 'assessment', 'plan'] as const;
+  const groupedFields = sections.map((section) => ({
+    section,
+    label: SECTION_LABELS[section],
+    fields: fieldsWithData.filter((f) => f.section === section),
+  })).filter((g) => g.fields.length > 0);
 
   return (
     <>
@@ -236,7 +400,7 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
           loading={scanning}
           iconLeft={!scanning ? <Camera size={14} /> : undefined}
         >
-          {scanning ? scanStep || 'Scanning...' : 'Scan Notes'}
+          {scanning ? scanStep || 'Scanning...' : 'Scan Clinical Notes'}
         </Button>
 
         <input
@@ -263,56 +427,64 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
         title="Review Extracted Data"
         size="lg"
       >
-        <div className="space-y-2">
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-            Select which fields to apply to your clerking form. Checked fields will be appended to existing data.
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Select which fields to apply. Data will be appended to existing entries — nothing is overwritten.
           </p>
 
-          {fields.map((field) => {
-            if (!field.hasData) return null;
-            const isAccepted = acceptedFields.has(field.key);
+          {groupedFields.map((group) => (
+            <div key={group.section}>
+              <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">
+                {group.label}
+              </h4>
+              <div className="space-y-2">
+                {group.fields.map((field) => {
+                  const isAccepted = acceptedFields.has(field.key);
 
-            return (
-              <button
-                key={field.key}
-                type="button"
-                onClick={() => toggleField(field.key)}
-                className={clsx(
-                  'w-full text-left px-4 py-3 rounded-xl border transition-all',
-                  isAccepted
-                    ? 'border-blue-300 bg-blue-50/50 dark:border-blue-700 dark:bg-blue-950/30'
-                    : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40 opacity-60',
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={clsx(
-                    'flex items-center justify-center w-5 h-5 rounded border-2 shrink-0 transition-colors',
-                    isAccepted
-                      ? 'bg-blue-500 border-blue-500 text-white'
-                      : 'border-slate-300 dark:border-slate-600',
-                  )}>
-                    {isAccepted && <CheckCircle2 size={12} />}
-                  </div>
+                  return (
+                    <button
+                      key={field.key}
+                      type="button"
+                      onClick={() => toggleField(field.key)}
+                      className={clsx(
+                        'w-full text-left px-4 py-3 rounded-xl border transition-all',
+                        isAccepted
+                          ? 'border-blue-300 bg-blue-50/50 dark:border-blue-700 dark:bg-blue-950/30'
+                          : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/40 opacity-60',
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={clsx(
+                          'flex items-center justify-center w-5 h-5 rounded border-2 shrink-0 transition-colors',
+                          isAccepted
+                            ? 'bg-blue-500 border-blue-500 text-white'
+                            : 'border-slate-300 dark:border-slate-600',
+                        )}>
+                          {isAccepted && <CheckCircle2 size={12} />}
+                        </div>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                        {field.label}
-                      </span>
-                      {confidenceBadge(field.confidence)}
-                    </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
-                      {field.preview}
-                    </p>
-                  </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                              {field.label}
+                            </span>
+                            {confidenceBadge(field.confidence)}
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 truncate">
+                            {field.preview}
+                          </p>
+                        </div>
 
-                  <ChevronRight size={14} className="text-slate-300 dark:text-slate-600 shrink-0" />
-                </div>
-              </button>
-            );
-          })}
+                        <ChevronRight size={14} className="text-slate-300 dark:text-slate-600 shrink-0" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
 
-          {fields.every((f) => !f.hasData) && (
+          {fieldsWithData.length === 0 && (
             <div className="text-center py-8">
               <AlertTriangle size={24} className="mx-auto text-slate-400 mb-2" />
               <p className="text-sm text-slate-500 dark:text-slate-400">

@@ -17,7 +17,11 @@ import { HISTORY_EXTRACTION_PROMPT } from "../prompts/historyExtraction";
 // Types
 // ---------------------------------------------------------------------------
 
-interface HistoryExtractionResponse {
+interface ClinicalExtractionResponse {
+  presentingComplaint?: string;
+  workingDiagnosis?: string;
+
+  // History
   historyOfPresentingIllness: string;
   pastMedicalHistory: string[];
   pastSurgicalHistory: string[];
@@ -44,7 +48,38 @@ interface HistoryExtractionResponse {
     functionalStatus?: string;
   };
   systemsReview: string;
-  presentingComplaint?: string;
+
+  // Examination
+  examination: {
+    generalAppearance?: string;
+    heartRate?: string;
+    bloodPressure?: string;
+    respiratoryRate?: string;
+    temperature?: string;
+    oxygenSaturation?: string;
+    cardiovascular?: string;
+    respiratory?: string;
+    abdominal?: string;
+    neurological?: string;
+  };
+
+  // Investigations
+  investigations: {
+    notes: string;
+    pendingResults: string[];
+  };
+
+  // Assessment
+  assessment?: string;
+  problemList?: string;
+
+  // Plan
+  plan: {
+    managementPlan?: string;
+    disposition?: string;
+    monitoring?: string;
+  };
+
   confidence: Record<string, "high" | "medium" | "low" | "not_found">;
 }
 
@@ -82,7 +117,7 @@ function repairTruncatedJson(text: string): string {
   return s;
 }
 
-function parseHistoryResponse(raw: string): HistoryExtractionResponse {
+function parseExtractionResponse(raw: string): ClinicalExtractionResponse {
   const cleaned = stripCodeFences(raw);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let data: any;
@@ -95,6 +130,8 @@ function parseHistoryResponse(raw: string): HistoryExtractionResponse {
 
   // Normalize with safe defaults
   return {
+    presentingComplaint: data.presentingComplaint || undefined,
+    workingDiagnosis: data.workingDiagnosis || undefined,
     historyOfPresentingIllness: data.historyOfPresentingIllness || "",
     pastMedicalHistory: Array.isArray(data.pastMedicalHistory) ? data.pastMedicalHistory : [],
     pastSurgicalHistory: Array.isArray(data.pastSurgicalHistory) ? data.pastSurgicalHistory : [],
@@ -129,7 +166,29 @@ function parseHistoryResponse(raw: string): HistoryExtractionResponse {
       functionalStatus: data.socialHistory?.functionalStatus || undefined,
     },
     systemsReview: data.systemsReview || "",
-    presentingComplaint: data.presentingComplaint || undefined,
+    examination: {
+      generalAppearance: data.examination?.generalAppearance || undefined,
+      heartRate: data.examination?.heartRate || undefined,
+      bloodPressure: data.examination?.bloodPressure || undefined,
+      respiratoryRate: data.examination?.respiratoryRate || undefined,
+      temperature: data.examination?.temperature || undefined,
+      oxygenSaturation: data.examination?.oxygenSaturation || undefined,
+      cardiovascular: data.examination?.cardiovascular || undefined,
+      respiratory: data.examination?.respiratory || undefined,
+      abdominal: data.examination?.abdominal || undefined,
+      neurological: data.examination?.neurological || undefined,
+    },
+    investigations: {
+      notes: data.investigations?.notes || "",
+      pendingResults: Array.isArray(data.investigations?.pendingResults) ? data.investigations.pendingResults : [],
+    },
+    assessment: data.assessment || undefined,
+    problemList: data.problemList || undefined,
+    plan: {
+      managementPlan: data.plan?.managementPlan || undefined,
+      disposition: data.plan?.disposition || undefined,
+      monitoring: data.plan?.monitoring || undefined,
+    },
     confidence: data.confidence || {},
   };
 }
@@ -222,7 +281,7 @@ export const extractHistoryFromImage = onCall(
         }
       );
 
-      const structured = parseHistoryResponse(rawContent);
+      const structured = parseExtractionResponse(rawContent);
 
       return {
         structured,
