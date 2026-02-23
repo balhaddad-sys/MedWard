@@ -29,10 +29,13 @@ import type {
   PlanData,
   SafetyChecklist,
   Priority,
+  Medication,
 } from '@/types/clerking';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea, Select } from '@/components/ui/Input';
+import { MedicationEntry } from '@/components/clerking/MedicationEntry';
+import { ScanNotesButton, type HistoryExtractionResponse } from '@/components/clerking/ScanNotesButton';
 
 type StepKey = 'history' | 'examination' | 'investigations' | 'assessment' | 'plan' | 'safety';
 
@@ -181,7 +184,7 @@ export default function ClerkingPage() {
   const [hpi, setHpi] = useState('');
   const [pmh, setPmh] = useState('');
   const [psh, setPsh] = useState('');
-  const [medications, setMedications] = useState('');
+  const [medications, setMedications] = useState<Medication[]>([]);
   const [allergies, setAllergies] = useState('');
   const [familyHistory, setFamilyHistory] = useState('');
   const [socialHistory, setSocialHistory] = useState('');
@@ -249,7 +252,7 @@ export default function ClerkingPage() {
   // Compute section statuses
   const sectionStatus = useMemo((): Record<StepKey, SectionStatus> => {
     return {
-      history: hpi || pmh || medications ? (hpi ? 'complete' : 'warning') : 'incomplete',
+      history: hpi || pmh || medications.length > 0 ? (hpi ? 'complete' : 'warning') : 'incomplete',
       examination: generalAppearance || heartRate ? (generalAppearance && heartRate ? 'complete' : 'warning') : 'incomplete',
       investigations: investigationsNotes ? 'complete' : 'incomplete',
       assessment: assessmentNotes || problemList ? (assessmentNotes ? 'complete' : 'warning') : 'incomplete',
@@ -443,9 +446,7 @@ export default function ClerkingPage() {
           historyOfPresentingIllness: hpi,
           pastMedicalHistory: pmh.split('\n').filter(Boolean),
           pastSurgicalHistory: psh.split('\n').filter(Boolean),
-          medications: medications.split('\n').filter(Boolean).map((line) => ({
-            name: line.trim(), dose: '', frequency: '', route: '',
-          })),
+          medications: medications,
           allergies: allergies.split('\n').filter(Boolean).map((line) => ({
             substance: line.trim(), reaction: 'unknown', severity: 'mild' as const, type: 'drug' as const,
           })),
@@ -539,7 +540,7 @@ export default function ClerkingPage() {
     setHpi('');
     setPmh('');
     setPsh('');
-    setMedications('');
+    setMedications([]);
     setAllergies('');
     setFamilyHistory('');
     setSocialHistory('');
@@ -572,6 +573,80 @@ export default function ClerkingPage() {
     setTemporaryPatientId('');
     setTemporaryPatientName('');
     setTemporaryLocation('');
+  }
+
+  function handleScanResult(data: HistoryExtractionResponse, acceptedFields: Set<string>) {
+    if (acceptedFields.has('presentingComplaint') && data.presentingComplaint) {
+      setPresentingComplaint((prev) => prev ? `${prev}; ${data.presentingComplaint}` : data.presentingComplaint!);
+    }
+    if (acceptedFields.has('historyOfPresentingIllness') && data.historyOfPresentingIllness) {
+      setHpi((prev) => prev ? `${prev}\n\n${data.historyOfPresentingIllness}` : data.historyOfPresentingIllness);
+    }
+    if (acceptedFields.has('pastMedicalHistory') && data.pastMedicalHistory.length > 0) {
+      setPmh((prev) => {
+        const existing = prev.split('\n').filter(Boolean).map((s) => s.trim().toLowerCase());
+        const newItems = data.pastMedicalHistory.filter(
+          (item) => !existing.includes(item.trim().toLowerCase())
+        );
+        const combined = [...prev.split('\n').filter(Boolean), ...newItems];
+        return combined.join('\n');
+      });
+    }
+    if (acceptedFields.has('pastSurgicalHistory') && data.pastSurgicalHistory.length > 0) {
+      setPsh((prev) => {
+        const existing = prev.split('\n').filter(Boolean).map((s) => s.trim().toLowerCase());
+        const newItems = data.pastSurgicalHistory.filter(
+          (item) => !existing.includes(item.trim().toLowerCase())
+        );
+        const combined = [...prev.split('\n').filter(Boolean), ...newItems];
+        return combined.join('\n');
+      });
+    }
+    if (acceptedFields.has('medications') && data.medications.length > 0) {
+      setMedications((prev) => {
+        const existingNames = prev.map((m) => m.name.trim().toLowerCase());
+        const newMeds = data.medications
+          .filter((m) => !existingNames.includes(m.name.trim().toLowerCase()))
+          .map((m) => ({ ...m, isHighRisk: false }));
+        return [...prev, ...newMeds];
+      });
+    }
+    if (acceptedFields.has('allergies') && data.allergies.length > 0) {
+      setAllergies((prev) => {
+        const existing = prev.split('\n').filter(Boolean).map((s) => s.trim().toLowerCase());
+        const newItems = data.allergies
+          .filter((a) => !existing.some((e) => e.includes(a.substance.toLowerCase())))
+          .map((a) => `${a.substance} (${a.reaction})`);
+        return [...prev.split('\n').filter(Boolean), ...newItems].join('\n');
+      });
+    }
+    if (acceptedFields.has('familyHistory') && data.familyHistory) {
+      setFamilyHistory((prev) => prev ? `${prev}\n${data.familyHistory}` : data.familyHistory);
+    }
+    if (acceptedFields.has('socialHistory')) {
+      const parts: string[] = [];
+      if (data.socialHistory.occupation) parts.push(`Occupation: ${data.socialHistory.occupation}`);
+      if (data.socialHistory.smoking) parts.push(`Smoking: ${data.socialHistory.smoking}`);
+      if (data.socialHistory.alcohol) parts.push(`Alcohol: ${data.socialHistory.alcohol}`);
+      if (data.socialHistory.illicitDrugs) parts.push(`Drugs: ${data.socialHistory.illicitDrugs}`);
+      if (data.socialHistory.living) parts.push(`Living: ${data.socialHistory.living}`);
+      if (data.socialHistory.functionalStatus) parts.push(`Function: ${data.socialHistory.functionalStatus}`);
+      if (parts.length > 0) {
+        setSocialHistory((prev) => prev ? `${prev}\n${parts.join('\n')}` : parts.join('\n'));
+      }
+    }
+    if (acceptedFields.has('systemsReview') && data.systemsReview) {
+      setSystemsReview((prev) => prev ? `${prev}\n${data.systemsReview}` : data.systemsReview);
+    }
+    // Expand secondary history if populated
+    if (
+      (acceptedFields.has('pastSurgicalHistory') && data.pastSurgicalHistory.length > 0) ||
+      (acceptedFields.has('familyHistory') && data.familyHistory) ||
+      (acceptedFields.has('socialHistory')) ||
+      (acceptedFields.has('systemsReview') && data.systemsReview)
+    ) {
+      setShowMoreHistory(true);
+    }
   }
 
   function handleStartNewCase() {
@@ -937,27 +1012,24 @@ export default function ClerkingPage() {
             onToggle={() => toggleStep('history')}
           >
             <div className="space-y-4">
+              <ScanNotesButton onExtracted={handleScanResult} />
               <Textarea
                 label="History of Presenting Illness"
                 value={hpi}
                 onChange={(e) => setHpi(e.target.value)}
                 placeholder="Describe the history of the presenting illness..."
               />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Textarea
-                  label="Past Medical History"
-                  value={pmh}
-                  onChange={(e) => setPmh(e.target.value)}
-                  placeholder="One condition per line..."
-                  helperText="One per line"
-                />
-                <Textarea
-                  label="Medications"
-                  value={medications}
-                  onChange={(e) => setMedications(e.target.value)}
-                  placeholder="Current medications..."
-                />
-              </div>
+              <Textarea
+                label="Past Medical History"
+                value={pmh}
+                onChange={(e) => setPmh(e.target.value)}
+                placeholder="One condition per line..."
+                helperText="One per line"
+              />
+              <MedicationEntry
+                medications={medications}
+                onChange={setMedications}
+              />
               <Textarea
                 label="Allergies"
                 value={allergies}

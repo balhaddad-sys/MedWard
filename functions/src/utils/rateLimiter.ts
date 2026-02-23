@@ -19,6 +19,7 @@ const ACTION_CONFIGS: Record<string, RateLimitConfig> = {
   "sbar-generation": { maxRequests: 15, windowMs: 60000, blockDurationMs: 120000 },
   "handover-generation": { maxRequests: 15, windowMs: 60000, blockDurationMs: 120000 },
   "lab-image-analysis": { maxRequests: 10, windowMs: 60000, blockDurationMs: 180000 },
+  "history-image-extraction": { maxRequests: 10, windowMs: 60000, blockDurationMs: 180000 },
 };
 
 export interface RateLimitResult {
