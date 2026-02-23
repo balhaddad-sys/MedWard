@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { clsx } from 'clsx';
-import { Camera, Loader2, CheckCircle2, AlertTriangle, ChevronRight } from 'lucide-react';
+import { Camera, CheckCircle2, AlertTriangle, ChevronRight } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { compressImage } from '@/utils/imageUtils';
