@@ -471,7 +471,7 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
           accept="image/*"
           multiple
           onChange={handleFileSelect}
-          className="hidden"
+          className="absolute w-0 h-0 opacity-0 overflow-hidden"
         />
 
         {scanError && (
