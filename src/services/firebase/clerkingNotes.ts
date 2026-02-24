@@ -22,7 +22,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { TaskAutomationEngine } from '@/services/TaskAutomationEngine';
-import { createGeneratedTasks } from '@/services/firebase/tasks';
+import { createGeneratedTasks, getTasksByPatient } from '@/services/firebase/tasks';
+import { savePatientHistory } from '@/services/firebase/history';
 import type {
   ClerkingNote,
   OnCallListEntry,
@@ -448,10 +449,48 @@ export async function finalizeClerkingWorkflow(
     await signClerkingNote(params.noteId);
   }
 
-  // 2) Auto-generate actionable tasks from active problem list
+  // 2) Bridge clerking history → patient history document
+  if (note.history && !params.patient.id.startsWith('temp:')) {
+    try {
+      const h = note.history;
+      await savePatientHistory(
+        params.patient.id,
+        {
+          hpiText: h.historyOfPresentingIllness || '',
+          pmh: (h.pastMedicalHistory || []).map((c) => ({ condition: c, status: 'active' as const })),
+          psh: (h.pastSurgicalHistory || []).map((p) => ({ procedure: p })),
+          medications: (h.medications || []).map((m) => ({
+            name: m.name,
+            dose: m.dose,
+            route: m.route,
+            frequency: m.frequency,
+            indication: m.indication,
+            status: 'active' as const,
+          })),
+          familyHistory: h.familyHistory
+            ? [{ relation: 'Family', condition: h.familyHistory }]
+            : [],
+          socialHistory: {
+            smoking: h.socialHistory?.smoking || '',
+            alcohol: h.socialHistory?.alcohol || '',
+            occupation: h.socialHistory?.occupation || '',
+            livingSituation: h.socialHistory?.living || '',
+            substances: h.socialHistory?.illicitDrugs || '',
+          },
+        },
+        params.userId
+      );
+    } catch (error) {
+      console.error('❌ Failed to bridge clerking history to patient:', error);
+      warnings.push('Patient history could not be updated from clerking data');
+    }
+  }
+
+  // 3) Auto-generate actionable tasks from active problem list
+  //    Deduplicate against EXISTING tasks for this patient to prevent repeats
   let taskIds: string[] = [];
   const activeProblems = note.problemList.filter((problem) => problem.isActive);
-  const generatedTasks = dedupeGeneratedTasks(
+  let generatedTasks = dedupeGeneratedTasks(
     activeProblems.flatMap((problem) =>
       TaskAutomationEngine.generateTasksFromProblem(
         problem,
@@ -464,6 +503,24 @@ export async function finalizeClerkingWorkflow(
     )
   );
 
+  // Cross-finalization dedup: skip tasks that already exist in the database
+  if (generatedTasks.length > 0) {
+    try {
+      const existingTasks = await getTasksByPatient(params.patient.id);
+      const existingKeys = new Set(
+        existingTasks
+          .filter((t) => t.status !== 'completed' && t.status !== 'cancelled')
+          .map((t) => `${(t.title || '').toLowerCase().trim()}::${t.category || 'other'}`)
+      );
+      generatedTasks = generatedTasks.filter((task) => {
+        const key = `${(task.title ?? '').toLowerCase().trim()}::${task.category ?? 'other'}`;
+        return !existingKeys.has(key);
+      });
+    } catch (error) {
+      console.error('⚠️ Could not check existing tasks for dedup:', error);
+    }
+  }
+
   if (generatedTasks.length > 0) {
     try {
       taskIds = await createGeneratedTasks(generatedTasks);
@@ -473,7 +530,7 @@ export async function finalizeClerkingWorkflow(
     }
   }
 
-  // 3) Persist generated SBAR on note for handover reuse
+  // 4) Persist generated SBAR on note for handover reuse
   if (params.saveSbar ?? true) {
     try {
       const sbarText = generateSBAR(note, patientName);

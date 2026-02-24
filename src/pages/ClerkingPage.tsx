@@ -777,23 +777,18 @@ export default function ClerkingPage() {
         notices.push('Temporary on-call case signed (not added to permanent unit list).');
       }
 
-      setWorkflowNotice({
-        type: result.warnings.length > 0 ? 'warning' : 'success',
-        text: [...notices, ...result.warnings].join(' '),
-      });
+      // Capture navigation targets BEFORE resetForm clears state
+      const wasTemporaryCase = isTemporaryCase;
+      const targetPatientId = currentPatientIdentity.id;
 
       resetForm();
 
-      // Navigate to the patient / on-call page after a brief delay so the
-      // user sees the success notice before being redirected
-      const targetPatientId = currentPatientIdentity.id;
-      setTimeout(() => {
-        if (isTemporaryCase || result.escalated) {
-          navigate('/on-call');
-        } else {
-          navigate(`/patients/${targetPatientId}`);
-        }
-      }, 1200);
+      // Navigate immediately to the patient page
+      if (wasTemporaryCase || result.escalated) {
+        navigate('/on-call');
+      } else {
+        navigate(`/patients/${targetPatientId}`);
+      }
     } catch (err) {
       console.error('Error signing note:', err);
       setError('Failed to finalize clerking workflow.');
