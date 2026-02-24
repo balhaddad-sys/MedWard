@@ -313,34 +313,96 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
   const [showReview, setShowReview] = useState(false);
   const [acceptedFields, setAcceptedFields] = useState<Set<string>>(new Set());
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  function mergeExtractions(base: ClinicalExtractionResponse, incoming: ClinicalExtractionResponse): ClinicalExtractionResponse {
+    return {
+      presentingComplaint: base.presentingComplaint || incoming.presentingComplaint,
+      workingDiagnosis: base.workingDiagnosis || incoming.workingDiagnosis,
+      historyOfPresentingIllness: [base.historyOfPresentingIllness, incoming.historyOfPresentingIllness].filter(Boolean).join('\n\n'),
+      pastMedicalHistory: [...new Set([...base.pastMedicalHistory, ...incoming.pastMedicalHistory])],
+      pastSurgicalHistory: [...new Set([...base.pastSurgicalHistory, ...incoming.pastSurgicalHistory])],
+      medications: [
+        ...base.medications,
+        ...incoming.medications.filter((m) => !base.medications.some((b) => b.name.toLowerCase() === m.name.toLowerCase())),
+      ],
+      allergies: [
+        ...base.allergies,
+        ...incoming.allergies.filter((a) => !base.allergies.some((b) => b.substance.toLowerCase() === a.substance.toLowerCase())),
+      ],
+      familyHistory: [base.familyHistory, incoming.familyHistory].filter(Boolean).join('\n'),
+      socialHistory: {
+        occupation: base.socialHistory.occupation || incoming.socialHistory.occupation,
+        smoking: base.socialHistory.smoking || incoming.socialHistory.smoking,
+        alcohol: base.socialHistory.alcohol || incoming.socialHistory.alcohol,
+        illicitDrugs: base.socialHistory.illicitDrugs || incoming.socialHistory.illicitDrugs,
+        living: base.socialHistory.living || incoming.socialHistory.living,
+        functionalStatus: base.socialHistory.functionalStatus || incoming.socialHistory.functionalStatus,
+      },
+      systemsReview: [base.systemsReview, incoming.systemsReview].filter(Boolean).join('\n'),
+      examination: {
+        generalAppearance: base.examination?.generalAppearance || incoming.examination?.generalAppearance,
+        heartRate: base.examination?.heartRate || incoming.examination?.heartRate,
+        bloodPressure: base.examination?.bloodPressure || incoming.examination?.bloodPressure,
+        respiratoryRate: base.examination?.respiratoryRate || incoming.examination?.respiratoryRate,
+        temperature: base.examination?.temperature || incoming.examination?.temperature,
+        oxygenSaturation: base.examination?.oxygenSaturation || incoming.examination?.oxygenSaturation,
+        cardiovascular: [base.examination?.cardiovascular, incoming.examination?.cardiovascular].filter(Boolean).join('\n'),
+        respiratory: [base.examination?.respiratory, incoming.examination?.respiratory].filter(Boolean).join('\n'),
+        abdominal: [base.examination?.abdominal, incoming.examination?.abdominal].filter(Boolean).join('\n'),
+        neurological: [base.examination?.neurological, incoming.examination?.neurological].filter(Boolean).join('\n'),
+      },
+      investigations: {
+        notes: [base.investigations?.notes, incoming.investigations?.notes].filter(Boolean).join('\n\n'),
+        pendingResults: [...new Set([...(base.investigations?.pendingResults || []), ...(incoming.investigations?.pendingResults || [])])],
+      },
+      assessment: [base.assessment, incoming.assessment].filter(Boolean).join('\n\n'),
+      problemList: [base.problemList, incoming.problemList].filter(Boolean).join('\n'),
+      plan: {
+        managementPlan: [base.plan?.managementPlan, incoming.plan?.managementPlan].filter(Boolean).join('\n\n'),
+        disposition: base.plan?.disposition || incoming.plan?.disposition,
+        monitoring: [base.plan?.monitoring, incoming.plan?.monitoring].filter(Boolean).join('\n'),
+      },
+      confidence: { ...base.confidence, ...incoming.confidence },
+    };
+  }
 
-    // Reset file input so same file can be re-selected
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Reset file input so same files can be re-selected
     e.target.value = '';
+
+    const fileList = Array.from(files);
+    const total = fileList.length;
 
     setScanning(true);
     setScanError(null);
-    setScanStep('Compressing image...');
 
     try {
-      const { base64 } = await compressImage(file);
-
-      setScanStep('Analyzing document...');
-
       const extractFn = httpsCallable<
         { imageBase64: string; mediaType: string },
         { structured: ClinicalExtractionResponse; usage: { inputTokens: number; outputTokens: number } }
       >(functions, 'extractHistoryFromImage');
 
-      const result = await extractFn({ imageBase64: base64, mediaType: 'image/jpeg' });
-      const data = result.data.structured;
+      let merged: ClinicalExtractionResponse | null = null;
 
-      setExtractedData(data);
+      for (let i = 0; i < fileList.length; i++) {
+        setScanStep(total > 1 ? `Compressing image ${i + 1}/${total}...` : 'Compressing image...');
+        const { base64 } = await compressImage(fileList[i]);
+
+        setScanStep(total > 1 ? `Analyzing image ${i + 1}/${total}...` : 'Analyzing document...');
+        const result = await extractFn({ imageBase64: base64, mediaType: 'image/jpeg' });
+        const data = result.data.structured;
+
+        merged = merged ? mergeExtractions(merged, data) : data;
+      }
+
+      if (!merged) return;
+
+      setExtractedData(merged);
 
       // Pre-select fields with high/medium confidence that have data
-      const fields = buildFieldList(data);
+      const fields = buildFieldList(merged);
       const preSelected = new Set(
         fields
           .filter((f) => f.hasData && (f.confidence === 'high' || f.confidence === 'medium'))
@@ -407,6 +469,7 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           onChange={handleFileSelect}
           className="hidden"
         />
