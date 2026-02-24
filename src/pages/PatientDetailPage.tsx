@@ -34,14 +34,12 @@ import {
   deletePatient as deletePatientFirebase,
 } from '@/services/firebase/patients';
 import { completeTask } from '@/services/firebase/tasks';
-import { getPatientHistory } from '@/services/firebase/history';
 import { getLabPanels } from '@/services/firebase/labs';
 import { getClerkingNotesByPatient } from '@/services/firebase/clerkingNotes';
 import { analyzeTrend } from '@/utils/deltaEngine';
 import { ACUITY_LEVELS } from '@/config/constants';
 import { STATE_METADATA } from '@/types/patientState';
 import type { Patient, PatientFormData } from '@/types/patient';
-import type { PatientHistory } from '@/types/history';
 import type { LabPanel, LabFlag, LabTrend } from '@/types/lab';
 import type { ClerkingNote } from '@/types/clerking';
 import { Card } from '@/components/ui/Card';
@@ -76,8 +74,6 @@ export default function PatientDetailPage() {
   );
 
   const [activeTab, setActiveTab] = useState('overview');
-  const [history, setHistory] = useState<PatientHistory | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
   const [labs, setLabs] = useState<LabPanel[]>([]);
   const [labsLoading, setLabsLoading] = useState(false);
   const [clerkingNotes, setClerkingNotes] = useState<ClerkingNote[]>([]);
@@ -92,17 +88,6 @@ export default function PatientDetailPage() {
     setClerkingNotes([]);
     setClerkingLoading(false);
   }, [id]);
-
-  // Load history when tab switches
-  useEffect(() => {
-    if (activeTab === 'history' && id && !history) {
-      setHistoryLoading(true);
-      getPatientHistory(id)
-        .then((data) => setHistory(data))
-        .catch(console.error)
-        .finally(() => setHistoryLoading(false));
-    }
-  }, [activeTab, id, history]);
 
   // Load labs when tab switches
   useEffect(() => {
@@ -356,7 +341,6 @@ export default function PatientDetailPage() {
     { id: 'overview', label: 'Overview', icon: <User size={16} /> },
     { id: 'history', label: 'History', icon: <Activity size={16} /> },
     { id: 'labs', label: 'Labs', icon: <Beaker size={16} /> },
-    { id: 'clerking', label: 'Clerking', icon: <FileText size={16} /> },
     {
       id: 'tasks',
       label: `Tasks${activeTasks.length > 0 ? ` (${activeTasks.length})` : ''}`,
@@ -632,7 +616,7 @@ export default function PatientDetailPage() {
                     </h3>
                     <button
                       type="button"
-                      onClick={() => setActiveTab('clerking')}
+                      onClick={() => setActiveTab('history')}
                       className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-0.5"
                     >
                       View full note <ChevronRight size={12} />
@@ -691,156 +675,41 @@ export default function PatientDetailPage() {
           </div>
         )}
 
-        {/* History Tab */}
+        {/* History Tab — shows clerking notes with full subsections */}
         {activeTab === 'history' && (
-          <div className="space-y-6">
-            {historyLoading ? (
+          <div className="space-y-4">
+            {/* Action bar */}
+            <div className="flex items-center justify-end">
+              <Button
+                size="sm"
+                onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
+                iconLeft={<FileText size={14} />}
+              >
+                New Clerking
+              </Button>
+            </div>
+
+            {clerkingLoading ? (
               <div className="py-16">
-                <Spinner size="lg" label="Loading patient history..." />
+                <Spinner size="lg" label="Loading clinical notes..." />
               </div>
-            ) : !history ? (
+            ) : clerkingNotes.length === 0 ? (
               <Card>
                 <EmptyState
-                  icon={<Activity size={24} />}
-                  title="No history recorded"
-                  description="Patient history has not been documented yet."
+                  icon={<FileText size={24} />}
+                  title="No clinical notes yet"
+                  description="Start a clerking note to document this patient's history, examination, and plan."
+                  action={
+                    <Button size="sm" onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}>
+                      Start Clerking
+                    </Button>
+                  }
                 />
               </Card>
             ) : (
-              <>
-                {/* HPI */}
-                <Card padding="md">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                    History of Presenting Illness
-                  </h3>
-                  <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                    {history.hpiText || 'Not documented'}
-                  </p>
-                </Card>
-
-                {/* PMH */}
-                <Card padding="md">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                    Past Medical History
-                  </h3>
-                  {history.pmh.length > 0 ? (
-                    <ul className="space-y-2">
-                      {history.pmh.map((entry, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <ChevronRight size={14} className="mt-0.5 text-slate-400 shrink-0" />
-                          <div>
-                            <span className="font-medium text-slate-900">{entry.condition}</span>
-                            {entry.status && (
-                              <Badge variant={entry.status === 'active' ? 'warning' : 'success'} size="sm" className="ml-2">
-                                {entry.status}
-                              </Badge>
-                            )}
-                            {entry.notes && <p className="text-slate-500 text-xs mt-0.5">{entry.notes}</p>}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-slate-400">No past medical history recorded</p>
-                  )}
-                </Card>
-
-                {/* PSH */}
-                <Card padding="md">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                    Past Surgical History
-                  </h3>
-                  {history.psh.length > 0 ? (
-                    <ul className="space-y-2">
-                      {history.psh.map((entry, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <ChevronRight size={14} className="mt-0.5 text-slate-400 shrink-0" />
-                          <span className="text-slate-900">
-                            {entry.procedure}
-                            {entry.year && <span className="text-slate-500 ml-1">({entry.year})</span>}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-slate-400">No past surgical history recorded</p>
-                  )}
-                </Card>
-
-                {/* Medications */}
-                <Card padding="md">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Pill size={16} className="text-blue-500" />
-                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
-                      Medications
-                    </h3>
-                  </div>
-                  {history.medications.length > 0 ? (
-                    <div className="space-y-2">
-                      {history.medications.map((med, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm border-b border-slate-100 pb-2 last:border-0">
-                          <div>
-                            <span className="font-medium text-slate-900">{med.name}</span>
-                            {med.dose && <span className="text-slate-500 ml-1">{med.dose}</span>}
-                            {med.frequency && <span className="text-slate-500 ml-1">{med.frequency}</span>}
-                            {med.route && <span className="text-slate-500 ml-1">({med.route})</span>}
-                          </div>
-                          <Badge
-                            variant={med.status === 'active' ? 'success' : med.status === 'prn' ? 'info' : 'muted'}
-                            size="sm"
-                          >
-                            {med.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-400">No medications recorded</p>
-                  )}
-                </Card>
-
-                {/* Family History */}
-                <Card padding="md">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                    Family History
-                  </h3>
-                  {history.familyHistory.length > 0 ? (
-                    <ul className="space-y-2">
-                      {history.familyHistory.map((entry, i) => (
-                        <li key={i} className="text-sm text-slate-700">
-                          <span className="font-medium">{entry.relation}:</span> {entry.condition}
-                          {entry.notes && <span className="text-slate-500 ml-1">- {entry.notes}</span>}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-slate-400">No family history recorded</p>
-                  )}
-                </Card>
-
-                {/* Social History */}
-                <Card padding="md">
-                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                    Social History
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'Smoking', value: history.socialHistory.smoking },
-                      { label: 'Alcohol', value: history.socialHistory.alcohol },
-                      { label: 'Occupation', value: history.socialHistory.occupation },
-                      { label: 'Living Situation', value: history.socialHistory.livingSituation },
-                      { label: 'Substances', value: history.socialHistory.substances },
-                    ]
-                      .filter((item) => item.value)
-                      .map((item) => (
-                        <div key={item.label}>
-                          <p className="text-xs text-slate-500">{item.label}</p>
-                          <p className="text-sm text-slate-900">{item.value}</p>
-                        </div>
-                      ))}
-                  </div>
-                </Card>
-              </>
+              clerkingNotes.map((note) => (
+                <ClerkingNoteSummary key={note.id} note={note} formatTimestamp={formatNoteTimestamp} />
+              ))
             )}
           </div>
         )}
@@ -1059,34 +928,6 @@ export default function PatientDetailPage() {
                   );
                 })}
               </>
-            )}
-          </div>
-        )}
-
-        {/* Clerking Tab */}
-        {activeTab === 'clerking' && (
-          <div className="space-y-4">
-            {clerkingLoading ? (
-              <div className="py-16">
-                <Spinner size="lg" label="Loading clerking notes..." />
-              </div>
-            ) : clerkingNotes.length === 0 ? (
-              <Card>
-                <EmptyState
-                  icon={<FileText size={24} />}
-                  title="No clerking notes yet"
-                  description="Completed clerking notes for this patient will appear here."
-                  action={
-                    <Button size="sm" onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}>
-                      Start Clerking
-                    </Button>
-                  }
-                />
-              </Card>
-            ) : (
-              clerkingNotes.map((note) => (
-                <ClerkingNoteSummary key={note.id} note={note} formatTimestamp={formatNoteTimestamp} />
-              ))
             )}
           </div>
         )}
