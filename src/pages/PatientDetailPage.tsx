@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
+  ChevronDown,
   Heart,
   Pill,
   ShieldAlert,
@@ -1083,390 +1084,9 @@ export default function PatientDetailPage() {
                 />
               </Card>
             ) : (
-              clerkingNotes.map((note) => {
-                const problems = Array.isArray(note.problemList) ? note.problemList : [];
-                const vitals = note.examination?.vitals;
-                const hasHistory = note.history && (
-                  note.history.historyOfPresentingIllness ||
-                  (note.history.pastMedicalHistory && note.history.pastMedicalHistory.length > 0) ||
-                  (note.history.medications && note.history.medications.length > 0) ||
-                  (note.history.allergies && note.history.allergies.length > 0)
-                );
-                const hasExam = note.examination && (
-                  note.examination.general ||
-                  note.examination.cardiovascular ||
-                  note.examination.respiratory ||
-                  note.examination.abdominal ||
-                  note.examination.neurological
-                );
-                const hasPlan = note.plan && (
-                  note.plan.managementPlan ||
-                  (note.plan.consults && note.plan.consults.length > 0) ||
-                  note.plan.monitoring
-                );
-                const hasSafety = note.safety && (
-                  note.safety.vteProph ||
-                  note.safety.fallsRisk ||
-                  note.safety.sepsisSix
-                );
-
-                return (
-                <div key={note.id} className="space-y-3">
-                  {/* ── Note header ────────────────────────────────────────── */}
-                  <Card padding="md">
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="min-w-0">
-                        <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
-                          {note.presentingComplaint || 'Clerking note'}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {formatNoteTimestamp(note.signedAt || note.updatedAt || note.createdAt)} · {note.authorName}
-                          {note.location && <> · {note.location}</>}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={note.status === 'signed' ? 'success' : note.status === 'amended' ? 'warning' : 'default'}
-                        size="sm"
-                      >
-                        {note.status}
-                      </Badge>
-                    </div>
-
-                    {note.workingDiagnosis && (
-                      <p className="text-sm text-slate-700 dark:text-slate-300 mb-1">
-                        <span className="font-semibold">Working Dx:</span> {note.workingDiagnosis}
-                      </p>
-                    )}
-
-                    {note.assessmentSummary && (
-                      <p className="text-sm text-slate-700 dark:text-slate-300">
-                        <span className="font-semibold">Assessment:</span> {note.assessmentSummary}
-                      </p>
-                    )}
-
-                    {/* Completion bar */}
-                    {note.completionPercentage != null && note.completionPercentage > 0 && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                          <span>Completion</span>
-                          <span className="font-medium">{note.completionPercentage}%</span>
-                        </div>
-                        <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                          <div
-                            className={clsx(
-                              'h-full rounded-full transition-all',
-                              note.completionPercentage >= 80 ? 'bg-emerald-500' : note.completionPercentage >= 50 ? 'bg-blue-500' : 'bg-amber-500',
-                            )}
-                            style={{ width: `${note.completionPercentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-
-                  {/* ── Vitals ─────────────────────────────────────────────── */}
-                  {vitals && (vitals.heartRate || vitals.bloodPressureSystolic || vitals.respiratoryRate || vitals.temperature || vitals.oxygenSaturation) && (
-                    <Card padding="md">
-                      <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Vital Signs</h4>
-                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-                        {vitals.heartRate != null && (
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{vitals.heartRate}</p>
-                            <p className="text-[10px] text-slate-500">HR</p>
-                          </div>
-                        )}
-                        {vitals.bloodPressureSystolic != null && (
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                              {vitals.bloodPressureSystolic}/{vitals.bloodPressureDiastolic ?? '—'}
-                            </p>
-                            <p className="text-[10px] text-slate-500">BP</p>
-                          </div>
-                        )}
-                        {vitals.respiratoryRate != null && (
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{vitals.respiratoryRate}</p>
-                            <p className="text-[10px] text-slate-500">RR</p>
-                          </div>
-                        )}
-                        {vitals.temperature != null && (
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{vitals.temperature}°</p>
-                            <p className="text-[10px] text-slate-500">Temp</p>
-                          </div>
-                        )}
-                        {vitals.oxygenSaturation != null && (
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{vitals.oxygenSaturation}%</p>
-                            <p className="text-[10px] text-slate-500">SpO2</p>
-                          </div>
-                        )}
-                        {vitals.painScore != null && (
-                          <div className="text-center">
-                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{vitals.painScore}/10</p>
-                            <p className="text-[10px] text-slate-500">Pain</p>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* ── Problem List ───────────────────────────────────────── */}
-                  {problems.length > 0 && (
-                    <Card padding="md">
-                      <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Problem List</h4>
-                      <div className="space-y-2">
-                        {problems.map((problem, idx) => (
-                          <div key={problem.id} className="flex items-start gap-2">
-                            <span className="text-xs font-medium text-slate-400 mt-0.5 w-4 shrink-0">{idx + 1}.</span>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{problem.title}</span>
-                                <Badge
-                                  variant={
-                                    problem.severity === 'critical' ? 'critical'
-                                    : problem.severity === 'high' ? 'warning'
-                                    : problem.severity === 'medium' ? 'info'
-                                    : 'default'
-                                  }
-                                  size="sm"
-                                >
-                                  {problem.severity}
-                                </Badge>
-                              </div>
-                              {problem.plan && problem.plan.length > 0 && (
-                                <ul className="mt-1 space-y-0.5">
-                                  {problem.plan.map((p, i) => (
-                                    <li key={i} className="text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1.5">
-                                      <span className="text-slate-400 mt-px">→</span>
-                                      {p}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* ── History ─────────────────────────────────────────────── */}
-                  {hasHistory && (
-                    <Card padding="md">
-                      <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">History</h4>
-                      <div className="space-y-3">
-                        {note.history?.historyOfPresentingIllness && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-0.5">HPI</p>
-                            <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.history.historyOfPresentingIllness}</p>
-                          </div>
-                        )}
-                        {note.history?.pastMedicalHistory && note.history.pastMedicalHistory.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-1">Past Medical History</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {note.history.pastMedicalHistory.map((pmh, i) => (
-                                <Badge key={i} variant="default" size="sm">{pmh}</Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {note.history?.pastSurgicalHistory && note.history.pastSurgicalHistory.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-1">Past Surgical History</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {note.history.pastSurgicalHistory.map((psh, i) => (
-                                <Badge key={i} variant="default" size="sm">{psh}</Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {note.history?.medications && note.history.medications.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-1">Medications</p>
-                            <div className="space-y-1">
-                              {note.history.medications.map((med, i) => (
-                                <div key={i} className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
-                                  <Pill size={12} className="text-slate-400 shrink-0" />
-                                  <span className="font-medium">{med.name}</span>
-                                  {med.dose && <span className="text-slate-500">{med.dose}</span>}
-                                  {med.frequency && <span className="text-slate-500">{med.frequency}</span>}
-                                  {med.isHighRisk && <Badge variant="critical" size="sm">High Risk</Badge>}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {note.history?.allergies && note.history.allergies.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-1">Allergies</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {note.history.allergies.map((a, i) => (
-                                <Badge key={i} variant="critical" size="sm">{a.substance} ({a.reaction})</Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {note.history?.socialHistory && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-1">Social History</p>
-                            <div className="grid grid-cols-2 gap-1 text-xs text-slate-700 dark:text-slate-300">
-                              {note.history.socialHistory.smoking && <p>Smoking: {note.history.socialHistory.smoking}</p>}
-                              {note.history.socialHistory.alcohol && <p>Alcohol: {note.history.socialHistory.alcohol}</p>}
-                              {note.history.socialHistory.occupation && <p>Occupation: {note.history.socialHistory.occupation}</p>}
-                              {note.history.socialHistory.living && <p>Living: {note.history.socialHistory.living}</p>}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* ── Examination ────────────────────────────────────────── */}
-                  {hasExam && (
-                    <Card padding="md">
-                      <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Examination</h4>
-                      <div className="space-y-2">
-                        {note.examination?.general && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500">General</p>
-                            <p className="text-sm text-slate-700 dark:text-slate-300">{note.examination.general.appearance}</p>
-                          </div>
-                        )}
-                        {(['cardiovascular', 'respiratory', 'abdominal', 'neurological', 'musculoskeletal', 'skin'] as const).map((sys) => {
-                          const exam = note.examination?.[sys];
-                          if (!exam || !exam.findings) return null;
-                          return (
-                            <div key={sys} className="flex items-start gap-2">
-                              <Badge variant={exam.isNormal ? 'success' : 'warning'} size="sm" className="mt-0.5 shrink-0">
-                                {exam.isNormal ? 'NAD' : 'ABN'}
-                              </Badge>
-                              <div>
-                                <p className="text-xs font-medium text-slate-500 capitalize">{sys}</p>
-                                <p className="text-sm text-slate-700 dark:text-slate-300">{exam.findings}</p>
-                                {!exam.isNormal && exam.abnormalDetails && (
-                                  <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{exam.abnormalDetails}</p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* ── Plan ───────────────────────────────────────────────── */}
-                  {hasPlan && (
-                    <Card padding="md">
-                      <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Plan</h4>
-                      <div className="space-y-3">
-                        {note.plan?.managementPlan && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-0.5">Management</p>
-                            <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.plan.managementPlan}</p>
-                          </div>
-                        )}
-                        {note.plan?.disposition && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-0.5">Disposition</p>
-                            <p className="text-sm text-slate-700 dark:text-slate-300">{note.plan.disposition}</p>
-                          </div>
-                        )}
-                        {note.plan?.monitoring && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-0.5">Monitoring</p>
-                            <p className="text-sm text-slate-700 dark:text-slate-300">Vitals: {note.plan.monitoring.vitalsFrequency}</p>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              {note.plan.monitoring.neuroObservations && <Badge variant="info" size="sm">Neuro obs</Badge>}
-                              {note.plan.monitoring.fluidBalance && <Badge variant="info" size="sm">Fluid balance</Badge>}
-                              {note.plan.monitoring.urineOutput && <Badge variant="info" size="sm">UO monitoring</Badge>}
-                            </div>
-                            {note.plan.monitoring.escalationTriggers && note.plan.monitoring.escalationTriggers.length > 0 && (
-                              <div className="mt-1">
-                                <p className="text-xs text-red-600 dark:text-red-400 font-medium">Escalation triggers:</p>
-                                <ul className="text-xs text-slate-700 dark:text-slate-300 mt-0.5">
-                                  {note.plan.monitoring.escalationTriggers.map((t, i) => (
-                                    <li key={i} className="flex items-start gap-1"><AlertTriangle size={10} className="text-red-500 mt-0.5 shrink-0" />{t}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {note.plan?.consults && note.plan.consults.length > 0 && (
-                          <div>
-                            <p className="text-xs font-medium text-slate-500 mb-1">Consultations</p>
-                            {note.plan.consults.map((c, i) => (
-                              <div key={i} className="text-sm text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                <Badge variant={c.status === 'seen' ? 'success' : c.status === 'responded' ? 'info' : 'default'} size="sm">{c.status}</Badge>
-                                <span><span className="font-medium">{c.specialty}:</span> {c.reason}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* ── Safety Checklist ───────────────────────────────────── */}
-                  {hasSafety && (
-                    <Card padding="md">
-                      <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Safety Checklist</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-                        {note.safety?.vteProph && (
-                          <div className="flex items-center gap-2">
-                            {note.safety.vteProph.considered ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-amber-500" />}
-                            <span className="text-slate-700 dark:text-slate-300">VTE prophylaxis</span>
-                          </div>
-                        )}
-                        {note.safety?.giProph && (
-                          <div className="flex items-center gap-2">
-                            {note.safety.giProph.given ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-amber-500" />}
-                            <span className="text-slate-700 dark:text-slate-300">GI prophylaxis</span>
-                          </div>
-                        )}
-                        {note.safety?.fallsRisk && (
-                          <div className="flex items-center gap-2">
-                            <Badge variant={note.safety.fallsRisk.risk === 'high' ? 'critical' : note.safety.fallsRisk.risk === 'medium' ? 'warning' : 'success'} size="sm">
-                              Falls: {note.safety.fallsRisk.risk}
-                            </Badge>
-                          </div>
-                        )}
-                        {note.safety?.pressureInjury && (
-                          <div className="flex items-center gap-2">
-                            <Badge variant={note.safety.pressureInjury.risk === 'high' ? 'critical' : note.safety.pressureInjury.risk === 'medium' ? 'warning' : 'success'} size="sm">
-                              Pressure: {note.safety.pressureInjury.risk}
-                            </Badge>
-                          </div>
-                        )}
-                        {note.safety?.sepsisSix && note.safety.sepsisSix.applicable && (
-                          <div className="flex items-center gap-2">
-                            {note.safety.sepsisSix.completed ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-red-500" />}
-                            <span className="text-slate-700 dark:text-slate-300">Sepsis 6</span>
-                          </div>
-                        )}
-                        {note.safety?.linesReview && (
-                          <div className="flex items-center gap-2">
-                            {note.safety.linesReview.done ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-amber-500" />}
-                            <span className="text-slate-700 dark:text-slate-300">Lines reviewed</span>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* ── SBAR Handover ──────────────────────────────────────── */}
-                  {note.sbarText && (
-                    <Card padding="md">
-                      <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">SBAR Handover</h4>
-                      <pre className="text-[13px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-[1.6] bg-slate-50 dark:bg-slate-900/60 rounded-lg p-3 max-h-48 overflow-y-auto">
-                        {note.sbarText}
-                      </pre>
-                    </Card>
-                  )}
-                </div>
-              )})
+              clerkingNotes.map((note) => (
+                <ClerkingNoteSummary key={note.id} note={note} formatTimestamp={formatNoteTimestamp} />
+              ))
             )}
           </div>
         )}
@@ -1706,6 +1326,309 @@ export default function PatientDetailPage() {
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Clerking Note Summary — compact, collapsible view
+// ---------------------------------------------------------------------------
+
+const MAX_ASSESSMENT_CHARS = 150;
+const MAX_PROBLEMS_SHOWN = 5;
+
+function ClerkingNoteSummary({ note, formatTimestamp }: { note: ClerkingNote; formatTimestamp: (d: unknown) => string }) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+
+  const problems = Array.isArray(note.problemList) ? note.problemList : [];
+  const vitals = note.examination?.vitals;
+
+  // Sort problems: critical first, then high, then the rest
+  const sortedProblems = [...problems].sort((a, b) => {
+    const order: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    return (order[a.severity] ?? 3) - (order[b.severity] ?? 3);
+  });
+
+  const hasHistory = note.history && (
+    note.history.historyOfPresentingIllness ||
+    (note.history.pastMedicalHistory && note.history.pastMedicalHistory.length > 0) ||
+    (note.history.medications && note.history.medications.length > 0) ||
+    (note.history.allergies && note.history.allergies.length > 0)
+  );
+  const hasExam = note.examination && (
+    note.examination.general || note.examination.cardiovascular ||
+    note.examination.respiratory || note.examination.abdominal ||
+    note.examination.neurological
+  );
+  const hasPlan = note.plan && (
+    note.plan.managementPlan || (note.plan.consults && note.plan.consults.length > 0) || note.plan.monitoring
+  );
+  const hasSafety = note.safety && (note.safety.vteProph || note.safety.fallsRisk || note.safety.sepsisSix);
+
+  const toggle = (key: string) => setExpandedSections((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
+
+  const isExpanded = (key: string) => expandedSections.has(key);
+
+  const assessmentTruncated = note.assessmentSummary && note.assessmentSummary.length > MAX_ASSESSMENT_CHARS;
+
+  return (
+    <Card padding="md">
+      {/* ── Header ───────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            {note.presentingComplaint || 'Clerking note'}
+          </p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {formatTimestamp(note.signedAt || note.updatedAt || note.createdAt)} · {note.authorName}
+            {note.location && <> · {note.location}</>}
+          </p>
+        </div>
+        <Badge
+          variant={note.status === 'signed' ? 'success' : note.status === 'amended' ? 'warning' : 'default'}
+          size="sm"
+        >
+          {note.status}
+        </Badge>
+      </div>
+
+      {note.workingDiagnosis && (
+        <p className="text-sm text-slate-700 dark:text-slate-300 mb-1">
+          <span className="font-semibold">Working Dx:</span> {note.workingDiagnosis}
+        </p>
+      )}
+
+      {/* ── Assessment (truncated) ────────────────────────────── */}
+      {note.assessmentSummary && (
+        <div className="mb-2">
+          <p className="text-sm text-slate-700 dark:text-slate-300">
+            <span className="font-semibold">Assessment:</span>{' '}
+            {assessmentTruncated && !isExpanded('assessment')
+              ? note.assessmentSummary.slice(0, MAX_ASSESSMENT_CHARS) + '...'
+              : note.assessmentSummary}
+          </p>
+          {assessmentTruncated && (
+            <button
+              type="button"
+              onClick={() => toggle('assessment')}
+              className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5"
+            >
+              {isExpanded('assessment') ? 'Show less' : 'Read more'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Vitals (inline) ───────────────────────────────────── */}
+      {vitals && (vitals.heartRate || vitals.bloodPressureSystolic || vitals.respiratoryRate || vitals.temperature || vitals.oxygenSaturation) && (
+        <div className="flex flex-wrap gap-3 text-xs text-slate-600 dark:text-slate-400 mb-2 py-1.5 border-y border-slate-100 dark:border-slate-800">
+          {vitals.heartRate != null && <span>HR <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.heartRate}</span></span>}
+          {vitals.bloodPressureSystolic != null && <span>BP <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.bloodPressureSystolic}/{vitals.bloodPressureDiastolic ?? '—'}</span></span>}
+          {vitals.respiratoryRate != null && <span>RR <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.respiratoryRate}</span></span>}
+          {vitals.temperature != null && <span>T <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.temperature}°</span></span>}
+          {vitals.oxygenSaturation != null && <span>SpO2 <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.oxygenSaturation}%</span></span>}
+        </div>
+      )}
+
+      {/* ── Problem List (top N, collapsed rest) ──────────────── */}
+      {sortedProblems.length > 0 && (
+        <div className="mb-2">
+          <div className="flex flex-wrap gap-1.5">
+            {(isExpanded('problems') ? sortedProblems : sortedProblems.slice(0, MAX_PROBLEMS_SHOWN)).map((problem) => (
+              <Badge
+                key={problem.id}
+                variant={
+                  problem.severity === 'critical' ? 'critical'
+                  : problem.severity === 'high' ? 'warning'
+                  : problem.severity === 'medium' ? 'info'
+                  : 'default'
+                }
+                size="sm"
+              >
+                {problem.title}
+              </Badge>
+            ))}
+            {sortedProblems.length > MAX_PROBLEMS_SHOWN && !isExpanded('problems') && (
+              <button
+                type="button"
+                onClick={() => toggle('problems')}
+                className="text-xs text-blue-600 dark:text-blue-400 font-medium px-1"
+              >
+                +{sortedProblems.length - MAX_PROBLEMS_SHOWN} more
+              </button>
+            )}
+            {isExpanded('problems') && sortedProblems.length > MAX_PROBLEMS_SHOWN && (
+              <button
+                type="button"
+                onClick={() => toggle('problems')}
+                className="text-xs text-blue-600 dark:text-blue-400 font-medium px-1"
+              >
+                Show less
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Expandable detail sections ────────────────────────── */}
+      <div className="border-t border-slate-100 dark:border-slate-800 mt-2 pt-2 space-y-0.5">
+        {hasHistory && (
+          <NoteDetailSection title="History" expanded={isExpanded('history')} onToggle={() => toggle('history')}>
+            <div className="space-y-2">
+              {note.history?.historyOfPresentingIllness && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 mb-0.5">HPI</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.history.historyOfPresentingIllness}</p>
+                </div>
+              )}
+              {note.history?.pastMedicalHistory && note.history.pastMedicalHistory.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 mb-1">PMH</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {note.history.pastMedicalHistory.map((pmh, i) => (
+                      <Badge key={i} variant="default" size="sm">{pmh}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {note.history?.medications && note.history.medications.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 mb-1">Medications</p>
+                  <div className="space-y-1">
+                    {note.history.medications.map((med, i) => (
+                      <div key={i} className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300">
+                        <Pill size={12} className="text-slate-400 shrink-0" />
+                        <span className="font-medium">{med.name}</span>
+                        {med.dose && <span className="text-slate-500">{med.dose}</span>}
+                        {med.frequency && <span className="text-slate-500">{med.frequency}</span>}
+                        {med.isHighRisk && <Badge variant="critical" size="sm">High Risk</Badge>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {note.history?.allergies && note.history.allergies.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 mb-1">Allergies</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {note.history.allergies.map((a, i) => (
+                      <Badge key={i} variant="critical" size="sm">{a.substance} ({a.reaction})</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </NoteDetailSection>
+        )}
+
+        {hasExam && (
+          <NoteDetailSection title="Examination" expanded={isExpanded('exam')} onToggle={() => toggle('exam')}>
+            <div className="space-y-2">
+              {note.examination?.general && (
+                <p className="text-sm text-slate-700 dark:text-slate-300">{note.examination.general.appearance}</p>
+              )}
+              {(['cardiovascular', 'respiratory', 'abdominal', 'neurological'] as const).map((sys) => {
+                const exam = note.examination?.[sys];
+                if (!exam || !exam.findings) return null;
+                return (
+                  <div key={sys} className="flex items-start gap-2">
+                    <Badge variant={exam.isNormal ? 'success' : 'warning'} size="sm" className="mt-0.5 shrink-0">
+                      {exam.isNormal ? 'NAD' : 'ABN'}
+                    </Badge>
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 capitalize">{sys}: </span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{exam.findings}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </NoteDetailSection>
+        )}
+
+        {hasPlan && (
+          <NoteDetailSection title="Plan" expanded={isExpanded('plan')} onToggle={() => toggle('plan')}>
+            <div className="space-y-2">
+              {note.plan?.managementPlan && (
+                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.plan.managementPlan}</p>
+              )}
+              {note.plan?.disposition && (
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Disposition:</span> {note.plan.disposition}
+                </p>
+              )}
+              {note.plan?.monitoring?.vitalsFrequency && (
+                <p className="text-sm text-slate-700 dark:text-slate-300">
+                  <span className="font-medium">Monitoring:</span> {note.plan.monitoring.vitalsFrequency}
+                </p>
+              )}
+            </div>
+          </NoteDetailSection>
+        )}
+
+        {hasSafety && (
+          <NoteDetailSection title="Safety" expanded={isExpanded('safety')} onToggle={() => toggle('safety')}>
+            <div className="flex flex-wrap gap-2">
+              {note.safety?.vteProph && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  {note.safety.vteProph.considered ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-amber-500" />}
+                  <span className="text-slate-700 dark:text-slate-300">VTE</span>
+                </div>
+              )}
+              {note.safety?.fallsRisk && (
+                <Badge variant={note.safety.fallsRisk.risk === 'high' ? 'critical' : note.safety.fallsRisk.risk === 'medium' ? 'warning' : 'success'} size="sm">
+                  Falls: {note.safety.fallsRisk.risk}
+                </Badge>
+              )}
+              {note.safety?.pressureInjury && (
+                <Badge variant={note.safety.pressureInjury.risk === 'high' ? 'critical' : note.safety.pressureInjury.risk === 'medium' ? 'warning' : 'success'} size="sm">
+                  Pressure: {note.safety.pressureInjury.risk}
+                </Badge>
+              )}
+              {note.safety?.sepsisSix?.applicable && (
+                <div className="flex items-center gap-1.5 text-sm">
+                  {note.safety.sepsisSix.completed ? <CheckCircle2 size={14} className="text-emerald-500" /> : <AlertCircle size={14} className="text-red-500" />}
+                  <span className="text-slate-700 dark:text-slate-300">Sepsis 6</span>
+                </div>
+              )}
+            </div>
+          </NoteDetailSection>
+        )}
+
+        {note.sbarText && (
+          <NoteDetailSection title="SBAR Handover" expanded={isExpanded('sbar')} onToggle={() => toggle('sbar')}>
+            <pre className="text-[13px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono leading-[1.6] bg-slate-50 dark:bg-slate-900/60 rounded-lg p-3 max-h-48 overflow-y-auto">
+              {note.sbarText}
+            </pre>
+          </NoteDetailSection>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function NoteDetailSection({ title, expanded, onToggle, children }: {
+  title: string;
+  expanded: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+      >
+        <span>{title}</span>
+        <ChevronDown size={14} className={clsx('transition-transform', expanded && 'rotate-180')} />
+      </button>
+      {expanded && <div className="pb-2">{children}</div>}
     </div>
   );
 }
