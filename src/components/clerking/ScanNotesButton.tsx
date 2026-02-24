@@ -369,10 +369,11 @@ export function ScanNotesButton({ onExtracted }: ScanNotesButtonProps) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Reset file input so same files can be re-selected
-    e.target.value = '';
-
+    // Copy files BEFORE resetting — e.target.files is a live reference
     const fileList = Array.from(files);
+
+    // Reset file input so same file can be re-selected next time
+    e.target.value = '';
     const total = fileList.length;
 
     setScanning(true);
