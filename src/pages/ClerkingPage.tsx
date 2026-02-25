@@ -19,7 +19,7 @@ import {
   updateClerkingNote,
   finalizeClerkingWorkflow,
 } from '@/services/firebase/clerkingNotes';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import type {
   HistoryData,
   SectionStatus,
@@ -152,10 +152,12 @@ function createTemporaryPatientId(name: string): string {
 
 export default function ClerkingPage() {
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const user = useAuthStore((s) => s.user);
   const patients = usePatientStore((s) => s.patients);
   const [searchParams] = useSearchParams();
   const prefillAppliedRef = useRef(false);
+  const scanDataAppliedRef = useRef(false);
 
   const [patientMode, setPatientMode] = useState<'existing' | 'temporary'>('existing');
   const [selectedPatientId, setSelectedPatientId] = useState('');
@@ -389,6 +391,15 @@ export default function ClerkingPage() {
         setError('Failed to create temporary clerking note.');
       });
   }, [searchParams, patients, user, noteId, location, workingDiagnosis, presentingComplaint]);
+
+  // Apply scan data passed via router state (from PatientDetailPage History tab)
+  useEffect(() => {
+    if (scanDataAppliedRef.current || !noteId) return;
+    const state = routerLocation.state as { scanData?: ClinicalExtractionResponse; acceptedFields?: string[] } | null;
+    if (!state?.scanData || !state?.acceptedFields) return;
+    scanDataAppliedRef.current = true;
+    handleScanResult(state.scanData, new Set(state.acceptedFields));
+  }, [noteId, routerLocation.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced auto-save — calls via ref to avoid stale closure over form state
   const triggerAutoSave = useCallback(() => {

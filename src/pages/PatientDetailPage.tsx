@@ -50,6 +50,7 @@ import { Input, Textarea, Select } from '@/components/ui/Input';
 import { Tabs } from '@/components/ui/Tabs';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ScanNotesButton, type ClinicalExtractionResponse } from '@/components/clerking/ScanNotesButton';
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -679,7 +680,14 @@ export default function PatientDetailPage() {
         {activeTab === 'history' && (
           <div className="space-y-4">
             {/* Action bar */}
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-between gap-2">
+              <ScanNotesButton
+                onExtracted={(data: ClinicalExtractionResponse, acceptedFields: Set<string>) => {
+                  navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`, {
+                    state: { scanData: data, acceptedFields: Array.from(acceptedFields) },
+                  });
+                }}
+              />
               <Button
                 size="sm"
                 onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
