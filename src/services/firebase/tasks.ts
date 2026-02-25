@@ -18,7 +18,7 @@ import { db } from '@/config/firebase'
 import { isTaskExpiredForDeletion, isTaskVisible } from '@/utils/taskLifecycle'
 import type { Task, TaskFormData } from '@/types'
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000
+const FIVE_HOURS_MS = 5 * 60 * 60 * 1000
 const getTasksRef = () => collection(db, 'tasks')
 
 function omitUndefinedValues(input: Record<string, unknown>): Record<string, unknown> {
@@ -116,7 +116,7 @@ export const completeTask = async (id: string, userId: string): Promise<void> =>
   await updateDoc(doc(db, 'tasks', id), {
     status: 'completed',
     completedAt: serverTimestamp(),
-    autoDeleteAt: new Date(Date.now() + ONE_DAY_MS),
+    autoDeleteAt: new Date(Date.now() + FIVE_HOURS_MS),
     completedBy: userId,
     updatedAt: serverTimestamp(),
   })

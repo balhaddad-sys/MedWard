@@ -1,7 +1,7 @@
 import type { Timestamp } from 'firebase/firestore'
 import type { Task } from '@/types'
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000
+const FIVE_HOURS_MS = 5 * 60 * 60 * 1000
 
 type DateLike = Timestamp | Date | string | number | null | undefined
 
@@ -29,7 +29,7 @@ export const getTaskAutoDeleteDate = (
   const completedAt = toJsDate(task.completedAt)
   if (!completedAt) return null
 
-  return new Date(completedAt.getTime() + ONE_DAY_MS)
+  return new Date(completedAt.getTime() + FIVE_HOURS_MS)
 }
 
 export const isTaskExpiredForDeletion = (
