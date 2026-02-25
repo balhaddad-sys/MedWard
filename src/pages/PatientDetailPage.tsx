@@ -471,31 +471,6 @@ export default function PatientDetailPage() {
         </div>
       )}
 
-      {/* ---- Quick actions ---- */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/handover')} iconLeft={<FileText size={13} />}>
-          SBAR
-        </Button>
-        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/tasks')} iconLeft={<Plus size={13} />}>
-          Task
-        </Button>
-        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/labs')} iconLeft={<Beaker size={13} />}>
-          Labs
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="shrink-0"
-          onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
-          iconLeft={<FileText size={13} />}
-        >
-          Clerk
-        </Button>
-        <Button variant="secondary" size="sm" className="shrink-0" onClick={() => navigate('/ai')} iconLeft={<Activity size={13} />}>
-          AI
-        </Button>
-      </div>
-
       {/* ---- Primary diagnosis summary ---- */}
       <div className="px-4 py-3 bg-ward-card rounded-xl border border-ward-border">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Primary Diagnosis</p>
