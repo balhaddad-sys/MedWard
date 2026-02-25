@@ -57,11 +57,12 @@ export interface FinalizeClerkingWorkflowResult {
 function dedupeGeneratedTasks(tasks: Partial<Task>[]): Partial<Task>[] {
   const seen = new Set<string>();
   return tasks.filter((task) => {
+    // Dedup by patientId + title + category only — ignore sourceId so tasks
+    // generated from different problems with the same title are caught.
     const key = [
       task.patientId ?? '',
       (task.title ?? '').toLowerCase().trim(),
       task.category ?? 'other',
-      task.generatedFrom?.sourceId ?? '',
     ].join('::');
 
     if (seen.has(key)) return false;

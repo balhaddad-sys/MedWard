@@ -602,7 +602,7 @@ export default function PatientDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          {latest.presentingComplaint || 'Clerking note'}
+                          {isUsableText(latest.presentingComplaint) || latest.workingDiagnosis || 'Clerking note'}
                         </p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {formatNoteTimestamp(latest.signedAt || latest.updatedAt || latest.createdAt)} · {latest.authorName}
@@ -620,14 +620,22 @@ export default function PatientDetailPage() {
                         <span className="font-medium">Working Dx:</span> {latest.workingDiagnosis}
                       </p>
                     )}
-                    {latestVitals && (latestVitals.heartRate || latestVitals.bloodPressureSystolic) && (
-                      <div className="flex gap-4 text-xs text-slate-600 dark:text-slate-400">
-                        {latestVitals.heartRate != null && <span>HR <span className="font-semibold text-slate-900 dark:text-slate-100">{latestVitals.heartRate}</span></span>}
-                        {latestVitals.bloodPressureSystolic != null && <span>BP <span className="font-semibold text-slate-900 dark:text-slate-100">{latestVitals.bloodPressureSystolic}/{latestVitals.bloodPressureDiastolic ?? '—'}</span></span>}
-                        {latestVitals.oxygenSaturation != null && <span>SpO2 <span className="font-semibold text-slate-900 dark:text-slate-100">{latestVitals.oxygenSaturation}%</span></span>}
-                        {latestVitals.temperature != null && <span>T <span className="font-semibold text-slate-900 dark:text-slate-100">{latestVitals.temperature}°</span></span>}
-                      </div>
-                    )}
+                    {latestVitals && (() => {
+                      const hr = safeNum(latestVitals.heartRate);
+                      const sys = safeNum(latestVitals.bloodPressureSystolic);
+                      const dia = safeNum(latestVitals.bloodPressureDiastolic);
+                      const spo2 = safeNum(latestVitals.oxygenSaturation);
+                      const temp = safeNum(latestVitals.temperature);
+                      if (!hr && !sys && !spo2 && !temp) return null;
+                      return (
+                        <div className="flex gap-4 text-xs text-slate-600 dark:text-slate-400">
+                          {hr != null && <span>HR <span className="font-semibold text-slate-900 dark:text-slate-100">{hr}</span></span>}
+                          {sys != null && <span>BP <span className="font-semibold text-slate-900 dark:text-slate-100">{sys}/{dia ?? '—'}</span></span>}
+                          {spo2 != null && <span>SpO2 <span className="font-semibold text-slate-900 dark:text-slate-100">{spo2}%</span></span>}
+                          {temp != null && <span>T <span className="font-semibold text-slate-900 dark:text-slate-100">{temp}°</span></span>}
+                        </div>
+                      );
+                    })()}
                     {latestProblems.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {latestProblems.slice(0, 4).map((problem) => (
@@ -1159,7 +1167,23 @@ export default function PatientDetailPage() {
 // ---------------------------------------------------------------------------
 
 const MAX_ASSESSMENT_CHARS = 150;
+const MAX_HPI_CHARS = 300;
 const MAX_PROBLEMS_SHOWN = 5;
+
+/** Returns true if the string looks like a real clinical value, not AI placeholder text */
+function isUsableText(text: string | undefined | null): string | null {
+  if (!text) return null;
+  const lower = text.toLowerCase().trim();
+  if (lower.startsWith('not explicitly') || lower.startsWith('not stated') || lower.startsWith('not provided') || lower.startsWith('n/a') || lower === 'null' || lower === 'undefined') return null;
+  return text;
+}
+
+/** Returns a display-safe number or null if the value is not a valid finite number */
+function safeNum(val: unknown): number | null {
+  if (val == null) return null;
+  const n = typeof val === 'number' ? val : Number(val);
+  return Number.isFinite(n) ? n : null;
+}
 
 function ClerkingNoteSummary({ note, formatTimestamp }: { note: ClerkingNote; formatTimestamp: (d: unknown) => string }) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
@@ -1206,7 +1230,7 @@ function ClerkingNoteSummary({ note, formatTimestamp }: { note: ClerkingNote; fo
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="min-w-0">
           <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            {note.presentingComplaint || 'Clerking note'}
+            {isUsableText(note.presentingComplaint) || note.workingDiagnosis || 'Clerking note'}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
             {formatTimestamp(note.signedAt || note.updatedAt || note.createdAt)} · {note.authorName}
@@ -1249,15 +1273,24 @@ function ClerkingNoteSummary({ note, formatTimestamp }: { note: ClerkingNote; fo
       )}
 
       {/* ── Vitals (inline) ───────────────────────────────────── */}
-      {vitals && (vitals.heartRate || vitals.bloodPressureSystolic || vitals.respiratoryRate || vitals.temperature || vitals.oxygenSaturation) && (
-        <div className="flex flex-wrap gap-3 text-xs text-slate-600 dark:text-slate-400 mb-2 py-1.5 border-y border-slate-100 dark:border-slate-800">
-          {vitals.heartRate != null && <span>HR <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.heartRate}</span></span>}
-          {vitals.bloodPressureSystolic != null && <span>BP <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.bloodPressureSystolic}/{vitals.bloodPressureDiastolic ?? '—'}</span></span>}
-          {vitals.respiratoryRate != null && <span>RR <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.respiratoryRate}</span></span>}
-          {vitals.temperature != null && <span>T <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.temperature}°</span></span>}
-          {vitals.oxygenSaturation != null && <span>SpO2 <span className="font-semibold text-slate-900 dark:text-slate-100">{vitals.oxygenSaturation}%</span></span>}
-        </div>
-      )}
+      {vitals && (() => {
+        const hr = safeNum(vitals.heartRate);
+        const sys = safeNum(vitals.bloodPressureSystolic);
+        const dia = safeNum(vitals.bloodPressureDiastolic);
+        const rr = safeNum(vitals.respiratoryRate);
+        const temp = safeNum(vitals.temperature);
+        const spo2 = safeNum(vitals.oxygenSaturation);
+        if (!hr && !sys && !rr && !temp && !spo2) return null;
+        return (
+          <div className="flex flex-wrap gap-3 text-xs text-slate-600 dark:text-slate-400 mb-2 py-1.5 border-y border-slate-100 dark:border-slate-800">
+            {hr != null && <span>HR <span className="font-semibold text-slate-900 dark:text-slate-100">{hr}</span></span>}
+            {sys != null && <span>BP <span className="font-semibold text-slate-900 dark:text-slate-100">{sys}/{dia ?? '—'}</span></span>}
+            {rr != null && <span>RR <span className="font-semibold text-slate-900 dark:text-slate-100">{rr}</span></span>}
+            {temp != null && <span>T <span className="font-semibold text-slate-900 dark:text-slate-100">{temp}°</span></span>}
+            {spo2 != null && <span>SpO2 <span className="font-semibold text-slate-900 dark:text-slate-100">{spo2}%</span></span>}
+          </div>
+        );
+      })()}
 
       {/* ── Problem List (top N, collapsed rest) ──────────────── */}
       {sortedProblems.length > 0 && (
@@ -1304,12 +1337,23 @@ function ClerkingNoteSummary({ note, formatTimestamp }: { note: ClerkingNote; fo
         {hasHistory && (
           <NoteDetailSection title="History" expanded={isExpanded('history')} onToggle={() => toggle('history')}>
             <div className="space-y-2">
-              {note.history?.historyOfPresentingIllness && (
-                <div>
-                  <p className="text-xs font-medium text-slate-500 mb-0.5">HPI</p>
-                  <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{note.history.historyOfPresentingIllness}</p>
-                </div>
-              )}
+              {note.history?.historyOfPresentingIllness && (() => {
+                const hpi = note.history.historyOfPresentingIllness;
+                const isTruncated = hpi.length > MAX_HPI_CHARS;
+                return (
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 mb-0.5">HPI</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
+                      {isTruncated && !isExpanded('hpi') ? hpi.slice(0, MAX_HPI_CHARS) + '...' : hpi}
+                    </p>
+                    {isTruncated && (
+                      <button type="button" onClick={() => toggle('hpi')} className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">
+                        {isExpanded('hpi') ? 'Show less' : 'Read more'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
               {note.history?.pastMedicalHistory && note.history.pastMedicalHistory.length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-slate-500 mb-1">PMH</p>
