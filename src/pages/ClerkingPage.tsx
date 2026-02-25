@@ -399,7 +399,7 @@ export default function ClerkingPage() {
     if (!state?.scanData || !state?.acceptedFields) return;
     scanDataAppliedRef.current = true;
     handleScanResult(state.scanData, new Set(state.acceptedFields));
-  }, [noteId, routerLocation.state]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [noteId, routerLocation.state]);
 
   // Debounced auto-save — calls via ref to avoid stale closure over form state
   const triggerAutoSave = useCallback(() => {

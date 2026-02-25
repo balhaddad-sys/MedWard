@@ -18,7 +18,6 @@ import {
   Pill,
   ShieldAlert,
   FileText,
-  Plus,
   BedDouble,
   TrendingUp,
   TrendingDown,
