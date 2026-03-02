@@ -43,6 +43,33 @@ export interface SocialHistory {
   diet?: string
 }
 
+/** Allergy entry with clinical detail */
+export interface AllergyEntry {
+  substance: string
+  reaction: string
+  severity: 'mild' | 'moderate' | 'severe' | 'life-threatening'
+  type: 'drug' | 'food' | 'environmental' | 'other'
+}
+
+/** Vital signs snapshot */
+export interface VitalSigns {
+  heartRate?: string
+  bloodPressure?: string
+  respiratoryRate?: string
+  temperature?: string
+  oxygenSaturation?: string
+}
+
+/** Physical examination findings */
+export interface ExaminationData {
+  generalAppearance?: string
+  vitals?: VitalSigns
+  cardiovascular?: string
+  respiratory?: string
+  abdominal?: string
+  neurological?: string
+}
+
 /** Full patient history document */
 export interface PatientHistory {
   patientId: string
@@ -52,6 +79,11 @@ export interface PatientHistory {
   medications: MedicationEntry[]
   familyHistory: FamilyHistoryEntry[]
   socialHistory: SocialHistory
+  allergiesDetailed?: AllergyEntry[]
+  systemsReview?: string
+  examination?: ExaminationData
+  assessment?: string
+  plan?: string
   updatedAt: Timestamp
   updatedBy: string
 }
@@ -69,4 +101,9 @@ export const EMPTY_HISTORY: Omit<PatientHistory, 'patientId' | 'updatedAt' | 'up
     occupation: '',
     livingSituation: '',
   },
+  allergiesDetailed: [],
+  systemsReview: '',
+  examination: undefined,
+  assessment: '',
+  plan: '',
 }

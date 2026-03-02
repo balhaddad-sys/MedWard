@@ -25,6 +25,11 @@ import {
   X,
   Plus,
   Stethoscope,
+  Thermometer,
+  Scissors,
+  Camera,
+  ClipboardCheck,
+  Users,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
@@ -407,6 +412,11 @@ export default function PatientDetailPage() {
         medications: merged.medications || [],
         familyHistory: merged.familyHistory || [],
         socialHistory: merged.socialHistory || { smoking: '', alcohol: '', occupation: '', livingSituation: '' },
+        allergiesDetailed: merged.allergiesDetailed || [],
+        systemsReview: merged.systemsReview || '',
+        examination: merged.examination || undefined,
+        assessment: merged.assessment || '',
+        plan: merged.plan || '',
       };
       await savePatientHistory(id, payload, user.id);
       setPatientHistory({ ...merged, patientId: id } as PatientHistory);
@@ -469,9 +479,17 @@ export default function PatientDetailPage() {
     const updates: Partial<PatientHistory> = {};
     const currentHist = patientHistory || { ...EMPTY_HISTORY };
 
+    // HPI
     if (acceptedFields.has('historyOfPresentingIllness') && data.historyOfPresentingIllness) {
       updates.hpiText = [currentHist.hpiText, data.historyOfPresentingIllness].filter(Boolean).join('\n\n');
     }
+    // Presenting complaint prepended to HPI
+    if (acceptedFields.has('presentingComplaint') && data.presentingComplaint) {
+      const current = updates.hpiText ?? currentHist.hpiText ?? '';
+      updates.hpiText = current ? `${data.presentingComplaint}\n\n${current}` : data.presentingComplaint;
+    }
+
+    // PMH
     if (acceptedFields.has('pastMedicalHistory') && data.pastMedicalHistory.length > 0) {
       const existing = (currentHist.pmh || []).map((p) => p.condition.toLowerCase());
       const newPmh = data.pastMedicalHistory
@@ -479,6 +497,8 @@ export default function PatientDetailPage() {
         .map((p) => ({ condition: p, status: 'active' as const }));
       updates.pmh = [...(currentHist.pmh || []), ...newPmh];
     }
+
+    // PSH
     if (acceptedFields.has('pastSurgicalHistory') && data.pastSurgicalHistory.length > 0) {
       const existing = (currentHist.psh || []).map((p) => p.procedure.toLowerCase());
       const newPsh = data.pastSurgicalHistory
@@ -486,6 +506,8 @@ export default function PatientDetailPage() {
         .map((p) => ({ procedure: p }));
       updates.psh = [...(currentHist.psh || []), ...newPsh];
     }
+
+    // Medications
     if (acceptedFields.has('medications') && data.medications.length > 0) {
       const existing = (currentHist.medications || []).map((m) => m.name.toLowerCase());
       const newMeds = data.medications
@@ -493,6 +515,17 @@ export default function PatientDetailPage() {
         .map((m) => ({ name: m.name, dose: m.dose, route: m.route, frequency: m.frequency, indication: m.indication, status: 'active' as const }));
       updates.medications = [...(currentHist.medications || []), ...newMeds];
     }
+
+    // Allergies (detailed)
+    if (acceptedFields.has('allergies') && data.allergies.length > 0) {
+      const existing = (currentHist.allergiesDetailed || []).map((a) => a.substance.toLowerCase());
+      const newAllergies = data.allergies
+        .filter((a) => !existing.includes(a.substance.toLowerCase()))
+        .map((a) => ({ substance: a.substance, reaction: a.reaction, severity: a.severity, type: a.type }));
+      updates.allergiesDetailed = [...(currentHist.allergiesDetailed || []), ...newAllergies];
+    }
+
+    // Social History
     if (acceptedFields.has('socialHistory')) {
       const sh = data.socialHistory;
       updates.socialHistory = {
@@ -503,9 +536,57 @@ export default function PatientDetailPage() {
         substances: sh.illicitDrugs || currentHist.socialHistory?.substances || '',
       };
     }
+
+    // Family History
     if (acceptedFields.has('familyHistory') && data.familyHistory) {
       const existing = (currentHist.familyHistory || []);
       updates.familyHistory = [...existing, { relation: '', condition: data.familyHistory }];
+    }
+
+    // Systems Review
+    if (acceptedFields.has('systemsReview') && data.systemsReview) {
+      updates.systemsReview = [currentHist.systemsReview, data.systemsReview].filter(Boolean).join('\n');
+    }
+
+    // Examination (vitals + system exams)
+    if (acceptedFields.has('vitals') || acceptedFields.has('generalAppearance') || acceptedFields.has('systemExams')) {
+      const existingExam = currentHist.examination || {};
+      updates.examination = {
+        generalAppearance: data.examination?.generalAppearance || existingExam.generalAppearance,
+        vitals: {
+          heartRate: data.examination?.heartRate || existingExam.vitals?.heartRate,
+          bloodPressure: data.examination?.bloodPressure || existingExam.vitals?.bloodPressure,
+          respiratoryRate: data.examination?.respiratoryRate || existingExam.vitals?.respiratoryRate,
+          temperature: data.examination?.temperature || existingExam.vitals?.temperature,
+          oxygenSaturation: data.examination?.oxygenSaturation || existingExam.vitals?.oxygenSaturation,
+        },
+        cardiovascular: data.examination?.cardiovascular || existingExam.cardiovascular,
+        respiratory: data.examination?.respiratory || existingExam.respiratory,
+        abdominal: data.examination?.abdominal || existingExam.abdominal,
+        neurological: data.examination?.neurological || existingExam.neurological,
+      };
+    }
+
+    // Assessment
+    if (acceptedFields.has('assessment') && data.assessment) {
+      updates.assessment = [currentHist.assessment, data.assessment].filter(Boolean).join('\n\n');
+    }
+    if (acceptedFields.has('problemList') && data.problemList) {
+      const current = updates.assessment ?? currentHist.assessment ?? '';
+      updates.assessment = current ? `${current}\n\nProblem List:\n${data.problemList}` : `Problem List:\n${data.problemList}`;
+    }
+
+    // Plan
+    if (acceptedFields.has('managementPlan') && data.plan?.managementPlan) {
+      updates.plan = [currentHist.plan, data.plan.managementPlan].filter(Boolean).join('\n\n');
+    }
+    if (acceptedFields.has('disposition') && data.plan?.disposition) {
+      const current = updates.plan ?? currentHist.plan ?? '';
+      updates.plan = current ? `${current}\n\nDisposition: ${data.plan.disposition}` : `Disposition: ${data.plan.disposition}`;
+    }
+    if (acceptedFields.has('monitoringPlan') && data.plan?.monitoring) {
+      const current = updates.plan ?? currentHist.plan ?? '';
+      updates.plan = current ? `${current}\n\nMonitoring: ${data.plan.monitoring}` : `Monitoring: ${data.plan.monitoring}`;
     }
 
     if (Object.keys(updates).length > 0) {
@@ -905,253 +986,555 @@ export default function PatientDetailPage() {
           </div>
         )}
 
-        {/* History Tab — persistent patient history + clerking notes */}
+        {/* ═══════════════════ History Tab ═══════════════════ */}
         {activeTab === 'history' && (
-          <div className="space-y-5">
-            {/* ── Action bar ── */}
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <ScanNotesButton
-                  onExtracted={(data: ClinicalExtractionResponse, acceptedFields: Set<string>) => {
-                    handleScanToHistory(data, acceptedFields);
-                  }}
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
-                  iconLeft={<Stethoscope size={14} />}
-                >
-                  Full Clerking
-                </Button>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
-                iconLeft={<FileText size={14} />}
-              >
-                New Note
-              </Button>
-            </div>
+          <div className="space-y-6">
 
-            {/* ── Patient History (persistent) ── */}
+            {/* ── Scan & Actions Hero ── */}
+            <Card padding="lg" className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800/50">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+                    <Camera size={20} className="text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Scan Clinical Notes</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Photograph handwritten notes to auto-populate all sections below
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ScanNotesButton
+                    onExtracted={(data: ClinicalExtractionResponse, acceptedFields: Set<string>) => {
+                      handleScanToHistory(data, acceptedFields);
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
+                    iconLeft={<Stethoscope size={14} />}
+                  >
+                    Full Clerking
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
             {historyLoading ? (
-              <div className="py-8">
-                <Spinner size="md" label="Loading patient history..." />
+              <div className="py-12">
+                <Spinner size="lg" label="Loading patient history..." />
               </div>
             ) : (
-              <div className="space-y-3">
-                {/* PMH */}
-                <Card padding="md">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      Past Medical History
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddPMH(!showAddPMH)}
-                      className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      <Plus size={12} /> Add
-                    </button>
+              <>
+                {/* ── Section 1: HPI ── */}
+                {patientHistory?.hpiText && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText size={15} className="text-blue-500" />
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        History of Presenting Illness
+                      </h3>
+                    </div>
+                    <Card padding="md">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                        {patientHistory.hpiText}
+                      </p>
+                    </Card>
                   </div>
-                  {showAddPMH && (
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={pmhInput}
-                        onChange={(e) => setPmhInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPMH(); } }}
-                        placeholder="e.g. Hypertension, Type 2 DM"
-                        className="flex-1 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                        autoFocus
-                      />
-                      <Button type="button" size="sm" onClick={handleAddPMH} loading={historySaving}>Save</Button>
-                    </div>
-                  )}
-                  {(patientHistory?.pmh || []).length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {(patientHistory?.pmh || []).map((entry, i) => (
-                        <span key={i} className={clsx(
-                          'inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full font-medium',
-                          entry.status === 'active'
-                            ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
-                            : entry.status === 'resolved'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
-                        )}>
-                          {entry.condition}
-                          <button type="button" onClick={() => handleRemovePMH(i)} className="hover:text-red-600 dark:hover:text-red-400 ml-0.5 opacity-60 hover:opacity-100">
-                            <X size={11} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">No past medical history recorded</p>
-                  )}
-                </Card>
+                )}
 
-                {/* PSH */}
-                <Card padding="md">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      Past Surgical History
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddPSH(!showAddPSH)}
-                      className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      <Plus size={12} /> Add
-                    </button>
+                {/* ── Section 2: PMH + PSH side by side ── */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* PMH */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Heart size={15} className="text-red-500" />
+                        <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          Past Medical History
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddPMH(!showAddPMH)}
+                        className="flex items-center gap-0.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                      >
+                        <Plus size={12} /> Add
+                      </button>
+                    </div>
+                    <Card padding="md" className="h-full">
+                      {showAddPMH && (
+                        <div className="flex gap-2 mb-3">
+                          <input
+                            type="text"
+                            value={pmhInput}
+                            onChange={(e) => setPmhInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPMH(); } }}
+                            placeholder="e.g. Hypertension, Type 2 DM"
+                            className="flex-1 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                            autoFocus
+                          />
+                          <Button type="button" size="sm" onClick={handleAddPMH} loading={historySaving}>Add</Button>
+                        </div>
+                      )}
+                      {(patientHistory?.pmh || []).length > 0 ? (
+                        <ul className="space-y-1">
+                          {(patientHistory?.pmh || []).map((entry, i) => (
+                            <li key={i} className="flex items-center gap-2 group">
+                              <span className={clsx(
+                                'w-2 h-2 rounded-full shrink-0',
+                                entry.status === 'active' ? 'bg-blue-500' : entry.status === 'resolved' ? 'bg-green-500' : 'bg-slate-400',
+                              )} />
+                              <span className="text-sm text-slate-800 dark:text-slate-200 flex-1">{entry.condition}</span>
+                              {entry.status && (
+                                <span className={clsx(
+                                  'text-[10px] font-medium uppercase tracking-wide',
+                                  entry.status === 'active' ? 'text-blue-500' : entry.status === 'resolved' ? 'text-green-500' : 'text-slate-400',
+                                )}>{entry.status}</span>
+                              )}
+                              <button type="button" onClick={() => handleRemovePMH(i)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                <X size={12} />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 italic py-2">No conditions recorded</p>
+                      )}
+                    </Card>
                   </div>
-                  {showAddPSH && (
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
-                        value={pshInput}
-                        onChange={(e) => setPshInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPSH(); } }}
-                        placeholder="e.g. Appendicectomy 2019"
-                        className="flex-1 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                        autoFocus
-                      />
-                      <Button type="button" size="sm" onClick={handleAddPSH} loading={historySaving}>Save</Button>
-                    </div>
-                  )}
-                  {(patientHistory?.psh || []).length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {(patientHistory?.psh || []).map((entry, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-full border border-slate-200 dark:border-slate-700">
-                          {entry.procedure}
-                          {entry.year && <span className="text-slate-400 dark:text-slate-500">({entry.year})</span>}
-                          <button type="button" onClick={() => handleRemovePSH(i)} className="hover:text-red-600 dark:hover:text-red-400 ml-0.5 opacity-60 hover:opacity-100">
-                            <X size={11} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">No surgical history recorded</p>
-                  )}
-                </Card>
 
-                {/* Medications */}
-                <Card padding="md">
+                  {/* PSH */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Scissors size={15} className="text-purple-500" />
+                        <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          Past Surgical History
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddPSH(!showAddPSH)}
+                        className="flex items-center gap-0.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+                      >
+                        <Plus size={12} /> Add
+                      </button>
+                    </div>
+                    <Card padding="md" className="h-full">
+                      {showAddPSH && (
+                        <div className="flex gap-2 mb-3">
+                          <input
+                            type="text"
+                            value={pshInput}
+                            onChange={(e) => setPshInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPSH(); } }}
+                            placeholder="e.g. Appendicectomy 2019"
+                            className="flex-1 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                            autoFocus
+                          />
+                          <Button type="button" size="sm" onClick={handleAddPSH} loading={historySaving}>Add</Button>
+                        </div>
+                      )}
+                      {(patientHistory?.psh || []).length > 0 ? (
+                        <ul className="space-y-1">
+                          {(patientHistory?.psh || []).map((entry, i) => (
+                            <li key={i} className="flex items-center gap-2 group">
+                              <span className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
+                              <span className="text-sm text-slate-800 dark:text-slate-200 flex-1">{entry.procedure}</span>
+                              {entry.year && <span className="text-xs text-slate-400 dark:text-slate-500">{entry.year}</span>}
+                              <button type="button" onClick={() => handleRemovePSH(i)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                <X size={12} />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-slate-400 dark:text-slate-500 italic py-2">No surgeries recorded</p>
+                      )}
+                    </Card>
+                  </div>
+                </div>
+
+                {/* ── Section 3: Medications ── */}
+                <div>
                   <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <Pill size={14} className="text-slate-400" />
-                      <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                      <Pill size={15} className="text-emerald-500" />
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         Current Medications
-                      </h4>
+                      </h3>
+                      {(patientHistory?.medications || []).length > 0 && (
+                        <span className="text-[10px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 dark:text-slate-500 px-1.5 py-0.5 rounded-full">
+                          {(patientHistory?.medications || []).length}
+                        </span>
+                      )}
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowAddMed(!showAddMed)}
-                      className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                      className="flex items-center gap-0.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
                     >
                       <Plus size={12} /> Add
                     </button>
                   </div>
-                  {showAddMed && (
-                    <div className="flex gap-2 mb-3 flex-wrap">
-                      <input
-                        type="text"
-                        value={medNameInput}
-                        onChange={(e) => setMedNameInput(e.target.value)}
-                        placeholder="Drug name"
-                        className="flex-1 min-w-[120px] h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                        autoFocus
-                      />
-                      <input
-                        type="text"
-                        value={medDoseInput}
-                        onChange={(e) => setMedDoseInput(e.target.value)}
-                        placeholder="Dose"
-                        className="w-24 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                      />
-                      <input
-                        type="text"
-                        value={medFreqInput}
-                        onChange={(e) => setMedFreqInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddMed(); } }}
-                        placeholder="Frequency"
-                        className="w-24 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-                      />
-                      <Button type="button" size="sm" onClick={handleAddMed} loading={historySaving}>Save</Button>
-                    </div>
-                  )}
-                  {(patientHistory?.medications || []).length > 0 ? (
-                    <div className="space-y-1.5">
-                      {(patientHistory?.medications || []).map((med, i) => (
-                        <div key={i} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 group">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Pill size={13} className="text-slate-400 shrink-0" />
-                            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{med.name}</span>
-                            {med.dose && <span className="text-xs text-slate-500 dark:text-slate-400">{med.dose}</span>}
-                            {med.frequency && <span className="text-xs text-slate-500 dark:text-slate-400">{med.frequency}</span>}
-                            {med.route && <span className="text-xs text-slate-400 dark:text-slate-500">({med.route})</span>}
+                  <Card padding="none">
+                    {showAddMed && (
+                      <div className="flex gap-2 p-3 border-b border-slate-100 dark:border-slate-800 flex-wrap">
+                        <input
+                          type="text"
+                          value={medNameInput}
+                          onChange={(e) => setMedNameInput(e.target.value)}
+                          placeholder="Drug name"
+                          className="flex-1 min-w-[120px] h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          value={medDoseInput}
+                          onChange={(e) => setMedDoseInput(e.target.value)}
+                          placeholder="Dose"
+                          className="w-28 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                        />
+                        <input
+                          type="text"
+                          value={medFreqInput}
+                          onChange={(e) => setMedFreqInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddMed(); } }}
+                          placeholder="Frequency"
+                          className="w-28 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                        />
+                        <Button type="button" size="sm" onClick={handleAddMed} loading={historySaving}>Add</Button>
+                      </div>
+                    )}
+                    {(patientHistory?.medications || []).length > 0 ? (
+                      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {(patientHistory?.medications || []).map((med, i) => (
+                          <div key={i} className="flex items-center gap-3 px-4 py-2.5 group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                            <div className={clsx(
+                              'w-2 h-2 rounded-full shrink-0',
+                              med.status === 'active' ? 'bg-emerald-500' : med.status === 'prn' ? 'bg-amber-500' : 'bg-slate-400',
+                            )} />
+                            <span className="text-sm font-medium text-slate-900 dark:text-slate-100 min-w-[100px]">{med.name}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 flex-1">
+                              {[med.dose, med.route, med.frequency].filter(Boolean).join(' · ')}
+                            </span>
+                            {med.indication && (
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 italic hidden sm:inline">{med.indication}</span>
+                            )}
+                            <button type="button" onClick={() => handleRemoveMed(i)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              <X size={13} />
+                            </button>
                           </div>
-                          <button type="button" onClick={() => handleRemoveMed(i)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                            <X size={14} />
-                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 dark:text-slate-500 italic p-4">No medications recorded</p>
+                    )}
+                  </Card>
+                </div>
+
+                {/* ── Section 4: Allergies (detailed from scan) ── */}
+                {(patientHistory?.allergiesDetailed || []).length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle size={15} className="text-red-500" />
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Allergies
+                      </h3>
+                    </div>
+                    <Card padding="none">
+                      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {(patientHistory?.allergiesDetailed || []).map((allergy, i) => (
+                          <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                            <span className={clsx(
+                              'w-2 h-2 rounded-full shrink-0',
+                              allergy.severity === 'life-threatening' ? 'bg-red-600' :
+                              allergy.severity === 'severe' ? 'bg-red-500' :
+                              allergy.severity === 'moderate' ? 'bg-amber-500' : 'bg-yellow-400',
+                            )} />
+                            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{allergy.substance}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 flex-1">{allergy.reaction}</span>
+                            <span className={clsx(
+                              'text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full',
+                              allergy.severity === 'life-threatening' ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400' :
+                              allergy.severity === 'severe' ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400' :
+                              allergy.severity === 'moderate' ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400' :
+                              'bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-400',
+                            )}>
+                              {allergy.severity}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* ── Section 5: Social + Family History side by side ── */}
+                {(() => {
+                  const sh = patientHistory?.socialHistory;
+                  const hasSocial = sh && (sh.smoking || sh.alcohol || sh.occupation || sh.livingSituation || sh.substances);
+                  const hasFamily = (patientHistory?.familyHistory || []).length > 0;
+                  if (!hasSocial && !hasFamily) return null;
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {hasSocial && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Users size={15} className="text-indigo-500" />
+                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                              Social History
+                            </h3>
+                          </div>
+                          <Card padding="md" className="h-full">
+                            <div className="space-y-2.5">
+                              {sh!.occupation && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 w-20 shrink-0 pt-0.5">Occupation</span>
+                                  <span className="text-sm text-slate-700 dark:text-slate-300">{sh!.occupation}</span>
+                                </div>
+                              )}
+                              {sh!.smoking && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 w-20 shrink-0 pt-0.5">Smoking</span>
+                                  <span className="text-sm text-slate-700 dark:text-slate-300">{sh!.smoking}</span>
+                                </div>
+                              )}
+                              {sh!.alcohol && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 w-20 shrink-0 pt-0.5">Alcohol</span>
+                                  <span className="text-sm text-slate-700 dark:text-slate-300">{sh!.alcohol}</span>
+                                </div>
+                              )}
+                              {sh!.substances && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 w-20 shrink-0 pt-0.5">Substances</span>
+                                  <span className="text-sm text-slate-700 dark:text-slate-300">{sh!.substances}</span>
+                                </div>
+                              )}
+                              {sh!.livingSituation && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 w-20 shrink-0 pt-0.5">Living</span>
+                                  <span className="text-sm text-slate-700 dark:text-slate-300">{sh!.livingSituation}</span>
+                                </div>
+                              )}
+                            </div>
+                          </Card>
                         </div>
-                      ))}
+                      )}
+                      {hasFamily && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Heart size={15} className="text-pink-500" />
+                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                              Family History
+                            </h3>
+                          </div>
+                          <Card padding="md" className="h-full">
+                            <ul className="space-y-1.5">
+                              {(patientHistory?.familyHistory || []).map((fh, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shrink-0 mt-1.5" />
+                                  <span className="text-slate-700 dark:text-slate-300">
+                                    {fh.relation && <strong className="font-medium">{fh.relation}: </strong>}
+                                    {fh.condition}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </Card>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">No medications recorded</p>
-                  )}
-                </Card>
+                  );
+                })()}
 
-                {/* Social History (read-only summary if exists) */}
-                {patientHistory?.socialHistory && (
-                  patientHistory.socialHistory.smoking ||
-                  patientHistory.socialHistory.alcohol ||
-                  patientHistory.socialHistory.occupation ||
-                  patientHistory.socialHistory.livingSituation
+                {/* ── Section 6: Systems Review ── */}
+                {patientHistory?.systemsReview && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <ClipboardCheck size={15} className="text-teal-500" />
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Systems Review
+                      </h3>
+                    </div>
+                    <Card padding="md">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                        {patientHistory.systemsReview}
+                      </p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* ── Section 7: Examination ── */}
+                {patientHistory?.examination && (
+                  patientHistory.examination.generalAppearance ||
+                  patientHistory.examination.vitals?.heartRate ||
+                  patientHistory.examination.vitals?.bloodPressure ||
+                  patientHistory.examination.cardiovascular ||
+                  patientHistory.examination.respiratory ||
+                  patientHistory.examination.abdominal ||
+                  patientHistory.examination.neurological
                 ) && (
-                  <Card padding="md">
-                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                      Social History
-                    </h4>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-                      {patientHistory.socialHistory.occupation && (
-                        <div><span className="text-xs text-slate-400 dark:text-slate-500">Occupation:</span> <span className="text-slate-700 dark:text-slate-300">{patientHistory.socialHistory.occupation}</span></div>
-                      )}
-                      {patientHistory.socialHistory.smoking && (
-                        <div><span className="text-xs text-slate-400 dark:text-slate-500">Smoking:</span> <span className="text-slate-700 dark:text-slate-300">{patientHistory.socialHistory.smoking}</span></div>
-                      )}
-                      {patientHistory.socialHistory.alcohol && (
-                        <div><span className="text-xs text-slate-400 dark:text-slate-500">Alcohol:</span> <span className="text-slate-700 dark:text-slate-300">{patientHistory.socialHistory.alcohol}</span></div>
-                      )}
-                      {patientHistory.socialHistory.livingSituation && (
-                        <div><span className="text-xs text-slate-400 dark:text-slate-500">Living:</span> <span className="text-slate-700 dark:text-slate-300">{patientHistory.socialHistory.livingSituation}</span></div>
-                      )}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Stethoscope size={15} className="text-sky-500" />
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Examination
+                      </h3>
                     </div>
-                  </Card>
+
+                    {/* General Appearance */}
+                    {patientHistory.examination.generalAppearance && (
+                      <Card padding="md" className="mb-3">
+                        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1">General Appearance</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">{patientHistory.examination.generalAppearance}</p>
+                      </Card>
+                    )}
+
+                    {/* Vitals Grid */}
+                    {patientHistory.examination.vitals && (
+                      patientHistory.examination.vitals.heartRate ||
+                      patientHistory.examination.vitals.bloodPressure ||
+                      patientHistory.examination.vitals.respiratoryRate ||
+                      patientHistory.examination.vitals.temperature ||
+                      patientHistory.examination.vitals.oxygenSaturation
+                    ) && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mb-3">
+                        {patientHistory.examination.vitals.heartRate && (
+                          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-3 text-center">
+                            <Activity size={16} className="mx-auto text-red-500 mb-1" />
+                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{patientHistory.examination.vitals.heartRate}</p>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">HR (bpm)</p>
+                          </div>
+                        )}
+                        {patientHistory.examination.vitals.bloodPressure && (
+                          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-3 text-center">
+                            <Activity size={16} className="mx-auto text-blue-500 mb-1" />
+                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{patientHistory.examination.vitals.bloodPressure}</p>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">BP (mmHg)</p>
+                          </div>
+                        )}
+                        {patientHistory.examination.vitals.respiratoryRate && (
+                          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-3 text-center">
+                            <Activity size={16} className="mx-auto text-teal-500 mb-1" />
+                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{patientHistory.examination.vitals.respiratoryRate}</p>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">RR (/min)</p>
+                          </div>
+                        )}
+                        {patientHistory.examination.vitals.temperature && (
+                          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-3 text-center">
+                            <Thermometer size={16} className="mx-auto text-amber-500 mb-1" />
+                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{patientHistory.examination.vitals.temperature}</p>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">Temp</p>
+                          </div>
+                        )}
+                        {patientHistory.examination.vitals.oxygenSaturation && (
+                          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 p-3 text-center">
+                            <Activity size={16} className="mx-auto text-sky-500 mb-1" />
+                            <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{patientHistory.examination.vitals.oxygenSaturation}%</p>
+                            <p className="text-[10px] text-slate-400 uppercase tracking-wide">SpO2</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* System Examinations */}
+                    {(patientHistory.examination.cardiovascular || patientHistory.examination.respiratory || patientHistory.examination.abdominal || patientHistory.examination.neurological) && (
+                      <Card padding="none">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {patientHistory.examination.cardiovascular && (
+                            <div className="px-4 py-3">
+                              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-0.5">Cardiovascular</p>
+                              <p className="text-sm text-slate-700 dark:text-slate-300">{patientHistory.examination.cardiovascular}</p>
+                            </div>
+                          )}
+                          {patientHistory.examination.respiratory && (
+                            <div className="px-4 py-3">
+                              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-0.5">Respiratory</p>
+                              <p className="text-sm text-slate-700 dark:text-slate-300">{patientHistory.examination.respiratory}</p>
+                            </div>
+                          )}
+                          {patientHistory.examination.abdominal && (
+                            <div className="px-4 py-3">
+                              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-0.5">Abdominal</p>
+                              <p className="text-sm text-slate-700 dark:text-slate-300">{patientHistory.examination.abdominal}</p>
+                            </div>
+                          )}
+                          {patientHistory.examination.neurological && (
+                            <div className="px-4 py-3">
+                              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-0.5">Neurological</p>
+                              <p className="text-sm text-slate-700 dark:text-slate-300">{patientHistory.examination.neurological}</p>
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    )}
+                  </div>
                 )}
 
-                {/* Family History (if exists) */}
-                {(patientHistory?.familyHistory || []).length > 0 && (
-                  <Card padding="md">
-                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                      Family History
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(patientHistory?.familyHistory || []).map((fh, i) => (
-                        <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-full border border-slate-200 dark:border-slate-700">
-                          {fh.relation && <span className="font-medium">{fh.relation}:</span>} {fh.condition}
-                        </span>
-                      ))}
+                {/* ── Section 8: Assessment ── */}
+                {patientHistory?.assessment && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <ClipboardList size={15} className="text-amber-500" />
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Assessment
+                      </h3>
+                    </div>
+                    <Card padding="md">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                        {patientHistory.assessment}
+                      </p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* ── Section 9: Plan ── */}
+                {patientHistory?.plan && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 size={15} className="text-green-500" />
+                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Plan
+                      </h3>
+                    </div>
+                    <Card padding="md">
+                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                        {patientHistory.plan}
+                      </p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* ── Empty state if nothing at all ── */}
+                {!patientHistory?.hpiText
+                  && (patientHistory?.pmh || []).length === 0
+                  && (patientHistory?.psh || []).length === 0
+                  && (patientHistory?.medications || []).length === 0
+                  && (patientHistory?.allergiesDetailed || []).length === 0
+                  && !patientHistory?.examination
+                  && !patientHistory?.assessment
+                  && !patientHistory?.plan
+                  && (
+                  <Card padding="lg" className="text-center">
+                    <div className="py-4">
+                      <Camera size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                      <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-400 mb-1">No history recorded yet</h3>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
+                        Scan handwritten clinical notes to automatically populate all sections, or add entries manually above.
+                      </p>
                     </div>
                   </Card>
                 )}
-              </div>
+              </>
             )}
 
-            {/* ── Divider ── */}
-            <div className="flex items-center gap-3">
+            {/* ── Clerking Notes divider ── */}
+            <div className="flex items-center gap-3 pt-2">
               <div className="flex-1 h-px bg-ward-border" />
               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 Clerking Notes
@@ -1159,7 +1542,6 @@ export default function PatientDetailPage() {
               <div className="flex-1 h-px bg-ward-border" />
             </div>
 
-            {/* ── Clerking Notes ── */}
             {clerkingLoading ? (
               <div className="py-8">
                 <Spinner size="md" label="Loading clinical notes..." />
@@ -1169,7 +1551,7 @@ export default function PatientDetailPage() {
                 <EmptyState
                   icon={<FileText size={24} />}
                   title="No clerking notes yet"
-                  description="Start a clerking to document history, examination, and plan — or scan handwritten notes above."
+                  description="Start a clerking to document a full clinical encounter."
                   action={
                     <Button size="sm" onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)} iconLeft={<Stethoscope size={14} />}>
                       Start Clerking
