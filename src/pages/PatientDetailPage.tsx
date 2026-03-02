@@ -91,6 +91,7 @@ export default function PatientDetailPage() {
   const [completingTask, setCompletingTask] = useState<string | null>(null);
   const [editDiagnosisInput, setEditDiagnosisInput] = useState('');
   const [editAllergyInput, setEditAllergyInput] = useState('');
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
   // Patient history state
   const [patientHistory, setPatientHistory] = useState<PatientHistory | null>(null);
@@ -310,8 +311,6 @@ export default function PatientDetailPage() {
     }
     return 'Unknown time';
   }
-
-  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
   function validateEditForm(): boolean {
     const errors: Record<string, string> = {};
