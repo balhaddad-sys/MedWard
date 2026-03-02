@@ -22,6 +22,9 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
+  X,
+  Plus,
+  Stethoscope,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
@@ -50,6 +53,9 @@ import { Tabs } from '@/components/ui/Tabs';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScanNotesButton, type ClinicalExtractionResponse } from '@/components/clerking/ScanNotesButton';
+import { getPatientHistory, savePatientHistory } from '@/services/firebase/history';
+import type { PatientHistory } from '@/types/history';
+import { EMPTY_HISTORY } from '@/types/history';
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -83,10 +89,35 @@ export default function PatientDetailPage() {
   const [editForm, setEditForm] = useState<Partial<PatientFormData>>({});
   const [editSaving, setEditSaving] = useState(false);
   const [completingTask, setCompletingTask] = useState<string | null>(null);
+  const [editDiagnosisInput, setEditDiagnosisInput] = useState('');
+  const [editAllergyInput, setEditAllergyInput] = useState('');
+
+  // Patient history state
+  const [patientHistory, setPatientHistory] = useState<PatientHistory | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historySaving, setHistorySaving] = useState(false);
+  const [showAddPMH, setShowAddPMH] = useState(false);
+  const [showAddPSH, setShowAddPSH] = useState(false);
+  const [showAddMed, setShowAddMed] = useState(false);
+  const [pmhInput, setPmhInput] = useState('');
+  const [pshInput, setPshInput] = useState('');
+  const [medNameInput, setMedNameInput] = useState('');
+  const [medDoseInput, setMedDoseInput] = useState('');
+  const [medFreqInput, setMedFreqInput] = useState('');
 
   useEffect(() => {
     setClerkingNotes([]);
     setClerkingLoading(false);
+  }, [id]);
+
+  // Load patient history
+  useEffect(() => {
+    if (!id) return;
+    setHistoryLoading(true);
+    getPatientHistory(id)
+      .then((data) => setPatientHistory(data))
+      .catch(console.error)
+      .finally(() => setHistoryLoading(false));
   }, [id]);
 
   // Load labs when tab switches
@@ -280,16 +311,34 @@ export default function PatientDetailPage() {
     return 'Unknown time';
   }
 
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+
+  function validateEditForm(): boolean {
+    const errors: Record<string, string> = {};
+    if (!editForm.firstName?.trim()) errors.firstName = 'First name is required';
+    if (!editForm.lastName?.trim()) errors.lastName = 'Last name is required';
+    if (!editForm.mrn?.trim()) errors.mrn = 'MRN is required';
+    if (!editForm.dateOfBirth) errors.dateOfBirth = 'Date of birth is required';
+    if (!editForm.bedNumber?.trim()) errors.bedNumber = 'Bed number is required';
+    if (!editForm.primaryDiagnosis?.trim()) errors.primaryDiagnosis = 'Primary diagnosis is required';
+    setEditErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
   async function handleEditPatient(e: FormEvent) {
     e.preventDefault();
-    if (!id) return;
+    if (!id || !validateEditForm()) return;
     setEditSaving(true);
     try {
       await updatePatientFirebase(id, editForm);
       updatePatientStore(id, editForm as Partial<Patient>);
       setShowEditModal(false);
+      setEditErrors({});
+      setEditDiagnosisInput('');
+      setEditAllergyInput('');
     } catch (err) {
       console.error('Error updating patient:', err);
+      setEditErrors({ general: 'Failed to save changes. Please try again.' });
     } finally {
       setEditSaving(false);
     }
@@ -315,6 +364,153 @@ export default function PatientDetailPage() {
       console.error('Error completing task:', err);
     } finally {
       setCompletingTask(null);
+    }
+  }
+
+  function addEditDiagnosis() {
+    if (editDiagnosisInput.trim()) {
+      const current = editForm.diagnoses || [];
+      setEditForm({ ...editForm, diagnoses: [...current, editDiagnosisInput.trim()] });
+      setEditDiagnosisInput('');
+    }
+  }
+
+  function removeEditDiagnosis(index: number) {
+    const current = editForm.diagnoses || [];
+    setEditForm({ ...editForm, diagnoses: current.filter((_, i) => i !== index) });
+  }
+
+  function addEditAllergy() {
+    if (editAllergyInput.trim()) {
+      const current = editForm.allergies || [];
+      setEditForm({ ...editForm, allergies: [...current, editAllergyInput.trim()] });
+      setEditAllergyInput('');
+    }
+  }
+
+  function removeEditAllergy(index: number) {
+    const current = editForm.allergies || [];
+    setEditForm({ ...editForm, allergies: current.filter((_, i) => i !== index) });
+  }
+
+  // --- Patient History inline helpers ---
+  async function saveHistoryUpdate(updated: Partial<PatientHistory>) {
+    if (!id || !user) return;
+    setHistorySaving(true);
+    try {
+      const current = patientHistory || { ...EMPTY_HISTORY };
+      const merged = { ...current, ...updated };
+      // Build the payload without the server-managed fields
+      const payload = {
+        hpiText: merged.hpiText || '',
+        pmh: merged.pmh || [],
+        psh: merged.psh || [],
+        medications: merged.medications || [],
+        familyHistory: merged.familyHistory || [],
+        socialHistory: merged.socialHistory || { smoking: '', alcohol: '', occupation: '', livingSituation: '' },
+      };
+      await savePatientHistory(id, payload, user.id);
+      setPatientHistory({ ...merged, patientId: id } as PatientHistory);
+    } catch (err) {
+      console.error('Error saving patient history:', err);
+    } finally {
+      setHistorySaving(false);
+    }
+  }
+
+  function handleAddPMH() {
+    if (!pmhInput.trim()) return;
+    const current = patientHistory?.pmh || [];
+    saveHistoryUpdate({ pmh: [...current, { condition: pmhInput.trim(), status: 'active' }] });
+    setPmhInput('');
+    setShowAddPMH(false);
+  }
+
+  function handleRemovePMH(index: number) {
+    const current = patientHistory?.pmh || [];
+    saveHistoryUpdate({ pmh: current.filter((_, i) => i !== index) });
+  }
+
+  function handleAddPSH() {
+    if (!pshInput.trim()) return;
+    const current = patientHistory?.psh || [];
+    saveHistoryUpdate({ psh: [...current, { procedure: pshInput.trim() }] });
+    setPshInput('');
+    setShowAddPSH(false);
+  }
+
+  function handleRemovePSH(index: number) {
+    const current = patientHistory?.psh || [];
+    saveHistoryUpdate({ psh: current.filter((_, i) => i !== index) });
+  }
+
+  function handleAddMed() {
+    if (!medNameInput.trim()) return;
+    const current = patientHistory?.medications || [];
+    saveHistoryUpdate({
+      medications: [...current, {
+        name: medNameInput.trim(),
+        dose: medDoseInput.trim() || undefined,
+        frequency: medFreqInput.trim() || undefined,
+        status: 'active',
+      }],
+    });
+    setMedNameInput('');
+    setMedDoseInput('');
+    setMedFreqInput('');
+    setShowAddMed(false);
+  }
+
+  function handleRemoveMed(index: number) {
+    const current = patientHistory?.medications || [];
+    saveHistoryUpdate({ medications: current.filter((_, i) => i !== index) });
+  }
+
+  function handleScanToHistory(data: ClinicalExtractionResponse, acceptedFields: Set<string>) {
+    const updates: Partial<PatientHistory> = {};
+    const currentHist = patientHistory || { ...EMPTY_HISTORY };
+
+    if (acceptedFields.has('historyOfPresentingIllness') && data.historyOfPresentingIllness) {
+      updates.hpiText = [currentHist.hpiText, data.historyOfPresentingIllness].filter(Boolean).join('\n\n');
+    }
+    if (acceptedFields.has('pastMedicalHistory') && data.pastMedicalHistory.length > 0) {
+      const existing = (currentHist.pmh || []).map((p) => p.condition.toLowerCase());
+      const newPmh = data.pastMedicalHistory
+        .filter((p) => !existing.includes(p.toLowerCase()))
+        .map((p) => ({ condition: p, status: 'active' as const }));
+      updates.pmh = [...(currentHist.pmh || []), ...newPmh];
+    }
+    if (acceptedFields.has('pastSurgicalHistory') && data.pastSurgicalHistory.length > 0) {
+      const existing = (currentHist.psh || []).map((p) => p.procedure.toLowerCase());
+      const newPsh = data.pastSurgicalHistory
+        .filter((p) => !existing.includes(p.toLowerCase()))
+        .map((p) => ({ procedure: p }));
+      updates.psh = [...(currentHist.psh || []), ...newPsh];
+    }
+    if (acceptedFields.has('medications') && data.medications.length > 0) {
+      const existing = (currentHist.medications || []).map((m) => m.name.toLowerCase());
+      const newMeds = data.medications
+        .filter((m) => !existing.includes(m.name.toLowerCase()))
+        .map((m) => ({ name: m.name, dose: m.dose, route: m.route, frequency: m.frequency, indication: m.indication, status: 'active' as const }));
+      updates.medications = [...(currentHist.medications || []), ...newMeds];
+    }
+    if (acceptedFields.has('socialHistory')) {
+      const sh = data.socialHistory;
+      updates.socialHistory = {
+        smoking: sh.smoking || currentHist.socialHistory?.smoking || '',
+        alcohol: sh.alcohol || currentHist.socialHistory?.alcohol || '',
+        occupation: sh.occupation || currentHist.socialHistory?.occupation || '',
+        livingSituation: sh.living || currentHist.socialHistory?.livingSituation || '',
+        substances: sh.illicitDrugs || currentHist.socialHistory?.substances || '',
+      };
+    }
+    if (acceptedFields.has('familyHistory') && data.familyHistory) {
+      const existing = (currentHist.familyHistory || []);
+      updates.familyHistory = [...existing, { relation: '', condition: data.familyHistory }];
+    }
+
+    if (Object.keys(updates).length > 0) {
+      saveHistoryUpdate(updates);
     }
   }
 
@@ -372,11 +568,11 @@ export default function PatientDetailPage() {
           {/* Acuity circle */}
           <div className={clsx(
             'flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl text-base sm:text-lg font-bold',
-            patient.acuity === 1 ? 'bg-red-100 text-red-700' :
-            patient.acuity === 2 ? 'bg-orange-100 text-orange-700' :
-            patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700' :
-            patient.acuity === 4 ? 'bg-emerald-100 text-emerald-700' :
-            'bg-blue-100 text-blue-700',
+            patient.acuity === 1 ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400' :
+            patient.acuity === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400' :
+            patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400' :
+            patient.acuity === 4 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' :
+            'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400',
           )}>
             {patient.acuity}
           </div>
@@ -384,7 +580,7 @@ export default function PatientDetailPage() {
           {/* Info block */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <h1 className="text-base sm:text-xl font-bold text-slate-900 truncate">
+              <h1 className="text-base sm:text-xl font-bold text-slate-900 dark:text-slate-100 truncate">
                 {patient.lastName}, {patient.firstName}
               </h1>
               {patient.dateOfBirth && (
@@ -424,7 +620,7 @@ export default function PatientDetailPage() {
         </div>
 
         {/* Action buttons — full width row on mobile */}
-        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
+        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
           <Button variant="secondary" size="sm" className="flex-1 sm:flex-initial" onClick={() => setShowEditModal(true)} iconLeft={<Edit3 size={13} />}>Edit</Button>
           <Button variant="danger" size="sm" className="flex-1 sm:flex-initial" onClick={() => setShowDeleteConfirm(true)} iconLeft={<Trash2 size={13} />}>Delete</Button>
         </div>
@@ -434,13 +630,13 @@ export default function PatientDetailPage() {
 
       {/* Allergy alert */}
       {patient.allergies && patient.allergies.length > 0 && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border-2 border-red-300">
-          <ShieldAlert size={18} className="text-red-600 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-800">
+          <ShieldAlert size={18} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-red-800 uppercase tracking-wide">Allergy Alert</p>
+            <p className="text-sm font-bold text-red-800 dark:text-red-300 uppercase tracking-wide">Allergy Alert</p>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {patient.allergies.map((a, i) => (
-                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-800 border border-red-300 text-xs font-semibold rounded">
+                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700 text-xs font-semibold rounded">
                   {a}
                 </span>
               ))}
@@ -453,17 +649,19 @@ export default function PatientDetailPage() {
       {patient.codeStatus && patient.codeStatus !== 'full' && (
         <div className={clsx(
           'flex items-center gap-3 px-4 py-3 rounded-xl border-2',
-          patient.codeStatus === 'comfort' ? 'bg-purple-50 border-purple-300' : 'bg-red-50 border-red-300',
+          patient.codeStatus === 'comfort'
+            ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-800'
+            : 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-800',
         )}>
-          <Heart size={18} className={patient.codeStatus === 'comfort' ? 'text-purple-600 shrink-0' : 'text-red-600 shrink-0'} />
+          <Heart size={18} className={patient.codeStatus === 'comfort' ? 'text-purple-600 dark:text-purple-400 shrink-0' : 'text-red-600 dark:text-red-400 shrink-0'} />
           <div>
-            <p className={clsx('text-sm font-bold uppercase tracking-wide', patient.codeStatus === 'comfort' ? 'text-purple-800' : 'text-red-800')}>
+            <p className={clsx('text-sm font-bold uppercase tracking-wide', patient.codeStatus === 'comfort' ? 'text-purple-800 dark:text-purple-300' : 'text-red-800 dark:text-red-300')}>
               Code Status:{' '}
               {patient.codeStatus === 'DNR' ? 'Do Not Resuscitate (DNR)' :
                patient.codeStatus === 'DNI' ? 'Do Not Intubate (DNI)' :
                'Comfort Care Only'}
             </p>
-            <p className={clsx('text-xs', patient.codeStatus === 'comfort' ? 'text-purple-600' : 'text-red-600')}>
+            <p className={clsx('text-xs', patient.codeStatus === 'comfort' ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400')}>
               Confirmed with patient / next of kin — document in notes
             </p>
           </div>
@@ -472,8 +670,8 @@ export default function PatientDetailPage() {
 
       {/* ---- Primary diagnosis summary ---- */}
       <div className="px-4 py-3 bg-ward-card rounded-xl border border-ward-border">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Primary Diagnosis</p>
-        <p className="text-sm font-semibold text-slate-900">{patient.primaryDiagnosis}</p>
+        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Primary Diagnosis</p>
+        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.primaryDiagnosis}</p>
         {patient.diagnoses.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
             {patient.diagnoses.map((d, i) => (
@@ -489,92 +687,142 @@ export default function PatientDetailPage() {
 
         {/* Overview Tab */}
         {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Demographics */}
+          <div className="space-y-4">
+            {/* Demographics + Location — combined card */}
             <Card padding="md">
-              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
-                Demographics
+              <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                Demographics & Location
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: 'Gender', value: patient.gender },
-                  { label: 'Date of Birth', value: patient.dateOfBirth },
-                  { label: 'Ward', value: patient.wardId },
-                  { label: 'Bed', value: patient.bedNumber },
-                  { label: 'Team', value: patient.team || 'Not assigned' },
-                  { label: 'Attending', value: patient.attendingPhysician || 'Not assigned' },
-                  { label: 'Weight', value: patient.weight ? `${patient.weight} kg` : 'N/A' },
-                  { label: 'Height', value: patient.height ? `${patient.height} cm` : 'N/A' },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <p className="text-xs text-slate-500">{item.label}</p>
-                    <p className="text-sm font-medium text-slate-900 capitalize">{item.value}</p>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Gender</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 capitalize">{patient.gender}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Date of Birth</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {patient.dateOfBirth}
+                    {patient.dateOfBirth && <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">({calculateAge(patient.dateOfBirth)})</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Ward</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.wardId && patient.wardId !== 'default' ? patient.wardId : 'Unassigned'}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Bed</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.bedNumber}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Team</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.team || <span className="text-slate-400 dark:text-slate-500 font-normal italic">Not assigned</span>}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Attending</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.attendingPhysician || <span className="text-slate-400 dark:text-slate-500 font-normal italic">Not assigned</span>}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Weight</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {patient.weight ? <>{patient.weight} <span className="font-normal text-slate-400 dark:text-slate-500">kg</span></> : <span className="text-slate-400 dark:text-slate-500 font-normal italic">—</span>}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Height</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {patient.height ? <>{patient.height} <span className="font-normal text-slate-400 dark:text-slate-500">cm</span></> : <span className="text-slate-400 dark:text-slate-500 font-normal italic">—</span>}
+                  </p>
+                </div>
               </div>
+              {/* BMI row */}
+              {patient.weight && patient.height && patient.height > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">BMI</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                      {(patient.weight / ((patient.height / 100) ** 2)).toFixed(1)}
+                    </span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">kg/m²</span>
+                    {(() => {
+                      const bmi = patient.weight / ((patient.height / 100) ** 2);
+                      if (bmi < 18.5) return <Badge variant="info" size="sm">Underweight</Badge>;
+                      if (bmi < 25) return <Badge variant="success" size="sm">Normal</Badge>;
+                      if (bmi < 30) return <Badge variant="warning" size="sm">Overweight</Badge>;
+                      return <Badge variant="critical" size="sm">Obese</Badge>;
+                    })()}
+                  </div>
+                </div>
+              )}
             </Card>
 
             {/* Diagnoses */}
             <Card padding="md">
-              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
+              <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
                 Diagnoses
               </h3>
-              <p className="text-sm font-medium text-slate-900 mb-2">
-                Primary: {patient.primaryDiagnosis}
-              </p>
+              <div className="flex items-start gap-2 mb-2">
+                <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase mt-0.5 shrink-0">Primary</span>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.primaryDiagnosis}</p>
+              </div>
               {patient.diagnoses.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {patient.diagnoses.map((d, i) => (
                     <Badge key={i} variant="default" size="sm">{d}</Badge>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400">No additional diagnoses</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 italic">No additional diagnoses</p>
               )}
             </Card>
 
-            {/* Allergies */}
-            <Card padding="md">
-              <div className="flex items-center gap-2 mb-3">
-                <ShieldAlert size={16} className="text-red-500" />
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
-                  Allergies
-                </h3>
-              </div>
-              {patient.allergies.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {patient.allergies.map((a, i) => (
-                    <Badge key={i} variant="critical" size="sm">{a}</Badge>
-                  ))}
+            {/* Safety Row — Allergies + Code Status side by side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Allergies */}
+              <Card padding="md">
+                <div className="flex items-center gap-2 mb-3">
+                  <ShieldAlert size={15} className="text-red-500" />
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Allergies
+                  </h3>
                 </div>
-              ) : (
-                <p className="text-sm text-green-600 font-medium">NKDA (No Known Drug Allergies)</p>
-              )}
-            </Card>
+                {patient.allergies.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {patient.allergies.map((a, i) => (
+                      <Badge key={i} variant="critical" size="sm">{a}</Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">NKDA</p>
+                )}
+              </Card>
 
-            {/* Code Status */}
-            <Card padding="md">
-              <div className="flex items-center gap-2 mb-3">
-                <Heart size={16} className="text-pink-500" />
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
-                  Code Status
-                </h3>
-              </div>
-              <Badge
-                variant={patient.codeStatus === 'full' ? 'success' : patient.codeStatus === 'comfort' ? 'warning' : 'critical'}
-                size="md"
-              >
-                {patient.codeStatus === 'full' ? 'Full Code' : patient.codeStatus.toUpperCase()}
-              </Badge>
-            </Card>
+              {/* Code Status */}
+              <Card padding="md">
+                <div className="flex items-center gap-2 mb-3">
+                  <Heart size={15} className="text-pink-500" />
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Code Status
+                  </h3>
+                </div>
+                <Badge
+                  variant={patient.codeStatus === 'full' ? 'success' : patient.codeStatus === 'comfort' ? 'warning' : 'critical'}
+                  size="md"
+                >
+                  {patient.codeStatus === 'full' ? 'Full Code' :
+                   patient.codeStatus === 'DNR' ? 'DNR — Do Not Resuscitate' :
+                   patient.codeStatus === 'DNI' ? 'DNI — Do Not Intubate' :
+                   'Comfort Care Only'}
+                </Badge>
+              </Card>
+            </div>
 
             {/* Notes */}
             {patient.notes && (
               <Card padding="md">
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                  Notes
+                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
+                  Clinical Notes
                 </h3>
-                <p className="text-sm text-slate-700 whitespace-pre-wrap">{patient.notes}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{patient.notes}</p>
               </Card>
             )}
 
@@ -658,39 +906,273 @@ export default function PatientDetailPage() {
           </div>
         )}
 
-        {/* History Tab — shows clerking notes with full subsections */}
+        {/* History Tab — persistent patient history + clerking notes */}
         {activeTab === 'history' && (
-          <div className="space-y-4">
-            {/* Action bar */}
-            <div className="flex items-center justify-between gap-2">
-              <ScanNotesButton
-                onExtracted={(data: ClinicalExtractionResponse, acceptedFields: Set<string>) => {
-                  navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`, {
-                    state: { scanData: data, acceptedFields: Array.from(acceptedFields) },
-                  });
-                }}
-              />
+          <div className="space-y-5">
+            {/* ── Action bar ── */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <ScanNotesButton
+                  onExtracted={(data: ClinicalExtractionResponse, acceptedFields: Set<string>) => {
+                    handleScanToHistory(data, acceptedFields);
+                  }}
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
+                  iconLeft={<Stethoscope size={14} />}
+                >
+                  Full Clerking
+                </Button>
+              </div>
               <Button
                 size="sm"
                 onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}
                 iconLeft={<FileText size={14} />}
               >
-                New Clerking
+                New Note
               </Button>
             </div>
 
+            {/* ── Patient History (persistent) ── */}
+            {historyLoading ? (
+              <div className="py-8">
+                <Spinner size="md" label="Loading patient history..." />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {/* PMH */}
+                <Card padding="md">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Past Medical History
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPMH(!showAddPMH)}
+                      className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      <Plus size={12} /> Add
+                    </button>
+                  </div>
+                  {showAddPMH && (
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={pmhInput}
+                        onChange={(e) => setPmhInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPMH(); } }}
+                        placeholder="e.g. Hypertension, Type 2 DM"
+                        className="flex-1 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                        autoFocus
+                      />
+                      <Button type="button" size="sm" onClick={handleAddPMH} loading={historySaving}>Save</Button>
+                    </div>
+                  )}
+                  {(patientHistory?.pmh || []).length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {(patientHistory?.pmh || []).map((entry, i) => (
+                        <span key={i} className={clsx(
+                          'inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full font-medium',
+                          entry.status === 'active'
+                            ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
+                            : entry.status === 'resolved'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
+                        )}>
+                          {entry.condition}
+                          <button type="button" onClick={() => handleRemovePMH(i)} className="hover:text-red-600 dark:hover:text-red-400 ml-0.5 opacity-60 hover:opacity-100">
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">No past medical history recorded</p>
+                  )}
+                </Card>
+
+                {/* PSH */}
+                <Card padding="md">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Past Surgical History
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddPSH(!showAddPSH)}
+                      className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      <Plus size={12} /> Add
+                    </button>
+                  </div>
+                  {showAddPSH && (
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={pshInput}
+                        onChange={(e) => setPshInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddPSH(); } }}
+                        placeholder="e.g. Appendicectomy 2019"
+                        className="flex-1 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                        autoFocus
+                      />
+                      <Button type="button" size="sm" onClick={handleAddPSH} loading={historySaving}>Save</Button>
+                    </div>
+                  )}
+                  {(patientHistory?.psh || []).length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {(patientHistory?.psh || []).map((entry, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-full border border-slate-200 dark:border-slate-700">
+                          {entry.procedure}
+                          {entry.year && <span className="text-slate-400 dark:text-slate-500">({entry.year})</span>}
+                          <button type="button" onClick={() => handleRemovePSH(i)} className="hover:text-red-600 dark:hover:text-red-400 ml-0.5 opacity-60 hover:opacity-100">
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">No surgical history recorded</p>
+                  )}
+                </Card>
+
+                {/* Medications */}
+                <Card padding="md">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <Pill size={14} className="text-slate-400" />
+                      <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Current Medications
+                      </h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddMed(!showAddMed)}
+                      className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      <Plus size={12} /> Add
+                    </button>
+                  </div>
+                  {showAddMed && (
+                    <div className="flex gap-2 mb-3 flex-wrap">
+                      <input
+                        type="text"
+                        value={medNameInput}
+                        onChange={(e) => setMedNameInput(e.target.value)}
+                        placeholder="Drug name"
+                        className="flex-1 min-w-[120px] h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                        autoFocus
+                      />
+                      <input
+                        type="text"
+                        value={medDoseInput}
+                        onChange={(e) => setMedDoseInput(e.target.value)}
+                        placeholder="Dose"
+                        className="w-24 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                      />
+                      <input
+                        type="text"
+                        value={medFreqInput}
+                        onChange={(e) => setMedFreqInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddMed(); } }}
+                        placeholder="Frequency"
+                        className="w-24 h-9 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                      />
+                      <Button type="button" size="sm" onClick={handleAddMed} loading={historySaving}>Save</Button>
+                    </div>
+                  )}
+                  {(patientHistory?.medications || []).length > 0 ? (
+                    <div className="space-y-1.5">
+                      {(patientHistory?.medications || []).map((med, i) => (
+                        <div key={i} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 group">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Pill size={13} className="text-slate-400 shrink-0" />
+                            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{med.name}</span>
+                            {med.dose && <span className="text-xs text-slate-500 dark:text-slate-400">{med.dose}</span>}
+                            {med.frequency && <span className="text-xs text-slate-500 dark:text-slate-400">{med.frequency}</span>}
+                            {med.route && <span className="text-xs text-slate-400 dark:text-slate-500">({med.route})</span>}
+                          </div>
+                          <button type="button" onClick={() => handleRemoveMed(i)} className="text-slate-300 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">No medications recorded</p>
+                  )}
+                </Card>
+
+                {/* Social History (read-only summary if exists) */}
+                {patientHistory?.socialHistory && (
+                  patientHistory.socialHistory.smoking ||
+                  patientHistory.socialHistory.alcohol ||
+                  patientHistory.socialHistory.occupation ||
+                  patientHistory.socialHistory.livingSituation
+                ) && (
+                  <Card padding="md">
+                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                      Social History
+                    </h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                      {patientHistory.socialHistory.occupation && (
+                        <div><span className="text-xs text-slate-400 dark:text-slate-500">Occupation:</span> <span className="text-slate-700 dark:text-slate-300">{patientHistory.socialHistory.occupation}</span></div>
+                      )}
+                      {patientHistory.socialHistory.smoking && (
+                        <div><span className="text-xs text-slate-400 dark:text-slate-500">Smoking:</span> <span className="text-slate-700 dark:text-slate-300">{patientHistory.socialHistory.smoking}</span></div>
+                      )}
+                      {patientHistory.socialHistory.alcohol && (
+                        <div><span className="text-xs text-slate-400 dark:text-slate-500">Alcohol:</span> <span className="text-slate-700 dark:text-slate-300">{patientHistory.socialHistory.alcohol}</span></div>
+                      )}
+                      {patientHistory.socialHistory.livingSituation && (
+                        <div><span className="text-xs text-slate-400 dark:text-slate-500">Living:</span> <span className="text-slate-700 dark:text-slate-300">{patientHistory.socialHistory.livingSituation}</span></div>
+                      )}
+                    </div>
+                  </Card>
+                )}
+
+                {/* Family History (if exists) */}
+                {(patientHistory?.familyHistory || []).length > 0 && (
+                  <Card padding="md">
+                    <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                      Family History
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(patientHistory?.familyHistory || []).map((fh, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-full border border-slate-200 dark:border-slate-700">
+                          {fh.relation && <span className="font-medium">{fh.relation}:</span>} {fh.condition}
+                        </span>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {/* ── Divider ── */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-ward-border" />
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                Clerking Notes
+              </span>
+              <div className="flex-1 h-px bg-ward-border" />
+            </div>
+
+            {/* ── Clerking Notes ── */}
             {clerkingLoading ? (
-              <div className="py-16">
-                <Spinner size="lg" label="Loading clinical notes..." />
+              <div className="py-8">
+                <Spinner size="md" label="Loading clinical notes..." />
               </div>
             ) : clerkingNotes.length === 0 ? (
               <Card>
                 <EmptyState
                   icon={<FileText size={24} />}
-                  title="No clinical notes yet"
-                  description="Start a clerking note to document this patient's history, examination, and plan."
+                  title="No clerking notes yet"
+                  description="Start a clerking to document history, examination, and plan — or scan handwritten notes above."
                   action={
-                    <Button size="sm" onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)}>
+                    <Button size="sm" onClick={() => navigate(`/clerking?patientId=${encodeURIComponent(patient.id)}`)} iconLeft={<Stethoscope size={14} />}>
                       Start Clerking
                     </Button>
                   }
@@ -946,7 +1428,7 @@ export default function PatientDetailPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className={clsx(
                           'text-sm font-medium',
-                          task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-900',
+                          task.status === 'completed' ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-slate-100',
                         )}>
                           {task.title}
                         </p>
@@ -1013,111 +1495,268 @@ export default function PatientDetailPage() {
       {/* Edit Patient Modal */}
       <Modal
         open={showEditModal}
-        onClose={() => setShowEditModal(false)}
+        onClose={() => { setShowEditModal(false); setEditDiagnosisInput(''); setEditAllergyInput(''); }}
         title="Edit Patient"
         size="lg"
       >
-        <form onSubmit={handleEditPatient} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="First Name"
-              value={editForm.firstName || ''}
-              onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
-              required
-            />
-            <Input
-              label="Last Name"
-              value={editForm.lastName || ''}
-              onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
-              required
-            />
+        <form onSubmit={handleEditPatient} className="space-y-5">
+          {editErrors.general && (
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-700 dark:text-red-400">{editErrors.general}</p>
+            </div>
+          )}
+
+          {/* ── Section: Patient Identity ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Patient Identity</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="First Name"
+                  value={editForm.firstName || ''}
+                  onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                  error={editErrors.firstName}
+                  required
+                />
+                <Input
+                  label="Last Name"
+                  value={editForm.lastName || ''}
+                  onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                  error={editErrors.lastName}
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input
+                  label="MRN"
+                  value={editForm.mrn || ''}
+                  onChange={(e) => setEditForm({ ...editForm, mrn: e.target.value })}
+                  error={editErrors.mrn}
+                  required
+                />
+                <Input
+                  label="Date of Birth"
+                  type="date"
+                  value={editForm.dateOfBirth || ''}
+                  onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
+                  error={editErrors.dateOfBirth}
+                  required
+                />
+                <Select
+                  label="Gender"
+                  value={editForm.gender || 'male'}
+                  onChange={(e) => setEditForm({ ...editForm, gender: e.target.value as PatientFormData['gender'] })}
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </Select>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="MRN"
-              value={editForm.mrn || ''}
-              onChange={(e) => setEditForm({ ...editForm, mrn: e.target.value })}
-              required
-            />
-            <Input
-              label="Date of Birth"
-              type="date"
-              value={editForm.dateOfBirth || ''}
-              onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
-              required
-            />
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Ward & Location ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Ward & Location</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                label="Ward"
+                value={editForm.wardId || ''}
+                onChange={(e) => setEditForm({ ...editForm, wardId: e.target.value })}
+                placeholder="e.g. 4A, ICU-1"
+              />
+              <Input
+                label="Bed Number"
+                value={editForm.bedNumber || ''}
+                onChange={(e) => setEditForm({ ...editForm, bedNumber: e.target.value })}
+                error={editErrors.bedNumber}
+                required
+              />
+              <Select
+                label="Acuity Level"
+                value={String(editForm.acuity || 3)}
+                onChange={(e) => setEditForm({ ...editForm, acuity: Number(e.target.value) as PatientFormData['acuity'] })}
+              >
+                <option value="1">1 — Critical</option>
+                <option value="2">2 — Acute</option>
+                <option value="3">3 — Moderate</option>
+                <option value="4">4 — Stable</option>
+                <option value="5">5 — Discharge Ready</option>
+              </Select>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Gender"
-              value={editForm.gender || 'male'}
-              onChange={(e) => setEditForm({ ...editForm, gender: e.target.value as PatientFormData['gender'] })}
-            >
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </Select>
-            <Input
-              label="Ward"
-              value={editForm.wardId || ''}
-              onChange={(e) => setEditForm({ ...editForm, wardId: e.target.value })}
-              placeholder="e.g. 4A, ICU-1"
-            />
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Clinical Information ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Clinical Information</p>
+            <div className="space-y-4">
+              <Input
+                label="Primary Diagnosis"
+                value={editForm.primaryDiagnosis || ''}
+                onChange={(e) => setEditForm({ ...editForm, primaryDiagnosis: e.target.value })}
+                error={editErrors.primaryDiagnosis}
+                placeholder="e.g. Community-acquired pneumonia"
+                required
+              />
+
+              {/* Additional diagnoses with chips */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Additional Diagnoses</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editDiagnosisInput}
+                    onChange={(e) => setEditDiagnosisInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addEditDiagnosis(); } }}
+                    placeholder="Type and press Enter"
+                    className="flex-1 h-10 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  />
+                  <Button type="button" variant="secondary" size="sm" onClick={addEditDiagnosis}>Add</Button>
+                </div>
+                {(editForm.diagnoses || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {(editForm.diagnoses || []).map((d, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-full">
+                        {d}
+                        <button type="button" onClick={() => removeEditDiagnosis(i)} className="hover:text-red-600 dark:hover:text-red-400">
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Attending Physician"
+                  value={editForm.attendingPhysician || ''}
+                  onChange={(e) => setEditForm({ ...editForm, attendingPhysician: e.target.value })}
+                  placeholder="Dr. Smith"
+                />
+                <Input
+                  label="Team"
+                  value={editForm.team || ''}
+                  onChange={(e) => setEditForm({ ...editForm, team: e.target.value })}
+                  placeholder="e.g. Medical Team A"
+                />
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Bed Number"
-              value={editForm.bedNumber || ''}
-              onChange={(e) => setEditForm({ ...editForm, bedNumber: e.target.value })}
-              required
-            />
-            <Select
-              label="Acuity"
-              value={String(editForm.acuity || 3)}
-              onChange={(e) => setEditForm({ ...editForm, acuity: Number(e.target.value) as PatientFormData['acuity'] })}
-            >
-              <option value="1">1 - Critical</option>
-              <option value="2">2 - Acute</option>
-              <option value="3">3 - Moderate</option>
-              <option value="4">4 - Stable</option>
-              <option value="5">5 - Discharge Ready</option>
-            </Select>
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Measurements ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Measurements</p>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Weight (kg)"
+                type="number"
+                value={editForm.weight ?? ''}
+                onChange={(e) => setEditForm({ ...editForm, weight: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="e.g. 72"
+                min={0}
+                max={500}
+                step={0.1}
+              />
+              <Input
+                label="Height (cm)"
+                type="number"
+                value={editForm.height ?? ''}
+                onChange={(e) => setEditForm({ ...editForm, height: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="e.g. 175"
+                min={0}
+                max={300}
+                step={0.1}
+              />
+            </div>
+            {editForm.weight && editForm.height && editForm.height > 0 && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                BMI: <strong className="text-slate-700 dark:text-slate-200">{(editForm.weight / ((editForm.height / 100) ** 2)).toFixed(1)}</strong> kg/m²
+              </p>
+            )}
           </div>
-          <Input
-            label="Primary Diagnosis"
-            value={editForm.primaryDiagnosis || ''}
-            onChange={(e) => setEditForm({ ...editForm, primaryDiagnosis: e.target.value })}
-            required
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Code Status"
-              value={editForm.codeStatus || 'full'}
-              onChange={(e) => setEditForm({ ...editForm, codeStatus: e.target.value as PatientFormData['codeStatus'] })}
-            >
-              <option value="full">Full Code</option>
-              <option value="DNR">DNR</option>
-              <option value="DNI">DNI</option>
-              <option value="comfort">Comfort Only</option>
-            </Select>
-            <Input
-              label="Attending Physician"
-              value={editForm.attendingPhysician || ''}
-              onChange={(e) => setEditForm({ ...editForm, attendingPhysician: e.target.value })}
-            />
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Safety ── */}
+          <div>
+            <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-3">Patient Safety</p>
+            <div className="space-y-4">
+              {/* Allergies with chips */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <ShieldAlert size={14} className="text-red-500" />
+                  <label className="block text-sm font-medium text-red-700 dark:text-red-400">Allergies</label>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editAllergyInput}
+                    onChange={(e) => setEditAllergyInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addEditAllergy(); } }}
+                    placeholder="Drug / substance allergy"
+                    className="flex-1 h-10 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400"
+                  />
+                  <Button type="button" variant="secondary" size="sm" onClick={addEditAllergy}>Add</Button>
+                </div>
+                {(editForm.allergies || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {(editForm.allergies || []).map((a, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 text-xs rounded-full font-medium">
+                        <ShieldAlert size={10} />
+                        {a}
+                        <button type="button" onClick={() => removeEditAllergy(i)} className="hover:text-red-900 dark:hover:text-red-300 ml-0.5">
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(editForm.allergies || []).length === 0 && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">NKDA — No known drug allergies</p>
+                )}
+              </div>
+
+              {/* Code status */}
+              <div>
+                <Select
+                  label="Code Status"
+                  value={editForm.codeStatus || 'full'}
+                  onChange={(e) => setEditForm({ ...editForm, codeStatus: e.target.value as PatientFormData['codeStatus'] })}
+                >
+                  <option value="full">Full Code</option>
+                  <option value="DNR">DNR — Do Not Resuscitate</option>
+                  <option value="DNI">DNI — Do Not Intubate</option>
+                  <option value="comfort">Comfort Care Only</option>
+                </Select>
+                {editForm.codeStatus && editForm.codeStatus !== 'full' && (
+                  <div className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                    <Heart size={12} className="text-red-500 shrink-0" />
+                    <span className="text-xs font-medium text-red-700 dark:text-red-400">Non-standard code status — verify with patient/NOK</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          <Input
-            label="Team"
-            value={editForm.team || ''}
-            onChange={(e) => setEditForm({ ...editForm, team: e.target.value })}
-          />
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Notes ── */}
           <Textarea
-            label="Notes"
+            label="Clinical Notes"
             value={editForm.notes || ''}
             onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+            placeholder="Admission notes, important background..."
           />
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)}>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-ward-border">
+            <Button type="button" variant="secondary" onClick={() => { setShowEditModal(false); setEditDiagnosisInput(''); setEditAllergyInput(''); }}>
               Cancel
             </Button>
             <Button type="submit" loading={editSaving}>

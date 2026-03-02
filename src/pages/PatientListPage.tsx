@@ -90,6 +90,8 @@ const initialFormData: PatientFormData = {
   codeStatus: 'full',
   attendingPhysician: '',
   team: '',
+  weight: undefined,
+  height: undefined,
 };
 
 // ---------------------------------------------------------------------------
@@ -647,201 +649,260 @@ export default function PatientListPage() {
             </div>
           )}
 
-          {/* Basic demographics */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="First Name"
-              value={formData.firstName}
-              onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-              error={formErrors.firstName}
-              placeholder="John"
-              required
-            />
-            <Input
-              label="Last Name"
-              value={formData.lastName}
-              onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-              error={formErrors.lastName}
-              placeholder="Smith"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="MRN"
-              value={formData.mrn}
-              onChange={(e) => setFormData({ ...formData, mrn: e.target.value })}
-              error={formErrors.mrn}
-              placeholder="e.g. 12345678"
-              required
-            />
-            <Input
-              label="Date of Birth"
-              type="date"
-              value={formData.dateOfBirth}
-              onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-              error={formErrors.dateOfBirth}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Gender"
-              value={formData.gender}
-              onChange={(e) => setFormData({ ...formData, gender: e.target.value as PatientFormData['gender'] })}
-            >
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </Select>
-            <Input
-              label="Ward"
-              value={formData.wardId}
-              onChange={(e) => setFormData({ ...formData, wardId: e.target.value })}
-              placeholder="e.g. 4A, ICU-1, Med B"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input
-              label="Bed Number"
-              value={formData.bedNumber}
-              onChange={(e) => setFormData({ ...formData, bedNumber: e.target.value })}
-              error={formErrors.bedNumber}
-              placeholder="e.g. 4B"
-              required
-            />
-            <Select
-              label="Acuity Level"
-              value={String(formData.acuity)}
-              onChange={(e) => setFormData({ ...formData, acuity: Number(e.target.value) as PatientFormData['acuity'] })}
-            >
-              <option value="1">1 — Critical</option>
-              <option value="2">2 — Acute</option>
-              <option value="3">3 — Moderate</option>
-              <option value="4">4 — Stable</option>
-              <option value="5">5 — Discharge Ready</option>
-            </Select>
-          </div>
-
-          <Input
-            label="Primary Diagnosis"
-            value={formData.primaryDiagnosis}
-            onChange={(e) => setFormData({ ...formData, primaryDiagnosis: e.target.value })}
-            error={formErrors.primaryDiagnosis}
-            placeholder="e.g. Community-acquired pneumonia"
-            required
-          />
-
-          {/* Additional diagnoses */}
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Additional Diagnoses</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={diagnosisInput}
-                onChange={(e) => setDiagnosisInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDiagnosis(); } }}
-                placeholder="Type and press Enter"
-                className="flex-1 h-10 px-3 rounded-lg text-sm bg-ward-card border border-ward-border text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
-              />
-              <Button type="button" variant="secondary" size="sm" onClick={addDiagnosis}>Add</Button>
-            </div>
-            {formData.diagnoses.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {formData.diagnoses.map((d, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-full">
-                    {d}
-                    <button type="button" onClick={() => removeDiagnosis(i)} className="hover:text-red-600 dark:hover:text-red-400">
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
+          {/* ── Section: Patient Identity ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Patient Identity</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="First Name"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  error={formErrors.firstName}
+                  placeholder="John"
+                  required
+                />
+                <Input
+                  label="Last Name"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  error={formErrors.lastName}
+                  placeholder="Smith"
+                  required
+                />
               </div>
-            )}
-          </div>
-
-          {/* Allergies — highlighted red for patient safety */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5">
-              <ShieldAlert size={14} className="text-red-500" />
-              <label className="block text-sm font-medium text-red-700 dark:text-red-400">Allergies</label>
-              <span className="text-xs text-slate-400 dark:text-slate-500">(important for patient safety)</span>
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={allergyInput}
-                onChange={(e) => setAllergyInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAllergy(); } }}
-                placeholder="Drug / substance allergy"
-                className="flex-1 h-10 px-3 rounded-lg text-sm bg-ward-card border border-red-200 dark:border-red-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400"
-              />
-              <Button type="button" variant="secondary" size="sm" onClick={addAllergy}>Add</Button>
-            </div>
-            {formData.allergies.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {formData.allergies.map((a, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 text-xs rounded-full font-medium">
-                    <ShieldAlert size={10} />
-                    {a}
-                    <button type="button" onClick={() => removeAllergy(i)} className="hover:text-red-900 dark:hover:text-red-300 ml-0.5">
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input
+                  label="MRN"
+                  value={formData.mrn}
+                  onChange={(e) => setFormData({ ...formData, mrn: e.target.value })}
+                  error={formErrors.mrn}
+                  placeholder="e.g. 12345678"
+                  required
+                />
+                <Input
+                  label="Date of Birth"
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  error={formErrors.dateOfBirth}
+                  required
+                />
+                <Select
+                  label="Gender"
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value as PatientFormData['gender'] })}
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </Select>
               </div>
-            )}
-            {formData.allergies.length === 0 && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">NKDA — No known drug allergies</p>
-            )}
+            </div>
           </div>
 
-          {/* Code status + attending */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Ward & Location ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Ward & Location</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Input
+                label="Ward"
+                value={formData.wardId}
+                onChange={(e) => setFormData({ ...formData, wardId: e.target.value })}
+                placeholder="e.g. 4A, ICU-1, Med B"
+              />
+              <Input
+                label="Bed Number"
+                value={formData.bedNumber}
+                onChange={(e) => setFormData({ ...formData, bedNumber: e.target.value })}
+                error={formErrors.bedNumber}
+                placeholder="e.g. 4B"
+                required
+              />
               <Select
-                label="Code Status"
-                value={formData.codeStatus}
-                onChange={(e) => setFormData({ ...formData, codeStatus: e.target.value as PatientFormData['codeStatus'] })}
+                label="Acuity Level"
+                value={String(formData.acuity)}
+                onChange={(e) => setFormData({ ...formData, acuity: Number(e.target.value) as PatientFormData['acuity'] })}
               >
-                <option value="full">Full Code</option>
-                <option value="DNR">DNR</option>
-                <option value="DNI">DNI</option>
-                <option value="comfort">Comfort Care Only</option>
+                <option value="1">1 — Critical</option>
+                <option value="2">2 — Acute</option>
+                <option value="3">3 — Moderate</option>
+                <option value="4">4 — Stable</option>
+                <option value="5">5 — Discharge Ready</option>
               </Select>
-              {formData.codeStatus !== 'full' && (
-                <div className="mt-1 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
-                  <Heart size={11} />
-                  <span className="font-medium">Non-standard code status — verify with patient/NOK</span>
-                </div>
-              )}
             </div>
-            <Input
-              label="Attending Physician"
-              value={formData.attendingPhysician}
-              onChange={(e) => setFormData({ ...formData, attendingPhysician: e.target.value })}
-              placeholder="Dr. Smith"
-            />
           </div>
 
-          <Input
-            label="Team"
-            value={formData.team}
-            onChange={(e) => setFormData({ ...formData, team: e.target.value })}
-            placeholder="e.g. Medical Team A"
-          />
+          <div className="border-t border-ward-border" />
 
+          {/* ── Section: Clinical ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Clinical Information</p>
+            <div className="space-y-4">
+              <Input
+                label="Primary Diagnosis"
+                value={formData.primaryDiagnosis}
+                onChange={(e) => setFormData({ ...formData, primaryDiagnosis: e.target.value })}
+                error={formErrors.primaryDiagnosis}
+                placeholder="e.g. Community-acquired pneumonia"
+                required
+              />
+
+              {/* Additional diagnoses */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Additional Diagnoses</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={diagnosisInput}
+                    onChange={(e) => setDiagnosisInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDiagnosis(); } }}
+                    placeholder="Type and press Enter"
+                    className="flex-1 h-10 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                  />
+                  <Button type="button" variant="secondary" size="sm" onClick={addDiagnosis}>Add</Button>
+                </div>
+                {formData.diagnoses.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {formData.diagnoses.map((d, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs rounded-full">
+                        {d}
+                        <button type="button" onClick={() => removeDiagnosis(i)} className="hover:text-red-600 dark:hover:text-red-400">
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Attending Physician"
+                  value={formData.attendingPhysician}
+                  onChange={(e) => setFormData({ ...formData, attendingPhysician: e.target.value })}
+                  placeholder="Dr. Smith"
+                />
+                <Input
+                  label="Team"
+                  value={formData.team}
+                  onChange={(e) => setFormData({ ...formData, team: e.target.value })}
+                  placeholder="e.g. Medical Team A"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Measurements ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Measurements</p>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Weight (kg)"
+                type="number"
+                value={formData.weight ?? ''}
+                onChange={(e) => setFormData({ ...formData, weight: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="e.g. 72"
+                min={0}
+                max={500}
+                step={0.1}
+              />
+              <Input
+                label="Height (cm)"
+                type="number"
+                value={formData.height ?? ''}
+                onChange={(e) => setFormData({ ...formData, height: e.target.value ? Number(e.target.value) : undefined })}
+                placeholder="e.g. 175"
+                min={0}
+                max={300}
+                step={0.1}
+              />
+            </div>
+            {formData.weight && formData.height && formData.height > 0 && (
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+                BMI: <strong className="text-slate-700 dark:text-slate-200">{(formData.weight / ((formData.height / 100) ** 2)).toFixed(1)}</strong> kg/m²
+              </p>
+            )}
+          </div>
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Safety ── */}
+          <div>
+            <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-3">Patient Safety</p>
+            <div className="space-y-4">
+              {/* Allergies — highlighted red for patient safety */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <ShieldAlert size={14} className="text-red-500" />
+                  <label className="block text-sm font-medium text-red-700 dark:text-red-400">Allergies</label>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={allergyInput}
+                    onChange={(e) => setAllergyInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addAllergy(); } }}
+                    placeholder="Drug / substance allergy"
+                    className="flex-1 h-10 px-3 rounded-lg text-sm bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400"
+                  />
+                  <Button type="button" variant="secondary" size="sm" onClick={addAllergy}>Add</Button>
+                </div>
+                {formData.allergies.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {formData.allergies.map((a, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 text-xs rounded-full font-medium">
+                        <ShieldAlert size={10} />
+                        {a}
+                        <button type="button" onClick={() => removeAllergy(i)} className="hover:text-red-900 dark:hover:text-red-300 ml-0.5">
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {formData.allergies.length === 0 && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">NKDA — No known drug allergies</p>
+                )}
+              </div>
+
+              {/* Code status */}
+              <div>
+                <Select
+                  label="Code Status"
+                  value={formData.codeStatus}
+                  onChange={(e) => setFormData({ ...formData, codeStatus: e.target.value as PatientFormData['codeStatus'] })}
+                >
+                  <option value="full">Full Code</option>
+                  <option value="DNR">DNR — Do Not Resuscitate</option>
+                  <option value="DNI">DNI — Do Not Intubate</option>
+                  <option value="comfort">Comfort Care Only</option>
+                </Select>
+                {formData.codeStatus !== 'full' && (
+                  <div className="mt-1.5 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                    <Heart size={12} className="text-red-500 shrink-0" />
+                    <span className="text-xs font-medium text-red-700 dark:text-red-400">Non-standard code status — verify with patient/NOK</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Notes ── */}
           <Textarea
             label="Clinical Notes"
             value={formData.notes || ''}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-            placeholder="Admission notes, important background..."
+            placeholder="Admission notes, important background, social history..."
           />
 
-          <div className="flex justify-end gap-3 pt-2 border-t border-ward-border">
+          <div className="flex justify-end gap-3 pt-3 border-t border-ward-border">
             <Button
               type="button"
               variant="secondary"
