@@ -18,7 +18,6 @@ import {
   Pill,
   ShieldAlert,
   FileText,
-  BedDouble,
   TrendingUp,
   TrendingDown,
   AlertTriangle,
@@ -97,6 +96,7 @@ export default function PatientDetailPage() {
   const [editDiagnosisInput, setEditDiagnosisInput] = useState('');
   const [editAllergyInput, setEditAllergyInput] = useState('');
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [headerExpanded, setHeaderExpanded] = useState(false);
 
   // Patient history state
   const [patientHistory, setPatientHistory] = useState<PatientHistory | null>(null);
@@ -631,23 +631,22 @@ export default function PatientDetailPage() {
     patient.acuity === 4 ? 'border-l-emerald-400' : 'border-l-blue-400';
 
   return (
-    <div className="space-y-4">
-      {/* ---- Back navigation ---- */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate('/patients')}
-        iconLeft={<ArrowLeft size={15} />}
-      >
-        All Patients
-      </Button>
+    <div className="space-y-2">
+      {/* ── Compact header strip ── */}
+      <div className={clsx('bg-ward-card rounded-xl border border-ward-border border-l-4 px-3 py-2.5 sm:px-4 sm:py-3', acuityBorderColor)}>
+        {/* Row 1: Back + Name + Actions */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/patients')}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 shrink-0 -ml-1 p-1"
+          >
+            <ArrowLeft size={16} />
+          </button>
 
-      {/* ---- Patient header card ---- */}
-      <div className={clsx('bg-ward-card rounded-xl border border-ward-border border-l-4 p-3 sm:p-4', acuityBorderColor)}>
-        <div className="flex items-start gap-3">
-          {/* Acuity circle */}
+          {/* Acuity dot */}
           <div className={clsx(
-            'flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl text-base sm:text-lg font-bold',
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold',
             patient.acuity === 1 ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400' :
             patient.acuity === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400' :
             patient.acuity === 3 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400' :
@@ -657,106 +656,139 @@ export default function PatientDetailPage() {
             {patient.acuity}
           </div>
 
-          {/* Info block */}
+          {/* Name + quick info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h1 className="text-base sm:text-xl font-bold text-slate-900 dark:text-slate-100 truncate">
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate">
                 {patient.lastName}, {patient.firstName}
               </h1>
               {patient.dateOfBirth && (
-                <span className="text-xs sm:text-sm text-slate-400">{calculateAge(patient.dateOfBirth)}</span>
-              )}
-              {patient.gender && (
-                <span className="text-xs sm:text-sm text-slate-400">
-                  {patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}
-                </span>
+                <span className="text-xs text-slate-400 shrink-0">{calculateAge(patient.dateOfBirth)}{patient.gender ? ` ${patient.gender === 'male' ? 'M' : patient.gender === 'female' ? 'F' : 'O'}` : ''}</span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              <Badge variant={getAcuityVariant(patient.acuity)} dot>
-                {ACUITY_LEVELS[patient.acuity].label}
-              </Badge>
-              {patient.state && (
-                <Badge variant={getStateVariant(patient.state)}>
-                  {STATE_METADATA[patient.state]?.label || patient.state}
-                </Badge>
-              )}
-              {overdueTasks.length > 0 && (
-                <Badge variant="critical">{overdueTasks.length} overdue</Badge>
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+              <span>MRN <strong>{patient.mrn}</strong></span>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <span>Bed <strong>{patient.bedNumber}</strong></span>
+              {patient.primaryDiagnosis && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-600">·</span>
+                  <span className="truncate">{patient.primaryDiagnosis}</span>
+                </>
               )}
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 mt-1.5 text-[10px] sm:text-xs text-slate-500 flex-wrap">
-              <span>MRN: <strong>{patient.mrn}</strong></span>
-              <span className="flex items-center gap-1">
-                <BedDouble size={11} /> Bed <strong>{patient.bedNumber}</strong>
-              </span>
-              {patient.wardId && patient.wardId !== 'default' && (
-                <span>Ward: <strong>{patient.wardId}</strong></span>
-              )}
-              {patient.attendingPhysician && <span>Dr. <strong>{patient.attendingPhysician}</strong></span>}
-              {patient.team && <span>Team: <strong>{patient.team}</strong></span>}
-            </div>
+          </div>
+
+          {/* Inline action buttons */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowEditModal(true)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-950/30 transition-colors"
+              title="Edit patient"
+            >
+              <Edit3 size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-950/30 transition-colors"
+              title="Delete patient"
+            >
+              <Trash2 size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setHeaderExpanded(!headerExpanded)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+              title={headerExpanded ? 'Hide details' : 'Show details'}
+            >
+              <ChevronDown size={15} className={clsx('transition-transform', headerExpanded && 'rotate-180')} />
+            </button>
           </div>
         </div>
 
-        {/* Action buttons — full width row on mobile */}
-        <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <Button variant="secondary" size="sm" className="flex-1 sm:flex-initial" onClick={() => setShowEditModal(true)} iconLeft={<Edit3 size={13} />}>Edit</Button>
-          <Button variant="danger" size="sm" className="flex-1 sm:flex-initial" onClick={() => setShowDeleteConfirm(true)} iconLeft={<Trash2 size={13} />}>Delete</Button>
+        {/* Row 2: Badges — always visible, compact */}
+        <div className="flex items-center gap-1.5 mt-1.5 ml-[52px] sm:ml-[56px] flex-wrap">
+          <Badge variant={getAcuityVariant(patient.acuity)} dot>
+            {ACUITY_LEVELS[patient.acuity].label}
+          </Badge>
+          {patient.state && (
+            <Badge variant={getStateVariant(patient.state)}>
+              {STATE_METADATA[patient.state]?.label || patient.state}
+            </Badge>
+          )}
+          {patient.codeStatus && patient.codeStatus !== 'full' && (
+            <Badge variant={patient.codeStatus === 'comfort' ? 'warning' : 'critical'}>
+              {patient.codeStatus === 'DNR' ? 'DNR' : patient.codeStatus === 'DNI' ? 'DNI' : 'Comfort'}
+            </Badge>
+          )}
+          {patient.allergies && patient.allergies.length > 0 && (
+            <Badge variant="critical">
+              {patient.allergies.length} {patient.allergies.length === 1 ? 'Allergy' : 'Allergies'}
+            </Badge>
+          )}
+          {overdueTasks.length > 0 && (
+            <Badge variant="critical">{overdueTasks.length} overdue</Badge>
+          )}
         </div>
-      </div>
 
-      {/* ---- Safety banners ---- */}
+        {/* Expandable detail section */}
+        {headerExpanded && (
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 ml-[52px] sm:ml-[56px]">
+            {/* Allergy alert */}
+            {patient.allergies && patient.allergies.length > 0 && (
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                <ShieldAlert size={14} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-red-800 dark:text-red-300 uppercase tracking-wide">Allergies</p>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {patient.allergies.map((a, i) => (
+                      <span key={i} className="px-2 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700 text-[10px] font-semibold rounded">
+                        {a}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
-      {/* Allergy alert */}
-      {patient.allergies && patient.allergies.length > 0 && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-800">
-          <ShieldAlert size={18} className="text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-red-800 dark:text-red-300 uppercase tracking-wide">Allergy Alert</p>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {patient.allergies.map((a, i) => (
-                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-700 text-xs font-semibold rounded">
-                  {a}
-                </span>
-              ))}
+            {/* Code status banner */}
+            {patient.codeStatus && patient.codeStatus !== 'full' && (
+              <div className={clsx(
+                'flex items-center gap-2 px-3 py-2 rounded-lg border',
+                patient.codeStatus === 'comfort'
+                  ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800'
+                  : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
+              )}>
+                <Heart size={14} className={patient.codeStatus === 'comfort' ? 'text-purple-600 dark:text-purple-400 shrink-0' : 'text-red-600 dark:text-red-400 shrink-0'} />
+                <p className={clsx('text-xs font-bold uppercase', patient.codeStatus === 'comfort' ? 'text-purple-800 dark:text-purple-300' : 'text-red-800 dark:text-red-300')}>
+                  {patient.codeStatus === 'DNR' ? 'Do Not Resuscitate (DNR)' :
+                   patient.codeStatus === 'DNI' ? 'Do Not Intubate (DNI)' :
+                   'Comfort Care Only'}
+                </p>
+              </div>
+            )}
+
+            {/* Quick info grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 text-xs">
+              <div><span className="text-slate-400 dark:text-slate-500">Ward:</span> <span className="font-medium text-slate-700 dark:text-slate-300">{patient.wardId && patient.wardId !== 'default' ? patient.wardId : 'Unassigned'}</span></div>
+              <div><span className="text-slate-400 dark:text-slate-500">Attending:</span> <span className="font-medium text-slate-700 dark:text-slate-300">{patient.attendingPhysician || '—'}</span></div>
+              <div><span className="text-slate-400 dark:text-slate-500">Team:</span> <span className="font-medium text-slate-700 dark:text-slate-300">{patient.team || '—'}</span></div>
+              <div><span className="text-slate-400 dark:text-slate-500">DOB:</span> <span className="font-medium text-slate-700 dark:text-slate-300">{patient.dateOfBirth || '—'}</span></div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Code status banner (non-full code) */}
-      {patient.codeStatus && patient.codeStatus !== 'full' && (
-        <div className={clsx(
-          'flex items-center gap-3 px-4 py-3 rounded-xl border-2',
-          patient.codeStatus === 'comfort'
-            ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-800'
-            : 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-800',
-        )}>
-          <Heart size={18} className={patient.codeStatus === 'comfort' ? 'text-purple-600 dark:text-purple-400 shrink-0' : 'text-red-600 dark:text-red-400 shrink-0'} />
-          <div>
-            <p className={clsx('text-sm font-bold uppercase tracking-wide', patient.codeStatus === 'comfort' ? 'text-purple-800 dark:text-purple-300' : 'text-red-800 dark:text-red-300')}>
-              Code Status:{' '}
-              {patient.codeStatus === 'DNR' ? 'Do Not Resuscitate (DNR)' :
-               patient.codeStatus === 'DNI' ? 'Do Not Intubate (DNI)' :
-               'Comfort Care Only'}
-            </p>
-            <p className={clsx('text-xs', patient.codeStatus === 'comfort' ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400')}>
-              Confirmed with patient / next of kin — document in notes
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ---- Primary diagnosis summary ---- */}
-      <div className="px-4 py-3 bg-ward-card rounded-xl border border-ward-border">
-        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Primary Diagnosis</p>
-        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.primaryDiagnosis}</p>
-        {patient.diagnoses.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {patient.diagnoses.map((d, i) => (
-              <Badge key={i} variant="default" size="sm">{d}</Badge>
-            ))}
+            {/* Diagnoses */}
+            <div>
+              <p className="text-xs font-medium text-slate-900 dark:text-slate-100">{patient.primaryDiagnosis}</p>
+              {patient.diagnoses.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {patient.diagnoses.map((d, i) => (
+                    <Badge key={i} variant="default" size="sm">{d}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
