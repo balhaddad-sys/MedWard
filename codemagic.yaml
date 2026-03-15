@@ -1,7 +1,7 @@
 workflows:
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Android — signed APK/AAB for Google Play
+  # Android — signed AAB for Google Play
   # ─────────────────────────────────────────────────────────────────────────────
   android-release:
     name: Android Release
@@ -9,10 +9,11 @@ workflows:
     instance_type: mac_mini_m2
 
     environment:
-      android_signing:
-        - medward_keystore          # Configure in Codemagic UI: Code signing > Android
+      java: 17
+      node: 20
       groups:
         - firebase                  # VITE_FIREBASE_* env vars
+        - android_signing           # CM_KEYSTORE_BASE64, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
       vars:
         PACKAGE_NAME: com.medward.pro
         VITE_RELEASE_STAGE: production
@@ -44,6 +45,25 @@ workflows:
           sed -i "s/versionCode .*/versionCode $BUILD_NUMBER/" android/app/build.gradle
           sed -i "s/versionName .*/versionName \"1.0.$BUILD_NUMBER\"/" android/app/build.gradle
 
+      - name: Generate keystore if not provided
+        script: |
+          if [ -z "$CM_KEYSTORE_BASE64" ]; then
+            echo "⚠️  CM_KEYSTORE_BASE64 not set — generating a one-time keystore for this build."
+            keytool -genkeypair \
+              -alias medward \
+              -keyalg RSA -keysize 2048 \
+              -validity 10000 \
+              -keystore /tmp/medward.keystore \
+              -storepass "${CM_KEYSTORE_PASSWORD:-MedWard2024!}" \
+              -keypass  "${CM_KEYSTORE_PASSWORD:-MedWard2024!}" \
+              -dname "CN=MedWard, O=MedWard, L=Kuwait, C=KW"
+            export CM_KEYSTORE_BASE64=$(base64 /tmp/medward.keystore)
+            export CM_KEYSTORE_PASSWORD="${CM_KEYSTORE_PASSWORD:-MedWard2024!}"
+            export CM_KEY_ALIAS="medward"
+            echo "Save this as CM_KEYSTORE_BASE64 in Codemagic for future builds:"
+            base64 /tmp/medward.keystore
+          fi
+
       - name: Build release AAB
         script: |
           cd android
@@ -66,7 +86,7 @@ workflows:
           failure: true
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # iOS — signed IPA for App Store / TestFlight
+  # iOS — signed IPA for TestFlight
   # ─────────────────────────────────────────────────────────────────────────────
   ios-release:
     name: iOS Release
@@ -74,15 +94,15 @@ workflows:
     instance_type: mac_mini_m2
 
     environment:
-      ios_signing:
-        distribution_type: app_store   # Configure in Codemagic UI: Code signing > iOS
-        bundle_identifier: com.medward.pro
+      xcode: latest
+      node: 20
       groups:
-        - firebase
+        - firebase                  # VITE_FIREBASE_* env vars
+        - apple_credentials         # APP_STORE_CONNECT_PRIVATE_KEY
       vars:
-        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
-        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        BUNDLE_ID: com.medward.pro
+        APP_STORE_CONNECT_KEY_ID: 346WF7MN3Z
+        APP_STORE_CONNECT_ISSUER_ID: 5988b726-9289-48c6-ac37-4c603d29fa6a
         VITE_RELEASE_STAGE: production
 
     triggering:
@@ -117,22 +137,52 @@ workflows:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.$BUILD_NUMBER" ios/App/App/Info.plist
 
+      - name: Fetch signing files
+        script: |
+          # Generate a certificate signing key
+          openssl genrsa -out /tmp/cert_key.pem 2048
+
+          # Fetch (or create) the distribution certificate + provisioning profile
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --platform IOS \
+            --type IOS_APP_STORE \
+            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --private-key @env:APP_STORE_CONNECT_PRIVATE_KEY \
+            --certificate-key @file:/tmp/cert_key.pem \
+            --create
+
+          keychain initialize
+          keychain add-certificates
+          xcode-project use-profiles
+
       - name: Build IPA
         script: |
-          xcode-project build-ipa \
-            --workspace ios/App/App.xcworkspace \
-            --scheme App
+          xcodebuild archive \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/App.xcarchive \
+            DEVELOPMENT_TEAM="YPGU5K4U57" \
+            clean archive
+
+          xcodebuild -exportArchive \
+            -archivePath build/App.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist /Users/builder/export_options.plist
 
     artifacts:
-      - build/ios/ipa/*.ipa
+      - build/export/*.ipa
       - /tmp/xcodebuild_logs/*.log
 
     publishing:
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        key_id: $APP_STORE_CONNECT_KEY_ID
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
+        submit_to_app_store: false
         beta_groups:
           - Internal Testers
       email:
