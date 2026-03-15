@@ -101,7 +101,7 @@ workflows:
         - apple_credentials         # APP_STORE_CONNECT_PRIVATE_KEY
       vars:
         BUNDLE_ID: com.medward.pro
-        APP_STORE_CONNECT_KEY_ID: 346WF7MN3Z
+        APP_STORE_CONNECT_KEY_ID: R46235PLDH
         APP_STORE_CONNECT_ISSUER_ID: 5988b726-9289-48c6-ac37-4c603d29fa6a
         VITE_RELEASE_STAGE: production
 
