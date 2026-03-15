@@ -125,11 +125,6 @@ workflows:
       - name: Sync Capacitor iOS
         script: npx cap sync ios
 
-      - name: Install CocoaPods
-        script: |
-          cd ios/App
-          pod install
-
       - name: Set iOS build number
         script: |
           BUILD_NUMBER=$(($(git rev-list --count HEAD)))
@@ -159,7 +154,7 @@ workflows:
       - name: Build IPA
         script: |
           xcodebuild archive \
-            -workspace ios/App/App.xcworkspace \
+            -project ios/App/App.xcodeproj \
             -scheme App \
             -sdk iphoneos \
             -configuration Release \
