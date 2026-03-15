@@ -134,9 +134,9 @@ workflows:
 
       - name: Fetch signing files
         script: |
-          openssl genrsa -out /tmp/cert_key.pem 2048
+          # Restore persistent cert key (avoids hitting Apple's 2-cert limit each build)
+          echo "$CM_CERT_KEY" | base64 --decode > /tmp/cert_key.pem
 
-          # Write key to file for xcodebuild (printf preserves newlines correctly)
           printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
 
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
