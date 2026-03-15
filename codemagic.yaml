@@ -134,16 +134,15 @@ workflows:
 
       - name: Fetch signing files
         script: |
-          # Generate a certificate signing key
           openssl genrsa -out /tmp/cert_key.pem 2048
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
 
-          # Fetch (or create) the distribution certificate + provisioning profile
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --platform IOS \
             --type IOS_APP_STORE \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --private-key @env:APP_STORE_CONNECT_PRIVATE_KEY \
+            --private-key @file:/tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 \
             --certificate-key @file:/tmp/cert_key.pem \
             --create
 
@@ -153,19 +152,42 @@ workflows:
 
       - name: Build IPA
         script: |
+          mkdir -p build/export
+
           xcodebuild archive \
             -project ios/App/App.xcodeproj \
             -scheme App \
             -sdk iphoneos \
             -configuration Release \
-            -archivePath build/App.xcarchive \
+            -archivePath /tmp/App.xcarchive \
             DEVELOPMENT_TEAM="YPGU5K4U57" \
+            CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            -authenticationKeyPath "/tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8" \
             clean archive
 
+          cat > /tmp/ExportOptions.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>YPGU5K4U57</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadBitcode</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          PLIST
+
           xcodebuild -exportArchive \
-            -archivePath build/App.xcarchive \
+            -archivePath /tmp/App.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist /Users/builder/export_options.plist
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            -authenticationKeyPath "/tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
 
     artifacts:
       - build/export/*.ipa
