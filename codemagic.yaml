@@ -1,0 +1,143 @@
+workflows:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Android — signed APK/AAB for Google Play
+  # ─────────────────────────────────────────────────────────────────────────────
+  android-release:
+    name: Android Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      android_signing:
+        - medward_keystore          # Configure in Codemagic UI: Code signing > Android
+      groups:
+        - firebase                  # VITE_FIREBASE_* env vars
+      vars:
+        PACKAGE_NAME: com.medward.pro
+        VITE_RELEASE_STAGE: production
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Install Node deps
+        script: npm ci
+
+      - name: Build web assets
+        script: npm run build
+
+      - name: Install Capacitor CLI
+        script: npm install -g @capacitor/cli
+
+      - name: Sync Capacitor Android
+        script: npx cap sync android
+
+      - name: Set Android version
+        script: |
+          BUILD_NUMBER=$(($(git rev-list --count HEAD)))
+          echo "Setting versionCode=$BUILD_NUMBER"
+          sed -i "s/versionCode .*/versionCode $BUILD_NUMBER/" android/app/build.gradle
+          sed -i "s/versionName .*/versionName \"1.0.$BUILD_NUMBER\"/" android/app/build.gradle
+
+      - name: Build release AAB
+        script: |
+          cd android
+          ./gradlew bundleRelease
+
+    artifacts:
+      - android/app/build/outputs/bundle/release/app-release.aab
+      - android/app/build/outputs/apk/release/app-release.apk
+
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
+      email:
+        recipients:
+          - balha@medward.pro
+        notify:
+          success: true
+          failure: true
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # iOS — signed IPA for App Store / TestFlight
+  # ─────────────────────────────────────────────────────────────────────────────
+  ios-release:
+    name: iOS Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      ios_signing:
+        distribution_type: app_store   # Configure in Codemagic UI: Code signing > iOS
+        bundle_identifier: com.medward.pro
+      groups:
+        - firebase
+      vars:
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        VITE_RELEASE_STAGE: production
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Install Node deps
+        script: npm ci
+
+      - name: Build web assets
+        script: npm run build
+
+      - name: Install Capacitor CLI
+        script: npm install -g @capacitor/cli
+
+      - name: Sync Capacitor iOS
+        script: npx cap sync ios
+
+      - name: Install CocoaPods
+        script: |
+          cd ios/App
+          pod install
+
+      - name: Set iOS build number
+        script: |
+          BUILD_NUMBER=$(($(git rev-list --count HEAD)))
+          echo "Setting build number: $BUILD_NUMBER"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString 1.0.$BUILD_NUMBER" ios/App/App/Info.plist
+
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace ios/App/App.xcworkspace \
+            --scheme App
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+      email:
+        recipients:
+          - balha@medward.pro
+        notify:
+          success: true
+          failure: true
