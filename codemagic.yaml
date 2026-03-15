@@ -163,33 +163,12 @@ workflows:
             -configuration Release \
             -archivePath /tmp/App.xcarchive \
             DEVELOPMENT_TEAM="YPGU5K4U57" \
-            CODE_SIGN_STYLE=Automatic \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-            -authenticationKeyPath "/tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8" \
             clean archive
-
-          cat > /tmp/ExportOptions.plist << 'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-            <key>method</key><string>app-store-connect</string>
-            <key>teamID</key><string>YPGU5K4U57</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>uploadBitcode</key><false/>
-            <key>uploadSymbols</key><true/>
-          </dict></plist>
-          PLIST
 
           xcodebuild -exportArchive \
             -archivePath /tmp/App.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist /tmp/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
-            -authenticationKeyPath "/tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+            -exportOptionsPlist /Users/builder/export_options.plist
 
     artifacts:
       - build/export/*.ipa
