@@ -135,14 +135,16 @@ workflows:
       - name: Fetch signing files
         script: |
           openssl genrsa -out /tmp/cert_key.pem 2048
-          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+
+          # Write key to file for xcodebuild (printf preserves newlines correctly)
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
 
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --platform IOS \
             --type IOS_APP_STORE \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --issuer-id "$APP_STORE_CONNECT_ISSUER_ID" \
-            --private-key @file:/tmp/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8 \
+            --private-key @env:APP_STORE_CONNECT_PRIVATE_KEY \
             --certificate-key @file:/tmp/cert_key.pem \
             --create
 
