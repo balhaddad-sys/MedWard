@@ -59,8 +59,10 @@ export const showNotification = async (options: BrowserNotificationOptions): Pro
   }
 
   try {
-    const notification = new Notification(options.title, {
-      body: options.body,
+    // Redact clinical content from lock-screen / shared-workstation notifications.
+    // Full detail is available only inside the authenticated app.
+    const notification = new Notification('MedWard — New alert', {
+      body: 'Open MedWard to view details.',
       icon: options.icon || '/icons/icon-192x192.png',
       tag: options.tag,
       requireInteraction: options.requireInteraction ?? true,

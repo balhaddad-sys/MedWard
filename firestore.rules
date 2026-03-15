@@ -24,9 +24,9 @@ service cloud.firestore {
       return field is string && field.size() <= maxLen;
     }
 
-    // Users collection
+    // Users collection — only own document readable by the owning user
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if isOwner(userId);
       allow create: if isOwner(userId)
                     && request.resource.data.keys().hasAll(['email', 'displayName', 'role'])
                     && isValidString(request.resource.data.email, 254)
@@ -165,9 +165,13 @@ service cloud.firestore {
       allow write: if hasRole('admin');
     }
 
-    // Clerking Notes collection
+    // Clerking Notes collection — scoped to the note's author or clinicians on the patient
     match /clerking_notes/{noteId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated()
+                  && (resource.data.authorId == request.auth.uid
+                      || isAdminOrClinician()
+                      && (get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid
+                          || request.auth.uid in get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.get('assignedClinicians', [])));
       allow create: if isAuthenticated()
                     && request.resource.data.keys().hasAll(['patientId', 'authorId', 'status', 'workingDiagnosis'])
                     && request.resource.data.authorId == request.auth.uid
@@ -179,10 +183,12 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
     }
 
-    // On-Call List collection (PHASE 0: Reference-only architecture)
-    // SECURITY FIX: Restrict update/delete to entry creator or authorized patient clinicians
+    // On-Call List collection — read restricted to clinicians with access to the referenced patient
     match /on_call_list/{entryId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated()
+                  && (resource.data.addedBy == request.auth.uid
+                      || get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid
+                      || request.auth.uid in get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.get('assignedClinicians', []));
       allow create: if isAuthenticated()
                     && request.resource.data.keys().hasAll(['patientId', 'priority', 'isActive', 'addedBy'])
                     && isValidString(request.resource.data.patientId, 200)
@@ -200,13 +206,12 @@ service cloud.firestore {
                         || get(/databases/$(database)/documents/patients/$(resource.data.patientId)).data.createdBy == request.auth.uid);
     }
 
-    // Notifications collection (PHASE 0.2)
+    // Notifications collection — server-only creation (Cloud Functions via admin SDK)
     match /notifications/{notificationId} {
-      // Users can only read their own notifications
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow create: if isAuthenticated();
-      // Users can only update their own notifications (e.g., mark as read)
-      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if false; // Server-side only via admin SDK
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt']);
       allow delete: if false;
     }
 

@@ -47,7 +47,9 @@ steps:
       - '120'
       - '--set-env-vars'
       - 'ANTHROPIC_API_KEY=$$ANTHROPIC_API_KEY'
-      - '--allow-unauthenticated'
+      - '--no-allow-unauthenticated'
+      - '--ingress'
+      - 'internal-and-cloud-load-balancing'
 
 images:
   - 'gcr.io/$PROJECT_ID/labx:$COMMIT_SHA'

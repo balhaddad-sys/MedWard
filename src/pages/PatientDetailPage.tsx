@@ -29,6 +29,8 @@ import {
   Camera,
   ClipboardCheck,
   Users,
+  ImageIcon,
+  ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
@@ -57,6 +59,7 @@ import { Tabs } from '@/components/ui/Tabs';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScanNotesButton, type ClinicalExtractionResponse } from '@/components/clerking/ScanNotesButton';
+import { ScanLabsButton } from '@/components/labs/ScanLabsButton';
 import { getPatientHistory, savePatientHistory } from '@/services/firebase/history';
 import type { PatientHistory } from '@/types/history';
 import { EMPTY_HISTORY } from '@/types/history';
@@ -86,6 +89,10 @@ export default function PatientDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [labs, setLabs] = useState<LabPanel[]>([]);
   const [labsLoading, setLabsLoading] = useState(false);
+
+  function handleLabsSaved(newPanels: LabPanel[]) {
+    setLabs((prev) => [...newPanels, ...prev]);
+  }
   const [clerkingNotes, setClerkingNotes] = useState<ClerkingNote[]>([]);
   const [clerkingLoading, setClerkingLoading] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -110,6 +117,9 @@ export default function PatientDetailPage() {
   const [medNameInput, setMedNameInput] = useState('');
   const [medDoseInput, setMedDoseInput] = useState('');
   const [medFreqInput, setMedFreqInput] = useState('');
+  // Inline edit state for free-text history sections
+  const [editingField, setEditingField] = useState<'hpi' | 'assessment' | 'plan' | null>(null);
+  const [editingValue, setEditingValue] = useState('');
 
   useEffect(() => {
     setClerkingNotes([]);
@@ -180,20 +190,6 @@ export default function PatientDetailPage() {
     return trends;
   }, [labs, labTrendDays]);
 
-  // Group panels by cleaned name for flowsheet display
-  const groupedPanels = useMemo(() => {
-    const groups = new Map<string, LabPanel[]>();
-    for (const panel of labs) {
-      const name = cleanPanelName(panel.panelName);
-      const existing = groups.get(name) || [];
-      existing.push(panel);
-      groups.set(name, existing);
-    }
-    for (const [, panels] of groups) {
-      panels.sort((a, b) => getTimestampMs(b.collectedAt) - getTimestampMs(a.collectedAt));
-    }
-    return groups;
-  }, [labs]);
 
   // Populate edit form when patient changes
   useEffect(() => {
@@ -479,9 +475,9 @@ export default function PatientDetailPage() {
     const updates: Partial<PatientHistory> = {};
     const currentHist = patientHistory || { ...EMPTY_HISTORY };
 
-    // HPI
+    // HPI — replace with latest scan (not append; avoids duplicate blobs)
     if (acceptedFields.has('historyOfPresentingIllness') && data.historyOfPresentingIllness) {
-      updates.hpiText = [currentHist.hpiText, data.historyOfPresentingIllness].filter(Boolean).join('\n\n');
+      updates.hpiText = data.historyOfPresentingIllness;
     }
     // Presenting complaint prepended to HPI
     if (acceptedFields.has('presentingComplaint') && data.presentingComplaint) {
@@ -489,20 +485,31 @@ export default function PatientDetailPage() {
       updates.hpiText = current ? `${data.presentingComplaint}\n\n${current}` : data.presentingComplaint;
     }
 
-    // PMH
-    if (acceptedFields.has('pastMedicalHistory') && data.pastMedicalHistory.length > 0) {
+    // KCO (Known Conditions Ongoing) → PMH with status 'active'
+    if (acceptedFields.has('knownConditions') && (data.knownConditions || []).length > 0) {
       const existing = (currentHist.pmh || []).map((p) => p.condition.toLowerCase());
+      const newKco = data.knownConditions
+        .filter((c) => !existing.includes(c.toLowerCase()))
+        .map((c) => ({ condition: c, status: 'active' as const }));
+      updates.pmh = [...(currentHist.pmh || []), ...newKco];
+    }
+
+    // PMH (resolved/historical)
+    if (acceptedFields.has('pastMedicalHistory') && data.pastMedicalHistory.length > 0) {
+      const base = updates.pmh ?? currentHist.pmh ?? [];
+      const existing = base.map((p) => p.condition.toLowerCase());
       const newPmh = data.pastMedicalHistory
         .filter((p) => !existing.includes(p.toLowerCase()))
-        .map((p) => ({ condition: p, status: 'active' as const }));
-      updates.pmh = [...(currentHist.pmh || []), ...newPmh];
+        .map((p) => ({ condition: p, status: 'resolved' as const }));
+      updates.pmh = [...base, ...newPmh];
     }
 
     // PSH
     if (acceptedFields.has('pastSurgicalHistory') && data.pastSurgicalHistory.length > 0) {
-      const existing = (currentHist.psh || []).map((p) => p.procedure.toLowerCase());
+      const normPsh = (s: string) => s.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').replace(/\s+/g, ' ').trim();
+      const existing = (currentHist.psh || []).map((p) => normPsh(p.procedure));
       const newPsh = data.pastSurgicalHistory
-        .filter((p) => !existing.includes(p.toLowerCase()))
+        .filter((p) => !existing.includes(normPsh(p)))
         .map((p) => ({ procedure: p }));
       updates.psh = [...(currentHist.psh || []), ...newPsh];
     }
@@ -543,9 +550,9 @@ export default function PatientDetailPage() {
       updates.familyHistory = [...existing, { relation: '', condition: data.familyHistory }];
     }
 
-    // Systems Review
+    // Systems Review — replace with latest scan
     if (acceptedFields.has('systemsReview') && data.systemsReview) {
-      updates.systemsReview = [currentHist.systemsReview, data.systemsReview].filter(Boolean).join('\n');
+      updates.systemsReview = data.systemsReview;
     }
 
     // Examination (vitals + system exams)
@@ -567,18 +574,18 @@ export default function PatientDetailPage() {
       };
     }
 
-    // Assessment
+    // Assessment — replace with latest scan
     if (acceptedFields.has('assessment') && data.assessment) {
-      updates.assessment = [currentHist.assessment, data.assessment].filter(Boolean).join('\n\n');
+      updates.assessment = data.assessment;
     }
     if (acceptedFields.has('problemList') && data.problemList) {
-      const current = updates.assessment ?? currentHist.assessment ?? '';
-      updates.assessment = current ? `${current}\n\nProblem List:\n${data.problemList}` : `Problem List:\n${data.problemList}`;
+      const base = updates.assessment ?? '';
+      updates.assessment = base ? `${base}\n\nProblem List:\n${data.problemList}` : `Problem List:\n${data.problemList}`;
     }
 
-    // Plan
+    // Plan — replace with latest scan, then append supplementary sub-fields
     if (acceptedFields.has('managementPlan') && data.plan?.managementPlan) {
-      updates.plan = [currentHist.plan, data.plan.managementPlan].filter(Boolean).join('\n\n');
+      updates.plan = data.plan.managementPlan;
     }
     if (acceptedFields.has('disposition') && data.plan?.disposition) {
       const current = updates.plan ?? currentHist.plan ?? '';
@@ -603,6 +610,172 @@ export default function PatientDetailPage() {
     if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
     return `${age}y`;
   }
+
+  // Deduplicate at line level, normalizing away leading numbers/bullets so that
+  // "1. Continue antibiotics" and "3. Continue antibiotics" are treated as the same item.
+  function dedupeText(text: string | null | undefined): string {
+    if (!text) return '';
+    const lines = text.split('\n');
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) {
+        if (result.length > 0 && result[result.length - 1] !== '') result.push('');
+        continue;
+      }
+      // Normalize: lowercase, collapse whitespace, strip leading list markers
+      const key = line
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/^[\d]+[.)]\s*/, '')   // "1. " or "1) "
+        .replace(/^[-•*►]\s*/, '');     // "- " or "• "
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(line);
+    }
+    // Trim trailing blank lines
+    while (result.length > 0 && result[result.length - 1] === '') result.pop();
+    return result.join('\n');
+  }
+
+  /** Render a single block of text with full structural awareness. */
+  function renderTextBlock(block: string) {
+    const rawLines = block.split('\n').filter(Boolean);
+    const isSectionHeader = (s: string) => /^[A-Za-z][^:]{0,40}:\s*$/.test(s); // "Problem List:"
+    const isNumberedItem = (s: string) => /^[\d]+[.)]\s/.test(s);
+    const isBulletItem  = (s: string) => /^[-•*►]\s/.test(s);
+    const stripMarker   = (s: string) => s.replace(/^[\d]+[.)]\s*/, '').replace(/^[-•*►]\s*/, '');
+
+    // Check if ANY numbered/bulleted items exist
+    const hasAnyListItems = rawLines.some((l) => isNumberedItem(l) || isBulletItem(l));
+    // Non-header lines count
+    const nonHeaderLines = rawLines.filter((l) => !isSectionHeader(l));
+
+    // If the block has a "Problem List:"-style header, or has any list items,
+    // or has 3+ short non-prose lines — render everything as a structured list.
+    const shortLines = nonHeaderLines.filter((l) => l.length < 80).length;
+    const isListBlock = hasAnyListItems
+      || (shortLines >= 2 && shortLines >= nonHeaderLines.length * 0.6);
+
+    if (isListBlock) {
+      return (
+        <div className="space-y-2">
+          {rawLines.map((line, i) => {
+            if (isSectionHeader(line)) {
+              return (
+                <p key={i} className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide mt-1 first:mt-0">
+                  {line.replace(/:$/, '')}
+                </p>
+              );
+            }
+            return (
+              <div key={i} className="flex items-start gap-2">
+                <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500 shrink-0" />
+                <span className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  {stripMarker(line)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Pure prose paragraph
+    return (
+      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+        {block}
+      </p>
+    );
+  }
+
+  /**
+   * Show the most recent entry from accumulated scan text.
+   * If older entries exist, show a subtle notice prompting the user to consolidate via Edit.
+   */
+  function renderStructuredText(
+    text: string,
+    onEdit?: () => void,
+  ) {
+    if (!text?.trim()) return null;
+    // Split into blocks and deduplicate
+    const rawBlocks = text.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
+    const seen = new Set<string>();
+    const blocks = rawBlocks.filter((b) => {
+      const key = b.toLowerCase().replace(/\s+/g, ' ');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    // Always show the LATEST entry (last appended = last block)
+    const latest = blocks[blocks.length - 1];
+    const olderCount = blocks.length - 1;
+    return (
+      <div className="space-y-3">
+        {renderTextBlock(dedupeText(latest))}
+        {olderCount > 0 && (
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+            <AlertTriangle size={11} className="shrink-0" />
+            {olderCount} older {olderCount === 1 ? 'entry' : 'entries'} hidden —{' '}
+            <button
+              type="button"
+              onClick={onEdit}
+              className="underline hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            >
+              Edit to consolidate
+            </button>
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  function startEditField(field: 'hpi' | 'assessment' | 'plan') {
+    const value =
+      field === 'hpi' ? patientHistory?.hpiText ?? '' :
+      field === 'assessment' ? patientHistory?.assessment ?? '' :
+      patientHistory?.plan ?? '';
+    setEditingField(field);
+    setEditingValue(value);
+  }
+
+  async function saveEditField() {
+    if (!editingField) return;
+    const update: Partial<PatientHistory> =
+      editingField === 'hpi' ? { hpiText: editingValue } :
+      editingField === 'assessment' ? { assessment: editingValue } :
+      { plan: editingValue };
+    await saveHistoryUpdate(update);
+    setEditingField(null);
+    setEditingValue('');
+  }
+
+  // Separate image-only panels from structured panels
+  const imagePanels = labs.filter(
+    (p) => p.values.length === 0 && typeof p.imageUrl === 'string' && p.imageUrl.trim(),
+  );
+  const resultPanels = labs.filter((p) => p.values.length > 0);
+
+  // Group image panels by date label
+  const imagesByDate = (() => {
+    const groups = new Map<string, LabPanel[]>();
+    for (const panel of imagePanels) {
+      const ts =
+        panel.collectedAt && typeof panel.collectedAt === 'object' && 'toDate' in panel.collectedAt
+          ? (panel.collectedAt as { toDate: () => Date }).toDate()
+          : new Date();
+      const label = ts.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const existing = groups.get(label) ?? [];
+      existing.push(panel);
+      groups.set(label, existing);
+    }
+    // Sort groups newest first
+    return Array.from(groups.entries()).sort(([a], [b]) => {
+      const parse = (s: string) => new Date(s).getTime();
+      return parse(b) - parse(a);
+    });
+  })();
 
   const activeTasks = patientTasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled');
   const overdueTasks = activeTasks.filter((t) => {
@@ -1063,16 +1236,36 @@ export default function PatientDetailPage() {
                 {/* ── Section 1: HPI ── */}
                 {patientHistory?.hpiText && (
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText size={15} className="text-blue-500" />
-                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        History of Presenting Illness
-                      </h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <FileText size={15} className="text-blue-500" />
+                        <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          History of Presenting Illness
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startEditField('hpi')}
+                        className="flex items-center gap-0.5 text-xs font-medium text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        <Edit3 size={11} /> Edit
+                      </button>
                     </div>
                     <Card padding="md">
-                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                        {patientHistory.hpiText}
-                      </p>
+                      {editingField === 'hpi' ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            rows={6}
+                            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={saveEditField} loading={historySaving}>Save</Button>
+                            <Button size="sm" variant="secondary" onClick={() => setEditingField(null)}>Cancel</Button>
+                          </div>
+                        </div>
+                      ) : renderStructuredText(patientHistory.hpiText, () => startEditField('hpi'))}
                     </Card>
                   </div>
                 )}
@@ -1511,16 +1704,36 @@ export default function PatientDetailPage() {
                 {/* ── Section 8: Assessment ── */}
                 {patientHistory?.assessment && (
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <ClipboardList size={15} className="text-amber-500" />
-                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Assessment
-                      </h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <ClipboardList size={15} className="text-amber-500" />
+                        <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          Assessment
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startEditField('assessment')}
+                        className="flex items-center gap-0.5 text-xs font-medium text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        <Edit3 size={11} /> Edit
+                      </button>
                     </div>
                     <Card padding="md">
-                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                        {patientHistory.assessment}
-                      </p>
+                      {editingField === 'assessment' ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            rows={6}
+                            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={saveEditField} loading={historySaving}>Save</Button>
+                            <Button size="sm" variant="secondary" onClick={() => setEditingField(null)}>Cancel</Button>
+                          </div>
+                        </div>
+                      ) : renderStructuredText(patientHistory.assessment, () => startEditField('assessment'))}
                     </Card>
                   </div>
                 )}
@@ -1528,16 +1741,36 @@ export default function PatientDetailPage() {
                 {/* ── Section 9: Plan ── */}
                 {patientHistory?.plan && (
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle2 size={15} className="text-green-500" />
-                      <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Plan
-                      </h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={15} className="text-green-500" />
+                        <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                          Plan
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startEditField('plan')}
+                        className="flex items-center gap-0.5 text-xs font-medium text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        <Edit3 size={11} /> Edit
+                      </button>
                     </div>
                     <Card padding="md">
-                      <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                        {patientHistory.plan}
-                      </p>
+                      {editingField === 'plan' ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingValue}
+                            onChange={(e) => setEditingValue(e.target.value)}
+                            rows={8}
+                            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/30 resize-y"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={saveEditField} loading={historySaving}>Save</Button>
+                            <Button size="sm" variant="secondary" onClick={() => setEditingField(null)}>Cancel</Button>
+                          </div>
+                        </div>
+                      ) : renderStructuredText(patientHistory.plan, () => startEditField('plan'))}
                     </Card>
                   </div>
                 )}
@@ -1602,6 +1835,9 @@ export default function PatientDetailPage() {
         {/* Labs Tab */}
         {activeTab === 'labs' && (
           <div className="space-y-4">
+            {/* Upload zone — always visible */}
+            {id && <ScanLabsButton patientId={id} onSaved={handleLabsSaved} />}
+
             {labsLoading ? (
               <div className="py-16">
                 <Spinner size="lg" label="Loading lab results..." />
@@ -1609,19 +1845,52 @@ export default function PatientDetailPage() {
             ) : labs.length === 0 ? (
               <Card>
                 <EmptyState
-                  icon={<Beaker size={24} />}
-                  title="No lab results"
-                  description="No lab panels have been recorded for this patient."
-                  action={
-                    <Button size="sm" onClick={() => navigate('/labs')}>
-                      Upload Labs
-                    </Button>
-                  }
+                  icon={<ImageIcon size={24} />}
+                  title="No lab images yet"
+                  description="Use the button above to photograph and save lab reports."
                 />
               </Card>
             ) : (
               <>
-                {/* Compact trend pills — only non-stable */}
+                {/* ── Date-grouped image gallery ── */}
+                {imagesByDate.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      Lab Images
+                    </h3>
+                    {imagesByDate.map(([dateLabel, panels]) => (
+                      <div key={dateLabel}>
+                        <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">
+                          {dateLabel}
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {panels.map((panel) => (
+                            <a
+                              key={panel.id}
+                              href={panel.imageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group relative block rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:border-primary-400 dark:hover:border-primary-600 transition-colors shadow-sm"
+                              title={panel.panelName}
+                            >
+                              <img
+                                src={panel.imageUrl}
+                                alt={panel.panelName}
+                                className="h-28 w-auto object-cover"
+                                loading="lazy"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                                <ExternalLink size={20} className="text-white drop-shadow" />
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Trend pills ── */}
                 {labTrends.filter((t) => t.direction !== 'stable').length > 0 && (
                   <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                     {labTrends
@@ -1656,8 +1925,24 @@ export default function PatientDetailPage() {
                   </div>
                 )}
 
-                {/* Flowsheet panels */}
-                {Array.from(groupedPanels.entries()).map(([groupName, panels]) => {
+                {/* ── Structured flowsheet panels (with values) ── */}
+                {resultPanels.length > 0 && (
+                <>
+                {Array.from(
+                  (() => {
+                    const groups = new Map<string, LabPanel[]>();
+                    for (const panel of resultPanels) {
+                      const name = cleanPanelName(panel.panelName);
+                      const existing = groups.get(name) || [];
+                      existing.push(panel);
+                      groups.set(name, existing);
+                    }
+                    for (const [, ps] of groups) {
+                      ps.sort((a, b) => getTimestampMs(b.collectedAt) - getTimestampMs(a.collectedAt));
+                    }
+                    return groups;
+                  })().entries()
+                ).map(([groupName, panels]) => {
                   const testNames = [...new Set(panels.flatMap((p) => p.values.map((v) => v.name)))];
                   const displayPanels = panels.slice(0, 4);
                   const latest = displayPanels[0];
@@ -1812,6 +2097,8 @@ export default function PatientDetailPage() {
                     </Card>
                   );
                 })}
+                </>
+                )}
               </>
             )}
           </div>

@@ -22,7 +22,8 @@ JSON Schema:
   "workingDiagnosis": "string or null — primary/working diagnosis if stated, e.g. 'NSTEMI'",
 
   "historyOfPresentingIllness": "string — concise narrative HPI in 2-4 sentences. Summarize key timeline, symptoms, and relevant negatives. Do NOT repeat the entire referral letter verbatim.",
-  "pastMedicalHistory": ["string array — each condition as a UNIQUE entry using standard abbreviations (HTN, DM2, CKD3, AF, IHD, COPD, etc.). No duplicates. No sentences — just condition names."],
+  "knownConditions": ["string array — ALL active/ongoing chronic background conditions. Sources to check: sections labelled KCO, 'Known Conditions', 'Background:', 'Known background', 'PMHx:', 'Medical background'; AND chronic conditions embedded in the problem list or assessment (e.g. 'Metastatic prostate cancer', 'HTN', 'DM2', 'CKD', 'AF' — any disease that pre-dates the current admission or is an ongoing condition). Each condition ONCE using standard abbreviations. No duplicates. No sentences."],
+  "pastMedicalHistory": ["string array — RESOLVED or clearly historical conditions only (not already in knownConditions). Each condition ONCE using standard abbreviations. No duplicates. No sentences."],
   "pastSurgicalHistory": ["string array — each procedure ONCE with year if visible, e.g. 'Appendicectomy (2015)'"],
   "medications": [
     {
@@ -82,6 +83,7 @@ JSON Schema:
   "confidence": {
     "presentingComplaint": "high | medium | low | not_found",
     "historyOfPresentingIllness": "high | medium | low | not_found",
+    "knownConditions": "high | medium | low | not_found",
     "pastMedicalHistory": "high | medium | low | not_found",
     "pastSurgicalHistory": "high | medium | low | not_found",
     "medications": "high | medium | low | not_found",
@@ -105,5 +107,9 @@ CRITICAL RULES:
 6. For investigations: group by category (FBC, U&E, LFT, etc.) and highlight abnormals. Don't list normal results unless clinically relevant.
 7. For handwriting, transcribe as faithfully as possible. Mark confidence as "low" if uncertain.
 8. Use standard medical abbreviations (HTN, DM2, CKD, AF, IHD, COPD, etc.) for conditions.
+11. KCO / "Background:" / "Known background" / "PMHx:" / "Medical background" → knownConditions.
+12. ALSO scan the problem list and assessment for chronic ongoing conditions (cancer, organ failures, metabolic diseases, structural heart disease, etc.) and include them in knownConditions even if not in a dedicated section.
+13. Only put truly resolved/past-tense conditions in pastMedicalHistory (e.g. "Appendicectomy 2015", "childhood asthma resolved"). When unsure, prefer knownConditions.
+14. Do NOT put acute presentation issues (e.g. "Acute confusion", "Hyponatraemia", "Sepsis") into knownConditions — those belong in assessment/problemList only.
 9. If a field has no information in the image, use empty string "" or empty array [].
 10. Return ONLY the JSON object. No markdown code fences. No explanatory text.`;

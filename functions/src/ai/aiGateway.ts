@@ -256,6 +256,7 @@ export const aiGateway = onCall(
     region: "europe-west1",
     timeoutSeconds: 60,
     memory: "512MiB",
+    enforceAppCheck: true,
   },
   async (request): Promise<GatewayResponse> => {
     const t0 = Date.now();

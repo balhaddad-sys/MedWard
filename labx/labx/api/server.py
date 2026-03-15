@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
 import tempfile
 from pathlib import Path
 
-from fastapi import FastAPI, File, Query, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
@@ -14,26 +15,40 @@ from fastapi.responses import JSONResponse
 import labx
 from labx.api.middleware import RequestIdMiddleware
 from labx.api.schemas import AnalyseResponse, ErrorResponse, ExtractResponse, HealthResponse
+from labx.api.security import verify_api_key
 from labx.config.settings import get_settings
 from labx.pipeline.image_io import ImageValidationError
 from labx.pipeline.orchestrator import run_extract_only, run_full_pipeline
 
 logger = logging.getLogger(__name__)
 
+# Restrict CORS to known origins; configure via LABX_CORS_ORIGINS env var (comma-separated).
+_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("LABX_CORS_ORIGINS", "https://medward-pro.web.app").split(",")
+    if o.strip()
+]
+
+# Disable interactive docs in production (set LABX_ENV=development to re-enable)
+_PROD = os.environ.get("LABX_ENV", "production").lower() != "development"
+
+MAX_FILES = 10
+
 app = FastAPI(
     title="labx — Lab Report Extraction Engine",
     version=labx.__version__,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if _PROD else "/docs",
+    redoc_url=None if _PROD else "/redoc",
+    openapi_url=None if _PROD else "/openapi.json",
 )
 
 # ── Middleware ────────────────────────────────────────────────────
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["POST", "GET"],
+    allow_headers=["X-API-Key", "Content-Type"],
 )
 app.add_middleware(RequestIdMiddleware)
 
@@ -49,10 +64,11 @@ async def _image_validation_error(request, exc: ImageValidationError):  # type: 
 
 @app.exception_handler(Exception)
 async def _generic_error(request, exc: Exception):  # type: ignore[no-untyped-def]
+    # Log full detail server-side only; never expose internal error text to callers.
     logger.exception("Unhandled error: %s", exc)
     return JSONResponse(
         status_code=500,
-        content=ErrorResponse(error="internal", detail=str(exc)).model_dump(),
+        content=ErrorResponse(error="internal", detail="An unexpected error occurred").model_dump(),
     )
 
 
@@ -64,11 +80,16 @@ async def health() -> HealthResponse:
     return HealthResponse(status="ok", version=labx.__version__)
 
 
-@app.post("/extract", response_model=ExtractResponse)
+@app.post("/extract", response_model=ExtractResponse, dependencies=[Depends(verify_api_key)])
 async def extract(
     files: list[UploadFile] = File(..., description="Lab report images (1-10)"),
 ) -> ExtractResponse:
     """Extract lab values from uploaded images (no trending/summary)."""
+    if len(files) > MAX_FILES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Too many files: maximum {MAX_FILES} allowed, got {len(files)}",
+        )
     settings = get_settings()
     paths = await _save_uploads(files, max_mb=settings.max_image_mb)
     try:
@@ -78,12 +99,17 @@ async def extract(
         _cleanup(paths)
 
 
-@app.post("/analyse", response_model=AnalyseResponse)
+@app.post("/analyse", response_model=AnalyseResponse, dependencies=[Depends(verify_api_key)])
 async def analyse(
     files: list[UploadFile] = File(..., description="Lab report images (1-10)"),
     summary: bool = Query(default=True, description="Generate clinical summary"),
 ) -> AnalyseResponse:
     """Full pipeline: extract → normalize → merge → trend → summarize."""
+    if len(files) > MAX_FILES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Too many files: maximum {MAX_FILES} allowed, got {len(files)}",
+        )
     settings = get_settings()
     paths = await _save_uploads(files, max_mb=settings.max_image_mb)
     try:
@@ -122,7 +148,6 @@ def _cleanup(paths: list[Path]) -> None:
             p.unlink(missing_ok=True)
         except OSError:
             pass
-    # Remove parent temp dir
     if paths:
         try:
             paths[0].parent.rmdir()

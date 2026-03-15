@@ -18,13 +18,16 @@ async def verify_api_key(
 ) -> str:
     """Validate the X-API-Key header against the configured server key.
 
-    If ``LABX_API_KEY`` is not set in the environment, authentication is
-    disabled (development mode).
+    ``LABX_API_KEY`` MUST be set. Auth is never silently disabled —
+    if the env var is missing the service rejects all requests with 503.
     """
     expected = os.environ.get("LABX_API_KEY")
     if not expected:
-        # No key configured → auth disabled
-        return "anonymous"
+        logger.error("LABX_API_KEY is not configured — all requests rejected")
+        raise HTTPException(
+            status_code=503,
+            detail="Service misconfigured. Contact the administrator.",
+        )
     if not api_key or api_key != expected:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return api_key

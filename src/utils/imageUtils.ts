@@ -17,6 +17,14 @@ export const DEFAULT_COMPRESS: CompressOptions = {
   maxSizeKB: 1500,
 };
 
+/** Optimised preset for text/document scans — smaller payload, faster Claude processing. */
+export const DOCUMENT_COMPRESS: CompressOptions = {
+  maxWidth: 1280,
+  maxHeight: 1600,
+  quality: 0.78,
+  maxSizeKB: 500,
+};
+
 /**
  * Compress an image file using canvas.
  * Iteratively reduces quality until the output is under maxSizeKB.
@@ -54,12 +62,13 @@ export async function compressImage(
     quality -= 0.08;
   } while (quality >= MIN_QUALITY);
 
-  // Convert to base64
+  // Convert to base64 (chunked to avoid call-stack overflow on large blobs)
   const buffer = await blob.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const CHUNK = 32768;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
   }
   const base64 = btoa(binary);
   const compressedKB = Math.round(blob.size / 1024);

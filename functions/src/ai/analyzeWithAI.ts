@@ -19,6 +19,7 @@ export const analyzeWithAI = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
+    enforceAppCheck: true,
   },
   async (request) => {
     if (!request.auth) {

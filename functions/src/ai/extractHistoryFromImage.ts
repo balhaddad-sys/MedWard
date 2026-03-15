@@ -23,6 +23,7 @@ interface ClinicalExtractionResponse {
 
   // History
   historyOfPresentingIllness: string;
+  knownConditions: string[];
   pastMedicalHistory: string[];
   pastSurgicalHistory: string[];
   medications: Array<{
@@ -133,6 +134,7 @@ function parseExtractionResponse(raw: string): ClinicalExtractionResponse {
     presentingComplaint: data.presentingComplaint || undefined,
     workingDiagnosis: data.workingDiagnosis || undefined,
     historyOfPresentingIllness: data.historyOfPresentingIllness || "",
+    knownConditions: Array.isArray(data.knownConditions) ? data.knownConditions : [],
     pastMedicalHistory: Array.isArray(data.pastMedicalHistory) ? data.pastMedicalHistory : [],
     pastSurgicalHistory: Array.isArray(data.pastSurgicalHistory) ? data.pastSurgicalHistory : [],
     medications: Array.isArray(data.medications)
@@ -243,7 +245,7 @@ export const extractHistoryFromImage = onCall(
 
       const response = await client.messages.create({
         model: ANTHROPIC_MODEL,
-        max_tokens: 8192,
+        max_tokens: 3000,
         system: HISTORY_EXTRACTION_PROMPT,
         messages: [
           {

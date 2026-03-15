@@ -36,8 +36,9 @@ gcloud run deploy "${SERVICE_NAME}" \
   --min-instances 0 \
   --max-instances 10 \
   --timeout 120 \
-  --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest" \
-  --allow-unauthenticated \
+  --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,LABX_API_KEY=LABX_API_KEY:latest" \
+  --no-allow-unauthenticated \
+  --ingress internal-and-cloud-load-balancing \
   --project "${PROJECT_ID}"
 
 echo ""
@@ -48,7 +49,7 @@ SERVICE_URL=$(gcloud run services describe "${SERVICE_NAME}" \
   --format 'value(status.url)')
 echo "Service URL: ${SERVICE_URL}"
 echo "Health check: ${SERVICE_URL}/health"
-echo "API docs: ${SERVICE_URL}/docs"
+echo "(Docs disabled in production — set LABX_ENV=development to enable)"
 echo ""
 echo "To configure the Firebase function to use this service:"
 echo "  firebase functions:config:set labx.url=\"${SERVICE_URL}\""

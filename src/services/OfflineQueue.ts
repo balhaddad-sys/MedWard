@@ -16,6 +16,8 @@ const DB_NAME = 'medward_offline'
 const STORE_NAME = 'write_queue'
 const DB_VERSION = 1
 const MAX_RETRIES = 10
+// PHI minimization: queued items older than 24 h are purged on flush regardless of status
+const MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 class OfflineQueueService {
   private db: IDBDatabase | null = null
@@ -95,6 +97,9 @@ class OfflineQueueService {
     this.isFlushing = true
 
     try {
+      // Purge expired items first to limit PHI retention in IndexedDB
+      await this.purgeExpired()
+
       const pendingItems = await this.getPendingItems()
 
       for (const item of pendingItems) {
@@ -194,6 +199,26 @@ class OfflineQueueService {
     return this.dbGetByIndex('status', 'pending')
   }
 
+  /** Remove all queued items older than MAX_AGE_MS regardless of status. */
+  private async purgeExpired(): Promise<void> {
+    if (!this.db) return
+    const cutoff = Date.now() - MAX_AGE_MS
+    const all = await this.dbGetAll()
+    await Promise.all(
+      all
+        .filter((item) => item.createdAt < cutoff)
+        .map((item) => this.dbDelete(item.id)),
+    )
+  }
+
+  /** Clear all queued items — call on logout to avoid leaving PHI in IndexedDB. */
+  async clearAll(): Promise<void> {
+    if (!this.db) return
+    const all = await this.dbGetAll()
+    await Promise.all(all.map((item) => this.dbDelete(item.id)))
+    this.notifyListeners()
+  }
+
   private async getFailedItems(): Promise<QueuedAction[]> {
     if (!this.db) return []
     return this.dbGetByIndex('status', 'failed')
@@ -217,6 +242,17 @@ class OfflineQueueService {
       const store = tx.objectStore(STORE_NAME)
       const request = store.delete(id)
       request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  private dbGetAll(): Promise<QueuedAction[]> {
+    return new Promise((resolve, reject) => {
+      if (!this.db) return resolve([])
+      const tx = this.db.transaction(STORE_NAME, 'readonly')
+      const store = tx.objectStore(STORE_NAME)
+      const request = store.getAll()
+      request.onsuccess = () => resolve(request.result || [])
       request.onerror = () => reject(request.error)
     })
   }
