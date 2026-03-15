@@ -10,7 +10,7 @@ workflows:
 
     environment:
       java: 17
-      node: 20
+      node: 22
       groups:
         - firebase                  # VITE_FIREBASE_* env vars
         - android_signing           # CM_KEYSTORE_BASE64, CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, CM_KEY_PASSWORD
@@ -95,7 +95,7 @@ workflows:
 
     environment:
       xcode: latest
-      node: 20
+      node: 22
       groups:
         - firebase                  # VITE_FIREBASE_* env vars
         - apple_credentials         # APP_STORE_CONNECT_PRIVATE_KEY
