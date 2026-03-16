@@ -328,8 +328,6 @@ export function parseWardData(
     fieldMap.set(mapping.patientField, colLetterToIndex(mapping.sheetColumn.toUpperCase()))
   }
 
-  // DEBUG: Log column mappings
-  console.log('[parseWardData] Column mappings:', Array.from(fieldMap.entries()).map(([field, idx]) => `${field}=${indexToColLetter(idx)}`).join(', '))
 
   const getFrom = (cells: string[], field: string): string => {
     const idx = fieldMap.get(field)
@@ -356,10 +354,8 @@ export function parseWardData(
         const lower = ctx.label.toLowerCase()
         includeCurrentSection = !excludeArchived ||
           !excludedSectionKeywords.some((kw) => lower.includes(kw))
-        console.log(`[parseWardData] Row ${i + 1}: Section header detected - "${ctx.label}" (included: ${includeCurrentSection})`)
       } else {
         currentWard = ctx.label
-        console.log(`[parseWardData] Row ${i + 1}: Ward header detected - "${ctx.label}"`)
       }
       continue
     }
@@ -429,23 +425,7 @@ export function parseWardData(
       raw,
     })
 
-    // DEBUG: Log patient row details
-    console.log(`[parseWardData] Row ${i + 1}: Patient added - "${nameParts.firstName} ${nameParts.lastName}" | Bed: ${getFrom(cells, 'bedNumber')} | Doctor: "${attendingPhysician}" | Ward: "${wardId}" | Section: "${currentSection || 'Active'}"`)
   }
-
-  // DEBUG: Summary
-  console.log(`[parseWardData] Parse complete - ${patients.length} patients imported`)
-  const wardCounts = patients.reduce((acc, p) => {
-    acc[p.wardId] = (acc[p.wardId] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-  console.log('[parseWardData] Patients per ward:', wardCounts)
-  const doctorCounts = patients.reduce((acc, p) => {
-    const doc = p.attendingPhysician || 'Unassigned Doctor'
-    acc[doc] = (acc[doc] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-  console.log('[parseWardData] Patients per doctor:', doctorCounts)
 
   return patients
 }

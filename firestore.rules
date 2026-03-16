@@ -177,9 +177,18 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.status in ['draft', 'signed', 'amended']
                     && isValidString(request.resource.data.workingDiagnosis, 500);
+      // SECURITY FIX: Signed notes are immutable — clinical content cannot be altered after signing.
+      // Only a status transition (draft→signed or signed→amended) is permitted on a signed note.
       allow update: if isAuthenticated()
                     && (resource.data.authorId == request.auth.uid || isAdminOrClinician())
-                    && request.resource.data.status in ['draft', 'signed', 'amended'];
+                    && request.resource.data.status in ['draft', 'signed', 'amended']
+                    // When the note is already signed, lock all clinical content fields
+                    && (resource.data.status != 'signed'
+                        || !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                             'presentingComplaint', 'workingDiagnosis', 'history',
+                             'examination', 'assessment', 'plan', 'problemList',
+                             'authorId', 'patientId'
+                           ]));
       allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
     }
 
