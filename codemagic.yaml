@@ -42,8 +42,8 @@ workflows:
         script: |
           BUILD_NUMBER=$(($(git rev-list --count HEAD)))
           echo "Setting versionCode=$BUILD_NUMBER"
-          sed -i "s/versionCode .*/versionCode $BUILD_NUMBER/" android/app/build.gradle
-          sed -i "s/versionName .*/versionName \"1.0.$BUILD_NUMBER\"/" android/app/build.gradle
+          sed -i '' "s/versionCode .*/versionCode $BUILD_NUMBER/" android/app/build.gradle
+          sed -i '' "s/versionName .*/versionName \"1.0.$BUILD_NUMBER\"/" android/app/build.gradle
 
       - name: Generate keystore if not provided
         script: |
