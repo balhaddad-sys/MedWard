@@ -74,16 +74,17 @@ workflows:
       - android/app/build/outputs/apk/release/app-release.apk
 
     publishing:
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: true
       email:
         recipients:
           - balha@medward.pro
         notify:
           success: true
           failure: true
+      # Uncomment once GCLOUD_SERVICE_ACCOUNT_CREDENTIALS is set in Codemagic
+      # google_play:
+      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      #   track: internal
+      #   submit_as_draft: true
 
   # ─────────────────────────────────────────────────────────────────────────────
   # iOS — signed IPA for TestFlight
