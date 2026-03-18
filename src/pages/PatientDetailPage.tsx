@@ -1421,9 +1421,9 @@ export default function PatientDetailPage() {
                         <Plus size={12} /> Add
                       </button>
                     </div>
-                    <Card padding="md" className="h-full">
+                    <Card padding="sm">
                       {showAddPMH && (
-                        <div className="flex gap-2 mb-3">
+                        <div className="flex gap-2 mb-2">
                           <input
                             type="text"
                             value={pmhInput}
@@ -1458,7 +1458,7 @@ export default function PatientDetailPage() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-xs text-slate-400 dark:text-slate-500 italic py-2">No conditions recorded</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No conditions recorded</p>
                       )}
                     </Card>
                   </div>
@@ -1480,9 +1480,9 @@ export default function PatientDetailPage() {
                         <Plus size={12} /> Add
                       </button>
                     </div>
-                    <Card padding="md" className="h-full">
+                    <Card padding="sm">
                       {showAddPSH && (
-                        <div className="flex gap-2 mb-3">
+                        <div className="flex gap-2 mb-2">
                           <input
                             type="text"
                             value={pshInput}
@@ -1509,7 +1509,7 @@ export default function PatientDetailPage() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="text-xs text-slate-400 dark:text-slate-500 italic py-2">No surgeries recorded</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 italic">No surgeries recorded</p>
                       )}
                     </Card>
                   </div>
