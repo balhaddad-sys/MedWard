@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toJsDate } from '@/utils/formatters';
 import { clsx } from 'clsx';
 import {
   Users,
@@ -86,10 +87,8 @@ export default function Dashboard() {
     const overdueTasks = tasks.filter((t) => {
       if (t.status === 'completed' || t.status === 'cancelled') return false;
       if (!t.dueAt) return false;
-      const due = typeof t.dueAt === 'object' && 'toDate' in t.dueAt
-        ? t.dueAt.toDate()
-        : new Date(t.dueAt as unknown as string);
-      return due < new Date();
+      const due = toJsDate(t.dueAt);
+      return due ? due < new Date() : false;
     }).length;
     const criticalTasks = tasks.filter(
       (t) => t.priority === 'critical' && t.status !== 'completed' && t.status !== 'cancelled'

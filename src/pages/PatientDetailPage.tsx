@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { toJsDate } from '@/utils/formatters';
 import { clsx } from 'clsx';
 import {
   ArrowLeft,
@@ -780,10 +781,8 @@ export default function PatientDetailPage() {
   const activeTasks = patientTasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled');
   const overdueTasks = activeTasks.filter((t) => {
     if (!t.dueAt) return false;
-    const due = typeof t.dueAt === 'object' && 'toDate' in t.dueAt
-      ? (t.dueAt as { toDate: () => Date }).toDate()
-      : new Date(t.dueAt as unknown as string);
-    return due < new Date();
+    const due = toJsDate(t.dueAt);
+    return due ? due < new Date() : false;
   });
 
   const tabItems = [

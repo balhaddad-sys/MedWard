@@ -154,7 +154,8 @@ export const deletePatient = async (id: string): Promise<void> => {
 export const subscribeToPatients = (
   wardId: string,
   userId: string,
-  callback: (patients: Patient[]) => void
+  callback: (patients: Patient[]) => void,
+  onError?: (error: Error) => void
 ): Unsubscribe => {
   const q = query(
     getPatientsRef(),
@@ -167,13 +168,15 @@ export const subscribeToPatients = (
     callback(patients)
   }, (error) => {
     console.error('Patient subscription error:', error)
+    onError?.(error)
     callback([])
   })
 }
 
 export const subscribeToAllPatients = (
   userId: string,
-  callback: (patients: Patient[]) => void
+  callback: (patients: Patient[]) => void,
+  onError?: (error: Error) => void
 ): Unsubscribe => {
   const q = query(getPatientsRef(), where('createdBy', '==', userId))
   return onSnapshot(q, (snapshot) => {
@@ -181,36 +184,34 @@ export const subscribeToAllPatients = (
     callback(patients)
   }, (error) => {
     console.error('All patients subscription error:', error)
+    onError?.(error)
     callback([])
   })
 }
 
 export const subscribeToUserPatients = (
   userId: string,
-  callback: (patients: Patient[]) => void
+  callback: (patients: Patient[]) => void,
+  onError?: (error: Error) => void
 ): Unsubscribe => {
-  // Remove orderBy to avoid requiring composite index - sorting done client-side
   const q = query(getPatientsRef(), where('createdBy', '==', userId))
   return onSnapshot(q, (snapshot) => {
     const patients = snapshot.docs.map((doc) => safePatient(doc.id, doc.data()))
     callback(patients)
   }, (error) => {
     console.error('User patients subscription error:', error)
+    onError?.(error)
     callback([])
   })
 }
 
-/**
- * NEW (Phase 0): Subscribe to patients by state
- * Team-based access with state filtering
- */
 export const subscribeToPatientsByState = (
   teamId: string,
   userId: string,
   states: PatientState[],
-  callback: (patients: Patient[]) => void
+  callback: (patients: Patient[]) => void,
+  onError?: (error: Error) => void
 ): Unsubscribe => {
-  // Note: Firestore 'in' query supports up to 10 values
   const q = query(
     getPatientsRef(),
     where('teamId', '==', teamId),
@@ -219,13 +220,13 @@ export const subscribeToPatientsByState = (
   )
 
   return onSnapshot(q, (snapshot) => {
-    // Filter by assignedClinicians on client side (array-contains not compatible with 'in')
     const patients = snapshot.docs
       .map((doc) => safePatient(doc.id, doc.data()))
       .filter(p => p.assignedClinicians.includes(userId))
     callback(patients)
   }, (error) => {
     console.error('Patients by state subscription error:', error)
+    onError?.(error)
     callback([])
   })
 }

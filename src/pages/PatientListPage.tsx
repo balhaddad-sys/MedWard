@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toJsDate } from '@/utils/formatters';
 import { clsx } from 'clsx';
 import {
   Search,
@@ -125,6 +126,7 @@ export default function PatientListPage() {
     setFilterAcuity,
     getFilteredPatients,
     setLoading,
+    setError,
   } = usePatientStore();
 
   const compactView = useSettingsStore((s) => s.compactView);
@@ -133,10 +135,8 @@ export default function PatientListPage() {
   const overdueTaskCount = tasks.filter((t) => {
     if (t.status === 'completed' || t.status === 'cancelled') return false;
     if (!t.dueAt) return false;
-    const due = typeof t.dueAt === 'object' && 'toDate' in t.dueAt
-      ? (t.dueAt as { toDate: () => Date }).toDate()
-      : new Date(t.dueAt as unknown as string);
-    return due < new Date();
+    const due = toJsDate(t.dueAt);
+    return due ? due < new Date() : false;
   }).length;
 
   const [sortKey, setSortKey] = useState<SortKey>('acuity');
@@ -150,12 +150,13 @@ export default function PatientListPage() {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    const unsubscribe = subscribeToUserPatients(user.id, (data) => {
-      setPatients(data);
-      setLoading(false);
-    });
+    const unsubscribe = subscribeToUserPatients(
+      user.id,
+      (data) => { setError(null); setPatients(data); setLoading(false); },
+      (err) => { setError(err.message); setLoading(false); }
+    );
     return () => unsubscribe();
-  }, [user, setPatients, setLoading]);
+  }, [user, setPatients, setLoading, setError]);
 
   const filteredPatients = getFilteredPatients();
 

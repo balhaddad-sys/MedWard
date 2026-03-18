@@ -3,7 +3,7 @@ import type { Timestamp } from 'firebase/firestore'
 
 type DateLike = Timestamp | Date | string | number | null | undefined
 
-const toJsDate = (value: DateLike): Date | null => {
+export const toJsDate = (value: DateLike): Date | null => {
   if (!value) return null
   if (value instanceof Date) return value
   if (typeof value === 'string' || typeof value === 'number') {

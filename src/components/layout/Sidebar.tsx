@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { toJsDate } from '@/utils/formatters'
 import {
   Users,
   ClipboardList,
@@ -68,10 +69,8 @@ export default function Sidebar() {
   const overdueTaskCount = tasks.filter((t) => {
     if (t.status === 'completed' || t.status === 'cancelled') return false
     if (!t.dueAt) return false
-    const due = typeof t.dueAt === 'object' && 'toDate' in t.dueAt
-      ? (t.dueAt as { toDate: () => Date }).toDate()
-      : new Date(t.dueAt as unknown as string)
-    return due < new Date()
+    const due = toJsDate(t.dueAt)
+    return due ? due < new Date() : false
   }).length
 
   async function handleSignOut() {
@@ -215,12 +214,13 @@ export default function Sidebar() {
         {user && (
           <div className="flex items-center gap-3 rounded-lg px-3 py-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700 dark:bg-primary-900 dark:text-primary-400">
-              {user.displayName
+              {(user.displayName ?? '')
                 .split(' ')
+                .filter(Boolean)
                 .map((n) => n[0])
                 .join('')
                 .slice(0, 2)
-                .toUpperCase()}
+                .toUpperCase() || '?'}
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">

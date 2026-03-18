@@ -32,6 +32,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
+import { toJsDate } from '@/utils/formatters'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -2167,11 +2168,8 @@ function AlertsTab() {
     return tasks.filter((t) => {
       if (t.status === 'completed' || t.status === 'cancelled') return false
       if (!t.dueAt) return false
-      const due =
-        typeof t.dueAt === 'object' && 'toDate' in t.dueAt
-          ? t.dueAt.toDate()
-          : new Date(t.dueAt as unknown as string)
-      return due < now
+      const due = toJsDate(t.dueAt)
+      return due ? due < now : false
     }).sort((a, b) => {
       const priorityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
       return (priorityOrder[a.priority] || 2) - (priorityOrder[b.priority] || 2)
@@ -2212,10 +2210,8 @@ function AlertsTab() {
   function getTimeOverdue(task: Task): string {
     if (!task.dueAt) return ''
     try {
-      const due =
-        typeof task.dueAt === 'object' && 'toDate' in task.dueAt
-          ? task.dueAt.toDate()
-          : new Date(task.dueAt as unknown as string)
+      const due = toJsDate(task.dueAt)
+      if (!due) return ''
       return formatDistanceToNow(due, { addSuffix: true })
     } catch {
       return ''

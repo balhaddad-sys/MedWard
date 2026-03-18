@@ -1,4 +1,5 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { toJsDate } from '@/utils/formatters'
 import {
   Users,
   ClipboardList,
@@ -75,10 +76,8 @@ export default function MobileNav() {
   const overdueTaskCount = tasks.filter((t) => {
     if (t.status === 'completed' || t.status === 'cancelled') return false
     if (!t.dueAt) return false
-    const due = typeof t.dueAt === 'object' && 'toDate' in t.dueAt
-      ? (t.dueAt as { toDate: () => Date }).toDate()
-      : new Date(t.dueAt as unknown as string)
-    return due < new Date()
+    const due = toJsDate(t.dueAt)
+    return due ? due < new Date() : false
   }).length
 
   return (

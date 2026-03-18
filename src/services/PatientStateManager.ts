@@ -1,21 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Patient State Manager (Phase 0)
  *
  * Centralized service for managing patient state transitions
- * with validation and audit trail
+ * with validation and audit trail. Uses Firestore transactions
+ * to prevent race conditions on concurrent state changes.
  */
 
-import { Timestamp } from 'firebase/firestore';
+import { doc, runTransaction, Timestamp } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 import type { Patient } from '@/types/patient';
 import type { PatientState, StateTransitionResult } from '@/types/patientState';
 import { ALLOWED_STATE_TRANSITIONS } from '@/types/patientState';
-import { updatePatient } from './firebase/patients';
 
 export class PatientStateManager {
-  /**
-   * Validate if a state transition is allowed
-   */
   static validateTransition(
     currentState: PatientState,
     newState: PatientState
@@ -29,15 +26,12 @@ export class PatientStateManager {
       };
     }
 
-    // Additional business logic validations
     const warnings: string[] = [];
 
-    // Warn if discharging unstable patient
     if (currentState === 'unstable' && newState === 'discharged') {
       warnings.push('Discharging an unstable patient - ensure clinical review');
     }
 
-    // Warn if marking ready for discharge from incoming
     if (currentState === 'incoming' && newState === 'ready_dc') {
       warnings.push('Patient not yet admitted to ward - unusual discharge path');
     }
@@ -48,55 +42,63 @@ export class PatientStateManager {
     };
   }
 
-  /**
-   * Transition patient to new state with validation and audit
-   */
   static async transitionState(
     patientId: string,
     newState: PatientState,
     userId: string,
     userName: string,
-    currentPatient: Patient
+    _currentPatient: Patient
   ): Promise<StateTransitionResult> {
-    // Validate transition
-    const validation = this.validateTransition(currentPatient.state, newState);
-    if (!validation.allowed) {
-      return validation;
+    // Pre-validate with the client-side snapshot for fast feedback
+    const preCheck = this.validateTransition(_currentPatient.state, newState);
+    if (!preCheck.allowed) {
+      return preCheck;
     }
 
-    // Create modification record for audit trail
-    const modification = {
-      id: `${Date.now()}-state-change`,
-      timestamp: Timestamp.now(),
-      userId,
-      userName,
-      action: 'state_change' as const,
-      field: 'state',
-      oldValue: currentPatient.state,
-      newValue: newState,
-    };
+    const patientRef = doc(db, 'patients', patientId);
 
-    // Update patient
-    await updatePatient(patientId, {
-      state: newState,
-      stateChangedAt: Timestamp.now(),
-      stateChangedBy: userId,
-      modificationHistory: [
-        ...(currentPatient.modificationHistory || []),
-        modification,
-      ],
-      lastModifiedBy: userId,
-    } as any);
+    // Use a Firestore transaction to atomically read-then-write,
+    // preventing race conditions when two transitions fire concurrently.
+    return runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(patientRef);
+      if (!snap.exists()) {
+        return { allowed: false, reason: 'Patient not found' };
+      }
 
-    return {
-      allowed: true,
-      warnings: validation.warnings,
-    };
+      const liveState = snap.data().state as PatientState;
+      const validation = this.validateTransition(liveState, newState);
+      if (!validation.allowed) {
+        return validation;
+      }
+
+      const modification = {
+        id: `${Date.now()}-state-change`,
+        timestamp: Timestamp.now(),
+        userId,
+        userName,
+        action: 'state_change' as const,
+        field: 'state',
+        oldValue: liveState,
+        newValue: newState,
+      };
+
+      const existingHistory = snap.data().modificationHistory || [];
+
+      transaction.update(patientRef, {
+        state: newState,
+        stateChangedAt: Timestamp.now(),
+        stateChangedBy: userId,
+        modificationHistory: [...existingHistory, modification],
+        lastModifiedBy: userId,
+      });
+
+      return {
+        allowed: true,
+        warnings: validation.warnings,
+      };
+    });
   }
 
-  /**
-   * Get recommended next states for a patient
-   */
   static getRecommendedStates(currentState: PatientState): PatientState[] {
     return ALLOWED_STATE_TRANSITIONS[currentState];
   }

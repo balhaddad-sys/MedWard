@@ -48,22 +48,7 @@ function subscribeToVitals(patientId: string, refreshRate: number): Subscription
     // Lab data flows through Zustand store
   })
 
-  // Keep a polling interval for future real-time vitals integration
-  if (refreshRate > 0) {
-    pollingInterval = setInterval(() => {
-      // Firestore onSnapshot handles real-time updates; polling reserved for future APIs
-    }, refreshRate)
-  }
-
-  return {
-    unsubscribe: () => {
-      unsubscribe()
-      if (pollingInterval) {
-        clearInterval(pollingInterval)
-        pollingInterval = null
-      }
-    },
-  }
+  return { unsubscribe }
 }
 
 export function teardownSubscriptions(): void {

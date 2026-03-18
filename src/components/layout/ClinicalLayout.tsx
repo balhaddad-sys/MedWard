@@ -56,6 +56,7 @@ export default function ClinicalLayout() {
   const notifyHandoverAlerts = useSettingsStore((s) => s.notifyHandoverAlerts)
   const setNotifications = useNotificationStore((s) => s.setNotifications)
   const setPatients = usePatientStore((s) => s.setPatients)
+  const setPatientError = usePatientStore((s) => s.setError)
   const rawNotificationsRef = useRef<Notification[]>([])
   const seenNotificationIdsRef = useRef<Set<string>>(new Set())
   const hasPrimedSeenIdsRef = useRef(false)
@@ -71,9 +72,13 @@ export default function ClinicalLayout() {
       setPatients([])
       return
     }
-    const unsubscribe = subscribeToUserPatients(userId, setPatients)
+    const unsubscribe = subscribeToUserPatients(
+      userId,
+      (data) => { setPatientError(null); setPatients(data) },
+      (err) => setPatientError(err.message)
+    )
     return () => unsubscribe()
-  }, [userId, setPatients])
+  }, [userId, setPatients, setPatientError])
 
   useEffect(() => {
     if (!userId) {
