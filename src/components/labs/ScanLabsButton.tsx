@@ -9,12 +9,14 @@ import {
   Loader2,
   ImageIcon,
 } from 'lucide-react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/config/firebase';
 import { useAuthStore } from '@/stores/authStore';
 import { uploadLabImage, addLabPanel } from '@/services/firebase/labs';
 import { compressImage } from '@/utils/imageUtils';
 import { Button } from '@/components/ui/Button';
 import { Modal, ModalFooter } from '@/components/ui/Modal';
-import type { LabPanel } from '@/types/lab';
+import type { LabPanel, LabValue } from '@/types/lab';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -125,12 +127,23 @@ export function ScanLabsButton({ patientId, onSaved }: ScanLabsButtonProps) {
       const { Timestamp } = await import('firebase/firestore');
       const now = Timestamp.fromDate(new Date());
 
+      const analyzeLabImageFn = httpsCallable<
+        { imageBase64: string; mediaType: string },
+        { structured?: { panels?: Array<{ panel_name?: string; results?: Array<{ test_name?: string; value?: string | number; unit?: string; flag?: string; ref_low?: number; ref_max?: number }> }> } }
+      >(functions, 'analyzeLabImage');
+
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
-        setProgress(Math.round(((i + 0.5) / images.length) * 100));
+        setProgress(Math.round(((i + 0.3) / images.length) * 100));
 
-        const { blob: compressed } = await compressImage(img.file);
-        const imageUrl = await uploadLabImage(user.id, compressed, img.file.name);
+        const { blob: compressed, base64 } = await compressImage(img.file);
+
+        // Upload + AI analysis in parallel
+        setProgress(Math.round(((i + 0.5) / images.length) * 100));
+        const [imageUrl, aiResult] = await Promise.all([
+          uploadLabImage(user.id, compressed, img.file.name),
+          analyzeLabImageFn({ imageBase64: base64, mediaType: 'image/jpeg' }).catch(() => null),
+        ]);
 
         const collectedAt = Timestamp.fromDate(img.takenAt);
         const dateLabel = img.takenAt.toLocaleDateString('en-GB', {
@@ -139,15 +152,38 @@ export function ScanLabsButton({ patientId, onSaved }: ScanLabsButtonProps) {
           year: 'numeric',
         });
 
+        // Extract values from AI result if available
+        let values: LabValue[] = [];
+        let panelName = `Lab Image — ${dateLabel}`;
+        let status: 'pending' | 'resulted' = 'pending';
+
+        if (aiResult?.data?.structured?.panels) {
+          const panels = aiResult.data.structured.panels;
+          if (panels.length > 0) {
+            panelName = panels[0].panel_name || panelName;
+            values = (panels[0].results || [])
+              .filter((r) => r.test_name && r.value != null)
+              .map((r) => ({
+                name: r.test_name!,
+                value: r.value!,
+                unit: r.unit || '',
+                flag: (r.flag as LabValue['flag']) || 'normal',
+                referenceMin: r.ref_low,
+                referenceMax: r.ref_max,
+              }));
+            status = values.length > 0 ? 'resulted' : 'pending';
+          }
+        }
+
         const panel: Omit<LabPanel, 'id' | 'createdAt'> = {
           patientId,
           category: 'MISC',
-          panelName: `Lab Image — ${dateLabel}`,
-          values: [],
+          panelName,
+          values,
           collectedAt,
           resultedAt: now,
           orderedBy: user.id || user.email || 'unknown',
-          status: 'pending',
+          status,
           source: 'image',
           imageUrl,
         };
