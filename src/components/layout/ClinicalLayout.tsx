@@ -5,6 +5,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import MobileNav from '@/components/layout/MobileNav'
 import TopBar from '@/components/layout/TopBar'
 import NotificationDrawer from '@/components/layout/NotificationDrawer'
+import { PatientSearch } from '@/components/ui/PatientSearch'
 import { subscribeToNotifications } from '@/services/firebase/notifications'
 import { subscribeToUserPatients } from '@/services/firebase/patients'
 import { showNotification } from '@/services/browserNotifications'
@@ -167,6 +168,7 @@ export default function ClinicalLayout() {
           open={notificationsOpen}
           onClose={() => setNotificationsOpen(false)}
         />
+        <PatientSearch />
       </div>
     )
   }
@@ -193,6 +195,7 @@ export default function ClinicalLayout() {
         open={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
       />
+      <PatientSearch />
     </div>
   )
 }

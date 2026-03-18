@@ -811,8 +811,8 @@ export default function PatientDetailPage() {
 
   return (
     <div className="space-y-2">
-      {/* ── Compact header strip ── */}
-      <div className={clsx('bg-ward-card rounded-xl border border-ward-border border-l-4 px-3 py-2.5 sm:px-4 sm:py-3', acuityBorderColor)}>
+      {/* ── Compact header strip (sticky) ── */}
+      <div className={clsx('bg-ward-card rounded-xl border border-ward-border border-l-4 px-3 py-2.5 sm:px-4 sm:py-3 sticky top-0 z-10', acuityBorderColor)}>
         {/* Row 1: Back + Name + Actions */}
         <div className="flex items-center gap-2">
           <button

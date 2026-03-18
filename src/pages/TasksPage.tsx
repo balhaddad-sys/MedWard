@@ -599,12 +599,35 @@ export default function TasksPage() {
             </Select>
           </div>
 
-          <Input
-            label="Due Date & Time"
-            type="datetime-local"
-            value={formData.dueAt || ''}
-            onChange={(e) => setFormData({ ...formData, dueAt: e.target.value })}
-          />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Due Date & Time</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {[
+                { label: '1 hr', hours: 1 },
+                { label: '4 hr', hours: 4 },
+                { label: 'EOD', hours: (() => { const eod = new Date(); eod.setHours(18, 0, 0, 0); return Math.max(1, (eod.getTime() - Date.now()) / 3600000); })() },
+                { label: 'Tomorrow 9am', hours: (() => { const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(9, 0, 0, 0); return (t.getTime() - Date.now()) / 3600000; })() },
+              ].map(({ label, hours }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => {
+                    const d = new Date(Date.now() + hours * 3600000);
+                    setFormData({ ...formData, dueAt: d.toISOString().slice(0, 16) });
+                  }}
+                  className="px-2.5 py-1 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="datetime-local"
+              value={formData.dueAt || ''}
+              onChange={(e) => setFormData({ ...formData, dueAt: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100"
+            />
+          </div>
 
           <Textarea
             label="Notes"

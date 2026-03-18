@@ -73,6 +73,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { mode, modeConfig } = useModeContext();
   const patients = usePatientStore((s) => s.patients);
+  const labPanels = usePatientStore((s) => s.labPanels);
   const tasks = useTaskStore((s) => s.tasks);
   const user = useAuthStore((s) => s.user);
 
@@ -417,6 +418,72 @@ export default function Dashboard() {
           })}
         </div>
       </div>
+
+      {/* ---- Critical labs banner ---- */}
+      {(() => {
+        const critLabs: { patientName: string; patientId: string; bed: string; values: string[] }[] = [];
+        patients.forEach((p) => {
+          const panels = labPanels[p.id] || [];
+          const crits: string[] = [];
+          panels.slice(0, 2).forEach((panel) =>
+            (panel.values || []).forEach((v) => {
+              if (v.flag === 'critical_low' || v.flag === 'critical_high') {
+                crits.push(`${v.name}: ${v.value}${v.unit ? ` ${v.unit}` : ''}`);
+              }
+            })
+          );
+          if (crits.length > 0) critLabs.push({ patientName: `${p.lastName}, ${p.firstName}`, patientId: p.id, bed: p.bedNumber, values: crits });
+        });
+        if (critLabs.length === 0) return null;
+        return (
+          <div>
+            <h2 className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Beaker size={13} /> Critical Lab Results
+            </h2>
+            <div className="space-y-1.5">
+              {critLabs.slice(0, 5).map((cl) => (
+                <div
+                  key={cl.patientId}
+                  onClick={() => navigate(`/patients/${cl.patientId}`)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-red-800 dark:text-red-300">{cl.patientName} <span className="text-red-500 dark:text-red-400 font-normal">Bed {cl.bed}</span></p>
+                    <p className="text-[11px] text-red-600 dark:text-red-400 truncate">{cl.values.join(' · ')}</p>
+                  </div>
+                  <ArrowRight size={14} className="text-red-400 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ---- Highest priority patient ---- */}
+      {(() => {
+        const next = [...patients].sort((a, b) => a.acuity - b.acuity)[0];
+        if (!next || patients.length < 2) return null;
+        const patientTasks = tasks.filter((t) => t.patientId === next.id && t.status !== 'completed' && t.status !== 'cancelled');
+        return (
+          <div
+            onClick={() => navigate(`/patients/${next.id}`)}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-sm font-bold text-blue-700 dark:text-blue-300">
+              {next.acuity}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">
+                Next: {next.lastName}, {next.firstName} — Bed {next.bedNumber}
+              </p>
+              <p className="text-[11px] text-blue-600 dark:text-blue-400 truncate">
+                {next.primaryDiagnosis || 'No diagnosis'}{patientTasks.length > 0 ? ` · ${patientTasks.length} pending task${patientTasks.length > 1 ? 's' : ''}` : ''}
+              </p>
+            </div>
+            <ArrowRight size={14} className="text-blue-400 shrink-0" />
+          </div>
+        );
+      })()}
 
       {/* ---- Patient list + Active tasks (2-col on large screens) ---- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

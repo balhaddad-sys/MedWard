@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Building2,
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -286,6 +287,34 @@ export default function PatientListPage() {
 
   function removeAllergy(index: number) {
     setFormData((prev) => ({ ...prev, allergies: prev.allergies.filter((_, i) => i !== index) }));
+  }
+
+  function PatientCardMeta({ patientId, admissionDate, updatedAt }: { patientId: string; admissionDate?: unknown; updatedAt?: unknown }) {
+    const patientTasks = tasks.filter((t) => t.patientId === patientId && t.status !== 'completed' && t.status !== 'cancelled');
+    const labPanels = usePatientStore.getState().labPanels[patientId] || [];
+    const criticalLabCount = labPanels.reduce((count, panel) =>
+      count + (panel.values || []).filter((v) => v.flag === 'critical_low' || v.flag === 'critical_high').length, 0);
+
+    const admDate = toJsDate(admissionDate as Parameters<typeof toJsDate>[0]);
+    const updDate = toJsDate(updatedAt as Parameters<typeof toJsDate>[0]);
+    const dayNum = admDate ? Math.ceil((Date.now() - admDate.getTime()) / 86400000) : null;
+
+    const chips: { label: string; color: string }[] = [];
+    if (patientTasks.length > 0) chips.push({ label: `${patientTasks.length} task${patientTasks.length > 1 ? 's' : ''}`, color: 'text-blue-600 dark:text-blue-400' });
+    if (criticalLabCount > 0) chips.push({ label: `${criticalLabCount} critical lab${criticalLabCount > 1 ? 's' : ''}`, color: 'text-red-600 dark:text-red-400' });
+    if (dayNum) chips.push({ label: `Day ${dayNum}`, color: 'text-slate-500 dark:text-slate-400' });
+    if (updDate) chips.push({ label: `Updated ${formatDistanceToNow(updDate, { addSuffix: true })}`, color: 'text-slate-400 dark:text-slate-500' });
+
+    if (chips.length === 0) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+        {chips.map((c) => (
+          <span key={c.label} className={clsx('text-[10px] font-medium', c.color)}>
+            {c.label}
+          </span>
+        ))}
+      </div>
+    );
   }
 
   function PatientSkeleton() {
@@ -581,6 +610,10 @@ export default function PatientListPage() {
                               <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 truncate italic">
                                 {patient.primaryDiagnosis}
                               </p>
+                            )}
+                            {/* Clinical summary row */}
+                            {!compactView && (
+                              <PatientCardMeta patientId={patient.id} admissionDate={patient.admissionDate} updatedAt={patient.updatedAt} />
                             )}
                           </div>
 
