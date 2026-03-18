@@ -578,7 +578,7 @@ export const analyzeLabImage = onCall(
     cpu: 2,
     region: "europe-west1",
     timeoutSeconds: 120,
-    enforceAppCheck: true,
+    enforceAppCheck: false,
   },
   async (request) => {
     if (!request.auth) {

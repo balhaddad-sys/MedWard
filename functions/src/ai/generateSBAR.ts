@@ -46,7 +46,7 @@ export const generateSBAR = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
   },
   async (request) => {
     if (!request.auth) {

@@ -156,7 +156,7 @@ export const generateWardRoundBrief = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
   },
   async (request) => {
     if (!request.auth) {
@@ -222,7 +222,7 @@ export const generateProgressNote = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
   },
   async (request) => {
     if (!request.auth) {
@@ -283,7 +283,7 @@ export const generateDischargeSummary = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
   },
   async (request) => {
     if (!request.auth) {
@@ -362,7 +362,7 @@ export const suggestTasks = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
   },
   async (request) => {
     if (!request.auth) {
@@ -445,7 +445,7 @@ export const generateLabNarrative = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
   },
   async (request) => {
     if (!request.auth) {

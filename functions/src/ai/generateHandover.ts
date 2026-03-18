@@ -10,7 +10,7 @@ export const generateHandover = onCall(
     secrets: [anthropicApiKey],
     cors: true,
     region: "europe-west1",
-    enforceAppCheck: true,
+    enforceAppCheck: false,
   },
   async (request) => {
     if (!request.auth) {
