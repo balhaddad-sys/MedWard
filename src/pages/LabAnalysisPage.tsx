@@ -182,7 +182,7 @@ export default function LabAnalysisPage() {
   const [compressionInfo, setCompressionInfo] = useState<string | null>(null);
   const [extractedResults, setExtractedResults] = useState<LabPanel | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  const [uploadMode, setUploadMode] = useState<UploadMode>('archive');
+  const [uploadMode, setUploadMode] = useState<UploadMode>('ai');
   const [uploadMetrics, setUploadMetrics] = useState<UploadMetrics | null>(null);
   const [patientLabs, setPatientLabs] = useState<LabPanel[]>([]);
   const [labsLoading, setLabsLoading] = useState(false);
@@ -1114,12 +1114,12 @@ export default function LabAnalysisPage() {
                 className={clsx(
                   'rounded-lg border px-3 py-2 text-left transition-colors',
                   uploadMode === 'archive'
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                    : 'border-ward-border bg-ward-card hover:border-slate-300'
+                    ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300'
+                    : 'border-ward-border bg-ward-card hover:border-slate-300 dark:hover:border-slate-600'
                 )}
               >
-                <p className="text-xs font-semibold">Image Archive Only (Recommended)</p>
-                <p className="text-[11px] mt-0.5">Saves source images to patient record without parser output.</p>
+                <p className="text-xs font-semibold">Image Archive Only</p>
+                <p className="text-[11px] mt-0.5">Saves source images only, no AI extraction.</p>
               </button>
               <button
                 type="button"
@@ -1127,12 +1127,12 @@ export default function LabAnalysisPage() {
                 className={clsx(
                   'rounded-lg border px-3 py-2 text-left transition-colors',
                   uploadMode === 'ai'
-                    ? 'border-blue-300 bg-blue-50 text-blue-700'
-                    : 'border-ward-border bg-ward-card hover:border-slate-300'
+                    ? 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300'
+                    : 'border-ward-border bg-ward-card hover:border-slate-300 dark:hover:border-slate-600'
                 )}
               >
-                <p className="text-xs font-semibold">AI Parse (Beta)</p>
-                <p className="text-[11px] mt-0.5">Extracts values with strict quality filtering, then saves accepted rows.</p>
+                <p className="text-xs font-semibold">AI Analysis (Recommended)</p>
+                <p className="text-[11px] mt-0.5">AI reads your lab image, extracts values, flags abnormals, and saves structured results.</p>
               </button>
             </div>
           </div>
