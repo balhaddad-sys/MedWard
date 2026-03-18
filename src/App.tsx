@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { ThemeSetting } from '@/stores/settingsStore'
 import { ModeProvider } from '@/context/ModeContext'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 import ClinicalLayout from '@/components/layout/ClinicalLayout'
 import { Spinner } from '@/components/ui'
 
@@ -178,6 +179,7 @@ export default function App() {
   }
 
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <ModeProvider>
         <AppRoutes />
@@ -203,5 +205,6 @@ export default function App() {
         />
       </ModeProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   )
 }

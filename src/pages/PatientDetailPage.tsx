@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { toJsDate } from '@/utils/formatters';
 import { clsx } from 'clsx';
 import {
@@ -337,9 +338,11 @@ export default function PatientDetailPage() {
       setEditErrors({});
       setEditDiagnosisInput('');
       setEditAllergyInput('');
+      toast.success('Patient updated');
     } catch (err) {
       console.error('Error updating patient:', err);
       setEditErrors({ general: 'Failed to save changes. Please try again.' });
+      toast.error('Failed to save changes');
     } finally {
       setEditSaving(false);
     }
@@ -350,9 +353,11 @@ export default function PatientDetailPage() {
     try {
       await deletePatientFirebase(id);
       removePatientStore(id);
+      toast.success('Patient deleted');
       navigate('/patients', { replace: true });
     } catch (err) {
       console.error('Error deleting patient:', err);
+      toast.error('Failed to delete patient');
     }
   }
 
@@ -361,8 +366,10 @@ export default function PatientDetailPage() {
     setCompletingTask(taskId);
     try {
       await completeTask(taskId, user.id);
+      toast.success('Task completed');
     } catch (err) {
       console.error('Error completing task:', err);
+      toast.error('Failed to complete task');
     } finally {
       setCompletingTask(null);
     }

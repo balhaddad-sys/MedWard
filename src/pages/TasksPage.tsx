@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { clsx } from 'clsx';
+import toast from 'react-hot-toast';
 import {
   ClipboardList,
   Plus,
@@ -263,9 +264,11 @@ export default function TasksPage() {
       setShowCreateModal(false);
       setFormData(initialFormData);
       setFormErrors({});
+      toast.success('Task created');
     } catch (err) {
       console.error('Error creating task:', err);
       setFormErrors({ general: 'Failed to create task. Please try again.' });
+      toast.error('Failed to create task');
     } finally {
       setSaving(false);
     }
@@ -276,8 +279,10 @@ export default function TasksPage() {
     setCompletingTask(taskId);
     try {
       await completeTask(taskId, user.id);
+      toast.success('Task completed');
     } catch (err) {
       console.error('Error completing task:', err);
+      toast.error('Failed to complete task');
     } finally {
       setCompletingTask(null);
     }

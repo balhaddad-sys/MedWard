@@ -32,6 +32,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
+import toast from 'react-hot-toast'
 import { toJsDate } from '@/utils/formatters'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
@@ -2200,8 +2201,10 @@ function AlertsTab() {
     setCompletingTask(taskId)
     try {
       await completeTask(taskId, user.id)
+      toast.success('Task completed')
     } catch (err) {
       console.error('Error completing task:', err)
+      toast.error('Failed to complete task')
     } finally {
       setCompletingTask(null)
     }

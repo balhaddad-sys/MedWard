@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { toJsDate } from '@/utils/formatters';
 import { clsx } from 'clsx';
 import {
@@ -121,6 +122,7 @@ export default function PatientListPage() {
     searchQuery,
     filterAcuity,
     loading,
+    error,
     setPatients,
     setSearchQuery,
     setFilterAcuity,
@@ -254,9 +256,11 @@ export default function PatientListPage() {
       setFormErrors({});
       setDiagnosisInput('');
       setAllergyInput('');
+      toast.success('Patient added successfully');
     } catch (err) {
       console.error('Error creating patient:', err);
       setFormErrors({ general: 'Failed to create patient. Please try again.' });
+      toast.error('Failed to create patient');
     } finally {
       setSaving(false);
     }
@@ -467,6 +471,14 @@ export default function PatientListPage() {
               {ward}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* ---- Error banner ---- */}
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+          <AlertTriangle size={16} className="shrink-0" />
+          <span>Failed to load patients. Check your connection and try again.</span>
         </div>
       )}
 
