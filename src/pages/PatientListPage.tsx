@@ -55,19 +55,19 @@ const sortOptions = [
 type SortKey = typeof sortOptions[number]['value'];
 
 const ACUITY_BORDER: Record<1 | 2 | 3 | 4 | 5, string> = {
-  1: 'border-l-[3px] border-l-red-500',
-  2: 'border-l-[3px] border-l-orange-400',
-  3: 'border-l-[3px] border-l-yellow-400',
-  4: 'border-l-[3px] border-l-emerald-400',
-  5: 'border-l-[3px] border-l-blue-400',
+  1: 'border-l-4 border-l-red-500',
+  2: 'border-l-4 border-l-orange-400',
+  3: 'border-l-4 border-l-yellow-400',
+  4: 'border-l-4 border-l-emerald-400',
+  5: 'border-l-4 border-l-blue-400',
 };
 
 const ACUITY_BG: Record<1 | 2 | 3 | 4 | 5, string> = {
   1: 'bg-red-50/50 dark:bg-red-950/20',
   2: 'bg-orange-50/50 dark:bg-orange-950/20',
-  3: '',
-  4: '',
-  5: '',
+  3: 'bg-yellow-50/30 dark:bg-yellow-950/10',
+  4: 'bg-emerald-50/30 dark:bg-emerald-950/10',
+  5: 'bg-blue-50/30 dark:bg-blue-950/10',
 };
 
 const ACUITY_CIRCLE: Record<1 | 2 | 3 | 4 | 5, string> = {

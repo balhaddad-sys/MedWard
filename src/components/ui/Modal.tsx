@@ -86,7 +86,7 @@ function Modal({
       {/* Content panel */}
       <div
         className={clsx(
-          'relative w-full bg-ward-card rounded-2xl shadow-xl',
+          'relative w-full bg-ward-card rounded-xl shadow-xl',
           'transform transition-all duration-200',
           'animate-in slide-in-from-bottom-4 fade-in duration-200',
           'flex flex-col max-h-[90vh]',
