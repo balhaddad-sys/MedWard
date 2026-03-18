@@ -127,10 +127,8 @@ export function ScanLabsButton({ patientId, onSaved }: ScanLabsButtonProps) {
       const { Timestamp } = await import('firebase/firestore');
       const now = Timestamp.fromDate(new Date());
 
-      const analyzeLabImageFn = httpsCallable<
-        { imageBase64: string; mediaType: string },
-        { structured?: { panels?: Array<{ panel_name?: string; results?: Array<{ test_name?: string; value?: string | number; unit?: string; flag?: string; ref_low?: number; ref_max?: number }> }> } }
-      >(functions, 'analyzeLabImage');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const analyzeLabImageFn = httpsCallable<{ imageBase64: string; mediaType: string }, any>(functions, 'analyzeLabImage');
 
       for (let i = 0; i < images.length; i++) {
         const img = images[i];
@@ -142,7 +140,10 @@ export function ScanLabsButton({ patientId, onSaved }: ScanLabsButtonProps) {
         setProgress(Math.round(((i + 0.5) / images.length) * 100));
         const [imageUrl, aiResult] = await Promise.all([
           uploadLabImage(user.id, compressed, img.file.name),
-          analyzeLabImageFn({ imageBase64: base64, mediaType: 'image/jpeg' }).catch(() => null),
+          analyzeLabImageFn({ imageBase64: base64, mediaType: 'image/jpeg' }).catch((err) => {
+            console.error('Lab AI analysis failed:', err);
+            return null;
+          }),
         ]);
 
         const collectedAt = Timestamp.fromDate(img.takenAt);
@@ -157,22 +158,32 @@ export function ScanLabsButton({ patientId, onSaved }: ScanLabsButtonProps) {
         let panelName = `Lab Image — ${dateLabel}`;
         let status: 'pending' | 'resulted' = 'pending';
 
-        if (aiResult?.data?.structured?.panels) {
-          const panels = aiResult.data.structured.panels;
+        try {
+          const structured = aiResult?.data?.structured;
+          const panels = structured?.panels || [];
           if (panels.length > 0) {
-            panelName = panels[0].panel_name || panelName;
-            values = (panels[0].results || [])
-              .filter((r) => r.test_name && r.value != null)
-              .map((r) => ({
-                name: r.test_name!,
-                value: r.value!,
-                unit: r.unit || '',
-                flag: (r.flag as LabValue['flag']) || 'normal',
-                referenceMin: r.ref_low,
-                referenceMax: r.ref_max,
-              }));
+            // Use first panel name if available
+            if (panels[0].panel_name) panelName = panels[0].panel_name;
+            // Flatten all results from all panels
+            for (const panel of panels) {
+              for (const r of (panel.results || [])) {
+                if (!r.test_name) continue;
+                const val = r.value ?? r.value_raw;
+                if (val == null || val === '') continue;
+                values.push({
+                  name: String(r.test_name),
+                  value: typeof val === 'number' ? val : String(val),
+                  unit: String(r.unit || ''),
+                  flag: (['normal', 'low', 'high', 'critical_low', 'critical_high'].includes(r.flag) ? r.flag : 'normal') as LabValue['flag'],
+                  referenceMin: typeof r.ref_low === 'number' ? r.ref_low : undefined,
+                  referenceMax: typeof r.ref_high === 'number' ? r.ref_high : undefined,
+                });
+              }
+            }
             status = values.length > 0 ? 'resulted' : 'pending';
           }
+        } catch (parseErr) {
+          console.error('Failed to parse AI lab result:', parseErr);
         }
 
         const panel: Omit<LabPanel, 'id' | 'createdAt'> = {
