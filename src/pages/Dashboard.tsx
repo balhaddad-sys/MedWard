@@ -78,6 +78,11 @@ function calculateAge(dob: string): string {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { mode, modeConfig } = useModeContext();
+  const patients = usePatientStore((s) => s.patients);
+  const labPanels = usePatientStore((s) => s.labPanels);
+  const tasks = useTaskStore((s) => s.tasks);
+  const user = useAuthStore((s) => s.user);
+
   const [roundsBrief, setRoundsBrief] = useState<string | null>(null);
   const [roundsLoading, setRoundsLoading] = useState(false);
 
@@ -85,7 +90,7 @@ export default function Dashboard() {
     if (patients.length === 0 || roundsLoading) return;
     setRoundsLoading(true);
     try {
-      const ids = patients.sort((a, b) => a.acuity - b.acuity).map((p) => p.id);
+      const ids = [...patients].sort((a, b) => a.acuity - b.acuity).map((p) => p.id);
       const result = await callWardRoundBrief(ids);
       setRoundsBrief(result);
       toast.success('Ward round brief generated');
@@ -96,11 +101,6 @@ export default function Dashboard() {
       setRoundsLoading(false);
     }
   }
-
-  const patients = usePatientStore((s) => s.patients);
-  const labPanels = usePatientStore((s) => s.labPanels);
-  const tasks = useTaskStore((s) => s.tasks);
-  const user = useAuthStore((s) => s.user);
 
   const stats = useMemo(() => {
     const totalPatients = patients.length;
