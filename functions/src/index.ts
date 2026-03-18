@@ -9,5 +9,12 @@ export { generateHandover } from "./ai/generateHandover";
 export { analyzeLabImage } from "./ai/analyzeLabImage";
 export { extractHistoryFromImage } from "./ai/extractHistoryFromImage";
 export { aiGateway } from "./ai/aiGateway";
+export {
+  generateWardRoundBrief,
+  generateProgressNote,
+  generateDischargeSummary,
+  suggestTasks,
+  generateLabNarrative,
+} from "./ai/clinicalAI";
 export { cleanupCompletedTasks } from "./tasks/cleanupCompletedTasks";
 export { cleanupRateLimitDocuments, backupClinicalSnapshot } from "./tasks/maintenanceJobs";

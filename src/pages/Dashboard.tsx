@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { toJsDate } from '@/utils/formatters';
+import { callWardRoundBrief } from '@/services/firebase/clinicalAI';
 import { clsx } from 'clsx';
 import {
   Users,
@@ -19,6 +21,10 @@ import {
   CheckCircle2,
   TrendingDown,
   Pill,
+  Bot,
+  Loader2,
+  Copy,
+  X,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
@@ -72,6 +78,25 @@ function calculateAge(dob: string): string {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { mode, modeConfig } = useModeContext();
+  const [roundsBrief, setRoundsBrief] = useState<string | null>(null);
+  const [roundsLoading, setRoundsLoading] = useState(false);
+
+  async function handlePrepareRounds() {
+    if (patients.length === 0 || roundsLoading) return;
+    setRoundsLoading(true);
+    try {
+      const ids = patients.sort((a, b) => a.acuity - b.acuity).map((p) => p.id);
+      const result = await callWardRoundBrief(ids);
+      setRoundsBrief(result);
+      toast.success('Ward round brief generated');
+    } catch (err) {
+      console.error('Ward round brief error:', err);
+      toast.error('Failed to generate ward round brief');
+    } finally {
+      setRoundsLoading(false);
+    }
+  }
+
   const patients = usePatientStore((s) => s.patients);
   const labPanels = usePatientStore((s) => s.labPanels);
   const tasks = useTaskStore((s) => s.tasks);
@@ -390,6 +415,60 @@ export default function Dashboard() {
             </Button>
           </div>
         </Card>
+      )}
+
+      {/* ---- AI Prepare Rounds ---- */}
+      {patients.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={handlePrepareRounds}
+            disabled={roundsLoading}
+            className={clsx(
+              'w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-150',
+              'bg-gradient-to-r from-indigo-600 to-purple-600 text-white',
+              'hover:from-indigo-700 hover:to-purple-700 active:scale-[0.99]',
+              'disabled:opacity-60 disabled:cursor-not-allowed',
+              'shadow-md hover:shadow-lg',
+            )}
+          >
+            {roundsLoading ? <Loader2 size={18} className="animate-spin" /> : <Bot size={18} />}
+            <span className="flex-1 text-left">{roundsLoading ? 'Generating briefs...' : 'Prepare Ward Rounds'}</span>
+            <span className="text-xs opacity-80">{patients.length} patients</span>
+          </button>
+
+          {roundsBrief && (
+            <div className="mt-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-2 bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-200 dark:border-indigo-800">
+                <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                  <Bot size={12} /> AI Ward Round Brief
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(roundsBrief); toast.success('Copied'); }}
+                    className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
+                  >
+                    <Copy size={12} className="text-indigo-500" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRoundsBrief(null)}
+                    className="p-1 rounded hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
+                  >
+                    <X size={12} className="text-indigo-500" />
+                  </button>
+                </div>
+              </div>
+              <div className="px-4 py-3 text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-[60vh] overflow-y-auto">
+                {roundsBrief}
+              </div>
+              <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400">
+                AI-generated brief — verify with chart before rounds.
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ---- Quick actions ---- */}

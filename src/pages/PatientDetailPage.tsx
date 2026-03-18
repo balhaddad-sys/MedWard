@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, useCallback, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { toJsDate } from '@/utils/formatters';
+import { callProgressNote, callDischargeSummary, callSuggestTasks, callLabNarrative } from '@/services/firebase/clinicalAI';
 import { clsx } from 'clsx';
 import {
   ArrowLeft,
@@ -33,6 +34,9 @@ import {
   Users,
   ImageIcon,
   ExternalLink,
+  Bot,
+  Loader2,
+  Copy,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { usePatientStore } from '@/stores/patientStore';
@@ -106,6 +110,43 @@ export default function PatientDetailPage() {
   const [editAllergyInput, setEditAllergyInput] = useState('');
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [headerExpanded, setHeaderExpanded] = useState(false);
+
+  // AI features state
+  const [aiOutput, setAiOutput] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState<string | null>(null); // tracks which AI action is loading
+  const [aiSuggestions, setAiSuggestions] = useState<Array<{ title: string; category: string; priority: string; rationale: string }>>([]);
+
+  const handleAIAction = useCallback(async (action: string) => {
+    if (!id || aiLoading) return;
+    setAiLoading(action);
+    setAiOutput(null);
+    setAiSuggestions([]);
+    try {
+      if (action === 'progress-note') {
+        const result = await callProgressNote(id);
+        setAiOutput(result);
+      } else if (action === 'discharge-summary') {
+        const result = await callDischargeSummary(id);
+        setAiOutput(result);
+      } else if (action === 'suggest-tasks') {
+        const result = await callSuggestTasks(id);
+        setAiSuggestions(result);
+      } else if (action === 'lab-narrative') {
+        const labPanels = usePatientStore.getState().labPanels[id] || [];
+        const labData = labPanels.slice(0, 3).map(panel =>
+          `${panel.panelName || 'Panel'}: ${(panel.values || []).map((v) => `${v.name}=${v.value}${v.unit || ''}${v.flag && v.flag !== 'normal' ? `[${v.flag}]` : ''}`).join(', ')}`
+        ).join('\n');
+        const result = await callLabNarrative(id, labData);
+        setAiOutput(result);
+      }
+      toast.success(`${action.replace(/-/g, ' ')} generated`);
+    } catch (err) {
+      console.error(`AI ${action} error:`, err);
+      toast.error(`Failed to generate ${action.replace(/-/g, ' ')}`);
+    } finally {
+      setAiLoading(null);
+    }
+  }, [id, aiLoading]);
 
   // Patient history state
   const [patientHistory, setPatientHistory] = useState<PatientHistory | null>(null);
@@ -1116,6 +1157,91 @@ export default function PatientDetailPage() {
                 <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{patient.notes}</p>
               </Card>
             )}
+
+            {/* AI Clinical Actions */}
+            <Card padding="md">
+              <div className="flex items-center gap-2 mb-3">
+                <Bot size={15} className="text-indigo-500" />
+                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  AI Clinical Tools
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleAIAction('progress-note')}
+                  disabled={!!aiLoading}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors disabled:opacity-50"
+                >
+                  {aiLoading === 'progress-note' ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                  Progress Note
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAIAction('discharge-summary')}
+                  disabled={!!aiLoading}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors disabled:opacity-50"
+                >
+                  {aiLoading === 'discharge-summary' ? <Loader2 size={14} className="animate-spin" /> : <ClipboardList size={14} />}
+                  Discharge Summary
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAIAction('suggest-tasks')}
+                  disabled={!!aiLoading}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors disabled:opacity-50"
+                >
+                  {aiLoading === 'suggest-tasks' ? <Loader2 size={14} className="animate-spin" /> : <AlertCircle size={14} />}
+                  Suggest Tasks
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAIAction('lab-narrative')}
+                  disabled={!!aiLoading}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors disabled:opacity-50"
+                >
+                  {aiLoading === 'lab-narrative' ? <Loader2 size={14} className="animate-spin" /> : <Beaker size={14} />}
+                  Explain Labs
+                </button>
+              </div>
+
+              {/* AI Output */}
+              {aiOutput && (
+                <div className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase">AI Generated</span>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(aiOutput); toast.success('Copied to clipboard'); }}
+                      className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                  <div className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto">
+                    {aiOutput}
+                  </div>
+                </div>
+              )}
+
+              {/* Task Suggestions */}
+              {aiSuggestions.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase">Suggested Tasks</span>
+                  {aiSuggestions.map((s, i) => (
+                    <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                      <Badge variant={s.priority === 'critical' ? 'critical' : s.priority === 'high' ? 'warning' : 'default'} size="sm">
+                        {s.priority}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">{s.title}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">{s.rationale}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
 
             {/* Latest Clerking Summary */}
             {clerkingNotes.length > 0 && (() => {

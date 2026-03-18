@@ -13,6 +13,8 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { getClerkingNotesByPatient, generateSBAR as generateClerkingSBAR } from '@/services/firebase/clerkingNotes';
 import { usePatientStore } from '@/stores/patientStore';
+import { useTaskStore } from '@/stores/taskStore';
+import { toJsDate } from '@/utils/formatters';
 import { ACUITY_LEVELS } from '@/config/constants';
 import type { Patient } from '@/types/patient';
 import { Card } from '@/components/ui/Card';
@@ -30,6 +32,7 @@ interface SBARResult {
 export default function HandoverPage() {
   const allPatients = usePatientStore((s) => s.patients);
   const patients = allPatients.filter((p) => p.state !== 'discharged');
+  const tasks = useTaskStore((s) => s.tasks);
 
   const [sbarResults, setSbarResults] = useState<Record<string, SBARResult>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set([1, 2, 3, 4, 5]));
@@ -115,12 +118,31 @@ export default function HandoverPage() {
         return clerkingSbar;
       }
 
+      // Build rich patient context for better SBAR
+      const labPanels = usePatientStore.getState().labPanels[patient.id] || [];
+      const patientTasks = tasks.filter((t) => t.patientId === patient.id && t.status !== 'completed' && t.status !== 'cancelled');
+      const admDate = toJsDate(patient.admissionDate);
+      const dayNum = admDate ? Math.ceil((Date.now() - admDate.getTime()) / 86400000) : null;
+
       const patientData = [
         `Patient: ${patient.firstName} ${patient.lastName}, Bed ${patient.bedNumber}`,
+        `Age/Sex: ${patient.dateOfBirth || 'Unknown'} | ${patient.gender || 'Unknown'}`,
+        `MRN: ${patient.mrn || 'Unknown'}`,
         `Primary Diagnosis: ${patient.primaryDiagnosis}`,
         `Acuity: ${ACUITY_LEVELS[patient.acuity].label}, Code Status: ${patient.codeStatus}`,
+        `State: ${patient.state || 'active'}${dayNum ? ` | Day ${dayNum}` : ''}`,
         `Diagnoses: ${(patient.diagnoses || []).join(', ') || 'None listed'}`,
         `Allergies: ${(patient.allergies || []).join(', ') || 'NKDA'}`,
+        `Attending: ${patient.attendingPhysician || 'Unknown'} | Team: ${patient.team || 'Unknown'}`,
+        // Recent labs
+        ...(labPanels.length > 0 ? [`Recent Labs: ${labPanels.slice(0, 3).map(panel =>
+          `${panel.panelName || 'Lab'}: ${(panel.values || [])
+            .filter((v) => v.flag && v.flag !== 'normal')
+            .map((v) => `${v.name}=${v.value}${v.unit || ''}[${v.flag}]`)
+            .join(', ') || 'all normal'}`
+        ).join('; ')}`] : []),
+        // Active tasks
+        ...(patientTasks.length > 0 ? [`Active Tasks: ${patientTasks.slice(0, 5).map((t) => `[${t.priority}] ${t.title}`).join('; ')}`] : []),
       ].join('\n');
 
       const generateSBARFn = httpsCallable(functions, 'generateSBAR');
