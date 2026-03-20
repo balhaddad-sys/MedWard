@@ -1,8 +1,9 @@
 // Cache name includes a timestamp that changes on each deployment.
-const CACHE_VERSION = '20260223';
+const CACHE_VERSION = '20260320';
 const CACHE_NAME = `medward-pro-v${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   '/',
+  '/index.html',
   '/favicon.png',
   '/icons/icon-96x96.png',
   '/icons/icon-192x192.png',
@@ -54,7 +55,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: network-first
+  // Navigation requests: network-first, fall back to cached app shell (SPA routing)
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(new Request(request, { cache: 'no-store' }))
@@ -63,7 +64,14 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return response;
         })
-        .catch(() => caches.match('/') || caches.match(request))
+        .catch(async () => {
+          // SPA: serve cached index.html for any navigation route
+          const cached = await caches.match('/index.html') || await caches.match('/');
+          return cached || new Response('Offline — please connect to load the app.', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain' },
+          });
+        })
     );
     return;
   }

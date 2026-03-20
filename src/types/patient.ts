@@ -3,11 +3,18 @@ import type { PatientState, PatientModification } from './patientState'
 
 export interface Patient {
   id: string
+  civilId: string
   mrn: string
   firstName: string
   lastName: string
   dateOfBirth: string
   gender: 'male' | 'female' | 'other'
+  nationality?: string
+  bloodType?: string
+  phone?: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  address?: string
   wardId: string // Legacy field - kept for backwards compatibility
   bedNumber: string
   admissionDate: Timestamp
@@ -42,11 +49,18 @@ export interface Patient {
 }
 
 export interface PatientFormData {
+  civilId: string
   mrn: string
   firstName: string
   lastName: string
   dateOfBirth: string
   gender: 'male' | 'female' | 'other'
+  nationality?: string
+  bloodType?: string
+  phone?: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  address?: string
   wardId: string
   bedNumber: string
   acuity: 1 | 2 | 3 | 4 | 5
@@ -64,6 +78,7 @@ export interface PatientFormData {
 
 export interface PatientSummary {
   id: string
+  civilId: string
   mrn: string
   name: string
   bedNumber: string

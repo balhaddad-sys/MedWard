@@ -2,6 +2,7 @@ import { createTask } from '@/services/firebase/tasks'
 import { createPatient, updatePatient } from '@/services/firebase/patients'
 import { addLabPanel } from '@/services/firebase/labs'
 import type { PatientFormData, TaskFormData, LabPanel } from '@/types'
+import type { PatientState } from '@/types/patientState'
 
 interface QueuedAction {
   id: string
@@ -17,13 +18,24 @@ const STORE_NAME = 'write_queue'
 const DB_VERSION = 1
 const MAX_RETRIES = 10
 // PHI minimization: queued items older than 24 h are purged on flush regardless of status
-const MAX_AGE_MS = 24 * 60 * 60 * 1000
+// In crisis mode this extends to 72 h
+const DEFAULT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+const CRISIS_MAX_AGE_MS = 72 * 60 * 60 * 1000
 
 class OfflineQueueService {
   private db: IDBDatabase | null = null
   private isOnline = navigator.onLine
   private isFlushing = false
+  private crisisMode = false
   private listeners: Array<(status: OfflineStatus) => void> = []
+
+  setCrisisMode(enabled: boolean): void {
+    this.crisisMode = enabled
+  }
+
+  private get maxAgeMs(): number {
+    return this.crisisMode ? CRISIS_MAX_AGE_MS : DEFAULT_MAX_AGE_MS
+  }
 
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -167,6 +179,20 @@ class OfflineQueueService {
         )
         break
 
+      case 'TRANSITION_STATE':
+        await updatePatient(
+          payload.id as string,
+          { state: payload.state as PatientState } as unknown as Partial<PatientFormData>
+        )
+        break
+
+      case 'UPDATE_CIVIL_ID':
+        await updatePatient(
+          payload.id as string,
+          { civilId: payload.civilId } as unknown as Partial<PatientFormData>
+        )
+        break
+
       default:
         throw new Error(`Unknown offline action: ${action}`)
     }
@@ -202,7 +228,7 @@ class OfflineQueueService {
   /** Remove all queued items older than MAX_AGE_MS regardless of status. */
   private async purgeExpired(): Promise<void> {
     if (!this.db) return
-    const cutoff = Date.now() - MAX_AGE_MS
+    const cutoff = Date.now() - this.maxAgeMs
     const all = await this.dbGetAll()
     await Promise.all(
       all

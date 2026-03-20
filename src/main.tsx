@@ -2,6 +2,16 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 import './index.css'
+import { offlineQueue } from '@/services/OfflineQueue'
+import { civilIdRegistry } from '@/services/CivilIdRegistry'
+import { offlinePatientCache } from '@/services/OfflinePatientCache'
+
+// Initialize offline services (non-blocking)
+Promise.all([
+  offlineQueue.init(),
+  civilIdRegistry.init(),
+  offlinePatientCache.init(),
+]).catch(console.error)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

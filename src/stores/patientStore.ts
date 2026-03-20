@@ -80,6 +80,7 @@ export const usePatientStore = create<PatientStore>()((set, get) => ({
         !searchQuery ||
         `${p.firstName ?? ''} ${p.lastName ?? ''}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.mrn ?? '').includes(searchQuery) ||
+        (p.civilId ?? '').includes(searchQuery) ||
         (p.bedNumber ?? '').toLowerCase().includes(searchQuery.toLowerCase())
       const matchesAcuity = filterAcuity === null || p.acuity === filterAcuity
       return matchesSearch && matchesAcuity

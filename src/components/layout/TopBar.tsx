@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Bell, Menu, Clock, ChevronDown, Wifi, WifiOff } from 'lucide-react'
+import { Bell, Menu, Clock, ChevronDown, Wifi, WifiOff, AlertTriangle, CloudOff } from 'lucide-react'
 import { useModeContext } from '@/context/useModeContext'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useAuthStore } from '@/stores/authStore'
+import { offlineQueue, type OfflineStatus } from '@/services/OfflineQueue'
+import { crisisMode } from '@/services/CrisisMode'
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -49,12 +51,31 @@ function useOnlineStatus() {
 // TopBar component
 // ---------------------------------------------------------------------------
 
+function useOfflineQueueStatus() {
+  const [status, setStatus] = useState<OfflineStatus>({ isOnline: navigator.onLine, pendingCount: 0, failedCount: 0 })
+  useEffect(() => {
+    offlineQueue.getStatus().then(setStatus).catch(() => {})
+    return offlineQueue.onStatusChange(setStatus)
+  }, [])
+  return status
+}
+
+function useCrisisMode() {
+  const [active, setActive] = useState(crisisMode.isActive())
+  useEffect(() => {
+    return crisisMode.onStatusChange(setActive)
+  }, [])
+  return active
+}
+
 export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: TopBarProps) {
   const { mode, modeConfig } = useModeContext()
   const unreadCount = useNotificationStore((s) => s.unreadCount)
   const user = useAuthStore((s) => s.user)
   const now = useLiveClock()
   const online = useOnlineStatus()
+  const queueStatus = useOfflineQueueStatus()
+  const isCrisisMode = useCrisisMode()
 
   const displayTitle = title ?? modeConfig.label
 
@@ -105,15 +126,29 @@ export default function TopBar({ title, onMenuToggle, onNotificationsToggle }: T
 
       {/* Right: clock + user role + notifications */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Offline indicator */}
-        {!online && (
-          <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium border border-amber-200">
-            <WifiOff size={12} />
-            Offline
+        {/* Crisis mode indicator */}
+        {isCrisisMode && (
+          <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-300 animate-pulse dark:bg-red-950/40 dark:text-red-400 dark:border-red-800">
+            <AlertTriangle size={12} />
+            CRISIS
           </span>
         )}
 
-        {online && (
+        {/* Offline / sync indicator */}
+        {!online ? (
+          <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-medium border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800">
+            <WifiOff size={12} />
+            Offline
+            {queueStatus.pendingCount > 0 && (
+              <span className="ml-0.5 px-1 py-px rounded-full bg-red-200 dark:bg-red-900 text-[10px] font-bold">{queueStatus.pendingCount}</span>
+            )}
+          </span>
+        ) : queueStatus.pendingCount > 0 ? (
+          <span className="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
+            <CloudOff size={12} />
+            Syncing {queueStatus.pendingCount}
+          </span>
+        ) : (
           <span className="hidden sm:flex items-center gap-1 text-xs text-slate-400">
             <Wifi size={12} className="text-emerald-500" />
           </span>

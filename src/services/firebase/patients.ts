@@ -21,6 +21,7 @@ import type { PatientState } from '@/types/patientState'
 const getPatientsRef = () => collection(db, 'patients')
 
 const safePatient = (id: string, data: Record<string, unknown>): Patient => ({
+  civilId: '',
   mrn: '',
   firstName: '',
   lastName: '',

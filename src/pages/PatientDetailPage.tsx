@@ -238,11 +238,18 @@ export default function PatientDetailPage() {
   useEffect(() => {
     if (patient) {
       setEditForm({
+        civilId: patient.civilId,
         mrn: patient.mrn,
         firstName: patient.firstName,
         lastName: patient.lastName,
         dateOfBirth: patient.dateOfBirth,
         gender: patient.gender,
+        nationality: patient.nationality,
+        bloodType: patient.bloodType,
+        phone: patient.phone,
+        emergencyContact: patient.emergencyContact,
+        emergencyPhone: patient.emergencyPhone,
+        address: patient.address,
         wardId: patient.wardId,
         bedNumber: patient.bedNumber,
         acuity: patient.acuity,
@@ -887,6 +894,12 @@ export default function PatientDetailPage() {
               )}
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+              {patient.civilId && (
+                <>
+                  <span>CID <strong>{patient.civilId}</strong></span>
+                  <span className="text-slate-300 dark:text-slate-600">·</span>
+                </>
+              )}
               <span>MRN <strong>{patient.mrn}</strong></span>
               <span className="text-slate-300 dark:text-slate-600">·</span>
               <span>Bed <strong>{patient.bedNumber}</strong></span>
@@ -1026,6 +1039,12 @@ export default function PatientDetailPage() {
                 Demographics & Location
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+                {patient.civilId && (
+                  <div>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Civil ID</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.civilId}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Gender</p>
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 capitalize">{patient.gender}</p>
@@ -1037,6 +1056,18 @@ export default function PatientDetailPage() {
                     {patient.dateOfBirth && <span className="text-slate-400 dark:text-slate-500 font-normal ml-1">({calculateAge(patient.dateOfBirth)})</span>}
                   </p>
                 </div>
+                {patient.nationality && (
+                  <div>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Nationality</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.nationality}</p>
+                  </div>
+                )}
+                {patient.bloodType && (
+                  <div>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Blood Type</p>
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-400">{patient.bloodType}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Ward</p>
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.wardId && patient.wardId !== 'default' ? patient.wardId : 'Unassigned'}</p>
@@ -1053,6 +1084,21 @@ export default function PatientDetailPage() {
                   <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Attending</p>
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.attendingPhysician || <span className="text-slate-400 dark:text-slate-500 font-normal italic">Not assigned</span>}</p>
                 </div>
+                {patient.phone && (
+                  <div>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Phone</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{patient.phone}</p>
+                  </div>
+                )}
+                {patient.emergencyContact && (
+                  <div>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Emergency Contact</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {patient.emergencyContact}
+                      {patient.emergencyPhone && <span className="font-normal text-slate-400 dark:text-slate-500 ml-1">({patient.emergencyPhone})</span>}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase">Weight</p>
                   <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -2342,6 +2388,12 @@ export default function PatientDetailPage() {
           <div>
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Patient Identity</p>
             <div className="space-y-4">
+              <Input
+                label="Civil ID"
+                value={editForm.civilId || ''}
+                onChange={(e) => setEditForm({ ...editForm, civilId: e.target.value })}
+                placeholder="e.g. 290010112345"
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="First Name"
@@ -2383,6 +2435,66 @@ export default function PatientDetailPage() {
                   <option value="female">Female</option>
                   <option value="other">Other</option>
                 </Select>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Demographics ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Demographics</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Nationality"
+                  value={editForm.nationality || ''}
+                  onChange={(e) => setEditForm({ ...editForm, nationality: e.target.value })}
+                  placeholder="e.g. Kuwaiti"
+                />
+                <Select
+                  label="Blood Type"
+                  value={editForm.bloodType || ''}
+                  onChange={(e) => setEditForm({ ...editForm, bloodType: e.target.value })}
+                >
+                  <option value="">Unknown</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Phone"
+                  value={editForm.phone || ''}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="e.g. +965 XXXX XXXX"
+                />
+                <Input
+                  label="Address"
+                  value={editForm.address || ''}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  placeholder="e.g. Block 5, Street 10"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Emergency Contact"
+                  value={editForm.emergencyContact || ''}
+                  onChange={(e) => setEditForm({ ...editForm, emergencyContact: e.target.value })}
+                  placeholder="Name of emergency contact"
+                />
+                <Input
+                  label="Emergency Phone"
+                  value={editForm.emergencyPhone || ''}
+                  onChange={(e) => setEditForm({ ...editForm, emergencyPhone: e.target.value })}
+                  placeholder="e.g. +965 XXXX XXXX"
+                />
               </div>
             </div>
           </div>

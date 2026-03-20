@@ -34,6 +34,9 @@ import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Textarea, Select } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { CivilIdLookup } from '@/components/CivilIdLookup';
+import { offlinePatientCache } from '@/services/OfflinePatientCache';
+import { civilIdRegistry } from '@/services/CivilIdRegistry';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -81,6 +84,7 @@ const ACUITY_CIRCLE: Record<1 | 2 | 3 | 4 | 5, string> = {
 };
 
 const initialFormData: PatientFormData = {
+  civilId: '',
   mrn: '',
   firstName: '',
   lastName: '',
@@ -176,8 +180,29 @@ export default function PatientListPage() {
     setLoading(true);
     const unsubscribe = subscribeToUserPatients(
       user.id,
-      (data) => { setError(null); setPatients(data); setLoading(false); },
-      (err) => { setError(err.message); setLoading(false); }
+      (data) => {
+        setError(null);
+        setPatients(data);
+        setLoading(false);
+        // Sync to offline cache for crisis/offline read access
+        offlinePatientCache.syncFromStore(data).catch(console.error);
+      },
+      async (err) => {
+        console.error('Subscription error, trying offline cache:', err.message);
+        // Fallback to offline cache when Firestore subscription fails
+        try {
+          const cached = await offlinePatientCache.getPatients();
+          if (cached.length > 0) {
+            setPatients(cached as typeof patients);
+            setError('Offline mode — showing cached data');
+          } else {
+            setError(err.message);
+          }
+        } catch {
+          setError(err.message);
+        }
+        setLoading(false);
+      }
     );
     return () => unsubscribe();
   }, [user, setPatients, setLoading, setError]);
@@ -257,6 +282,7 @@ export default function PatientListPage() {
 
   function validateForm(): boolean {
     const errors: Record<string, string> = {};
+    if (!formData.civilId.trim()) errors.civilId = 'Civil ID is required';
     if (!formData.firstName.trim()) errors.firstName = 'First name is required';
     if (!formData.lastName.trim()) errors.lastName = 'Last name is required';
     if (!formData.mrn.trim()) errors.mrn = 'MRN is required';
@@ -273,6 +299,25 @@ export default function PatientListPage() {
     setSaving(true);
     try {
       await createPatient(formData, user.id);
+      // Cache civil ID record for offline lookup
+      if (formData.civilId) {
+        civilIdRegistry.register({
+          civilId: formData.civilId,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          dateOfBirth: formData.dateOfBirth,
+          gender: formData.gender,
+          nationality: formData.nationality,
+          bloodType: formData.bloodType,
+          phone: formData.phone,
+          emergencyContact: formData.emergencyContact,
+          emergencyPhone: formData.emergencyPhone,
+          address: formData.address,
+          mrn: formData.mrn,
+          lastSeen: Date.now(),
+          source: 'manual',
+        }).catch(console.error);
+      }
       setShowAddModal(false);
       setFormData(initialFormData);
       setFormErrors({});
@@ -456,7 +501,7 @@ export default function PatientListPage() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
           <input
             type="text"
-            placeholder="Search by name, MRN, or bed..."
+            placeholder="Search by name, MRN, Civil ID, or bed..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={clsx(
@@ -756,10 +801,28 @@ export default function PatientListPage() {
             </div>
           )}
 
+          {/* ── Section: Civil ID Lookup ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Civil ID Lookup</p>
+            <CivilIdLookup
+              onAutoFill={(data) => setFormData((prev) => ({ ...prev, ...data }))}
+            />
+          </div>
+
+          <div className="border-t border-ward-border" />
+
           {/* ── Section: Patient Identity ── */}
           <div>
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Patient Identity</p>
             <div className="space-y-4">
+              <Input
+                label="Civil ID"
+                value={formData.civilId}
+                onChange={(e) => setFormData({ ...formData, civilId: e.target.value })}
+                error={formErrors.civilId}
+                placeholder="e.g. 290010112345"
+                required
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="First Name"
@@ -804,6 +867,66 @@ export default function PatientListPage() {
                   <option value="female">Female</option>
                   <option value="other">Other</option>
                 </Select>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-ward-border" />
+
+          {/* ── Section: Demographics ── */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Demographics</p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Nationality"
+                  value={formData.nationality || ''}
+                  onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                  placeholder="e.g. Kuwaiti"
+                />
+                <Select
+                  label="Blood Type"
+                  value={formData.bloodType || ''}
+                  onChange={(e) => setFormData({ ...formData, bloodType: e.target.value })}
+                >
+                  <option value="">Unknown</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Phone"
+                  value={formData.phone || ''}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="e.g. +965 XXXX XXXX"
+                />
+                <Input
+                  label="Address"
+                  value={formData.address || ''}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="e.g. Block 5, Street 10"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Emergency Contact"
+                  value={formData.emergencyContact || ''}
+                  onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
+                  placeholder="Name of emergency contact"
+                />
+                <Input
+                  label="Emergency Phone"
+                  value={formData.emergencyPhone || ''}
+                  onChange={(e) => setFormData({ ...formData, emergencyPhone: e.target.value })}
+                  placeholder="e.g. +965 XXXX XXXX"
+                />
               </div>
             </div>
           </div>
